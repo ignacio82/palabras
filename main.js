@@ -400,7 +400,27 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.updateGameModeTabs(tab.dataset.mode); // Use UI function
             ui.showScreen(tab.dataset.mode === 'local' ? 'localSetup' : 'networkSetup');
         }));
-        difficultyButtons.forEach(b => b.addEventListener('click', (e) => { state.setCurrentDifficulty(e.target.dataset.difficulty); ui.updateDifficultyButtonUI(); if(sound) sound.playUiClick(); }));
+        
+        // FIXED: Properly set up difficulty button event listeners
+        difficultyButtons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                console.log(`[Main] Difficulty button clicked: ${event.target.dataset.difficulty}`);
+                
+                // Update the state with the selected difficulty
+                state.setCurrentDifficulty(event.target.dataset.difficulty);
+                
+                // Update the UI to reflect the selection
+                ui.updateDifficultyButtonUI();
+                
+                // Play sound if available
+                if (sound && typeof sound.playUiClick === 'function') {
+                    sound.playUiClick();
+                }
+                
+                console.log(`[Main] Difficulty set to: ${state.getCurrentDifficulty()}`);
+            });
+        });
+        
         if(startLocalGameButton) startLocalGameButton.addEventListener('click', () => { startLocalGameUI(); if(sound) sound.playUiClick();});
         if(clueButtonEl) clueButtonEl.addEventListener('click', () => { handleClueRequestUI(); if(sound) sound.playUiClick();});
         if(playAgainButtonEl) playAgainButtonEl.addEventListener('click', () => {
