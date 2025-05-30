@@ -91,7 +91,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Game Flow Functions ---
     function startLocalGameUI() {
         ui.stopConfetti();
+        
+        // FIXED: Preserve the current difficulty before resetting state
+        const selectedDifficulty = state.getCurrentDifficulty();
+        console.log(`[Main] Starting local game with difficulty: ${selectedDifficulty}`);
+        
         stopAnyActiveGameOrNetworkSession(true);
+        
+        // FIXED: Restore the difficulty after state reset
+        state.setCurrentDifficulty(selectedDifficulty);
+        console.log(`[Main] Difficulty restored to: ${state.getCurrentDifficulty()}`);
+        
         state.setPvpRemoteActive(false);
         state.setPlayersData([{ id: 0, name: "Jugador", icon: "✏️", color: state.DEFAULT_PLAYER_COLORS[0], score: 0 }]);
         state.setCurrentPlayerId(0);
@@ -101,6 +111,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.showModal(initState.message || "No se pudo iniciar juego local.");
             return;
         }
+        
+        console.log(`[Main] Game initialized with word: ${initState.currentWordObject?.word}, difficulty: ${state.getCurrentDifficulty()}`);
+        
         ui.renderFullGameBoard(true, handleLetterClickUI); // Local game, always player's turn if active
         ui.showScreen('game');
         ui.displayMessage("Haz clic en una letra para adivinar...", 'info', true);
