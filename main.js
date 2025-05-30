@@ -62,55 +62,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCloseButtonEl = document.getElementById('modal-close-button');
     const modalDynamicButtonsEl = document.getElementById('modal-dynamic-buttons');
 
-    const confettiContainerEl = document.getElementById('confetti-container'); // For confetti
+    const confettiContainerEl = document.getElementById('confetti-container');
 
     let messageTimeout = null;
-    const HAPTICS_ENABLED = true; // User preference, can be made a setting later
+    const HAPTICS_ENABLED = true;
 
-    // --- Haptic Feedback Function ---
-    function triggerVibration(pattern = 30) { // Default short vibration
+    function triggerVibration(pattern = 30) {
         if (HAPTICS_ENABLED && typeof navigator.vibrate === 'function') {
-            try {
-                navigator.vibrate(pattern);
-            } catch (e) {
-                console.warn("Haptic feedback failed:", e);
-            }
+            try { navigator.vibrate(pattern); } catch (e) { console.warn("Haptic feedback failed:", e); }
         }
     }
 
-    // --- Confetti Functions ---
     const confettiColors = ["#FF69B4", "#00BFFF", "#FFD700", "#32CD32", "#FF7F50", "#DA70D6", "#f0f0f0", "#fffacd"];
-
     function createConfettiPiece() {
+        // ... (confetti logic as previously defined)
         if (!confettiContainerEl) return;
         const piece = document.createElement('div');
         piece.classList.add('confetti-piece');
         piece.style.backgroundColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
         piece.style.left = Math.random() * window.innerWidth + 'px';
-        const randomDrift = Math.random() * 2 - 1; // -1 to 1 for horizontal sway factor
-        piece.style.setProperty('--drift', randomDrift); // Set CSS variable for animation
-        const fallDuration = Math.random() * 3 + 4; // 4 to 7 seconds
+        const randomDrift = Math.random() * 2 - 1;
+        piece.style.setProperty('--drift', randomDrift);
+        const fallDuration = Math.random() * 3 + 4;
         piece.style.animationDuration = fallDuration + 's';
         piece.style.animationDelay = Math.random() * 0.5 + 's';
         confettiContainerEl.appendChild(piece);
         setTimeout(() => piece.remove(), (fallDuration + 1) * 1000);
     }
-
     function startConfetti(numberOfPieces = 120) {
         if (!confettiContainerEl) return;
-        stopConfetti(); // Clear existing before starting new
+        stopConfetti();
         for (let i = 0; i < numberOfPieces; i++) {
-            setTimeout(createConfettiPiece, i * 25); // Stagger creation
+            setTimeout(createConfettiPiece, i * 25);
         }
     }
-
     function stopConfetti() {
         if (confettiContainerEl) confettiContainerEl.innerHTML = '';
     }
 
-
-    // --- UI Update Functions ---
     function displayMessage(text, type = 'info', persistent = false, area = messageAreaEl) {
+        // ... (as previously defined)
         if (!area) return;
         if (messageTimeout && area === messageAreaEl) clearTimeout(messageTimeout);
 
@@ -131,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showModal(message, buttonsConfig = null) {
+        // ... (as previously defined)
         if (!customModalEl || !modalMessageTextEl || !modalCloseButtonEl || !modalDynamicButtonsEl) return;
         modalMessageTextEl.textContent = message;
         modalDynamicButtonsEl.innerHTML = '';
@@ -156,14 +148,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function hideModal() {
+        // ... (as previously defined)
         if (customModalEl) customModalEl.style.display = 'none';
     }
 
     function updateStarsDisplay() {
+        // ... (as previously defined)
         if (starsDisplayEl) starsDisplayEl.textContent = state.STAR_SYMBOL.repeat(state.remainingAttempts);
     }
 
     function updateWordDisplay() {
+        // ... (as previously defined)
         if (!wordDisplayContainerEl) return;
         wordDisplayContainerEl.innerHTML = '';
         if (!state.currentWord) return;
@@ -181,6 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateGuessedLettersDisplay() {
+        // ... (as previously defined)
         if (!correctLettersDisplayEl || !incorrectLettersDisplayEl) return;
         const correctArr = [];
         const incorrectArr = [];
@@ -198,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function createAlphabetKeyboard(isMyTurn = true) {
+        // ... (as previously defined)
         if (!alphabetKeyboardContainerEl) return;
         alphabetKeyboardContainerEl.innerHTML = '';
         state.ALPHABET.forEach(letter => {
@@ -212,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function updateAllAlphabetButtons(disable, isMyTurn = true) {
+        // ... (as previously defined)
         if (!alphabetKeyboardContainerEl) return;
         const buttons = alphabetKeyboardContainerEl.querySelectorAll('.alphabet-button');
         buttons.forEach(button => {
@@ -221,12 +219,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateDifficultyButtonUI() {
+        // ... (as previously defined)
         difficultyButtons.forEach(button => {
             button.classList.toggle('active', button.dataset.difficulty === state.currentDifficulty);
         });
     }
 
     function showScreen(screenName) {
+        // ... (as previously defined, ensure cancelMatchmakingButtonEl is handled)
         localGameSetupSection.style.display = 'none';
         networkGameSetupSection.style.display = 'none';
         gameAreaEl.style.display = 'none';
@@ -237,6 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(mainMenuButtonEl) mainMenuButtonEl.style.display = 'none';
         if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
 
+
         if (screenName === 'localSetup' && localGameSetupSection) localGameSetupSection.style.display = 'block';
         else if (screenName === 'networkSetup' && networkGameSetupSection) networkGameSetupSection.style.display = 'block';
         else if (screenName === 'game' && gameAreaEl) gameAreaEl.style.display = 'block';
@@ -245,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function populatePlayerIcons() {
+        // ... (as previously defined)
         if (networkPlayerIconSelect) {
             networkPlayerIconSelect.innerHTML = '';
             state.AVAILABLE_ICONS.forEach(icon => {
@@ -256,6 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateScoreDisplayUI() {
+        // ... (as previously defined)
         if (!scoreDisplayAreaEl) return;
         scoreDisplayAreaEl.innerHTML = '';
         if (!state.playersData || state.playersData.length === 0) return;
@@ -274,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateCurrentPlayerTurnUI() {
+        // ... (as previously defined)
         if (!currentPlayerTurnDisplaySpan) return;
         if (!state.gameActive || !state.playersData.length) {
             currentPlayerTurnDisplaySpan.textContent = '-';
@@ -291,10 +295,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Game Flow Functions ---
     function startLocalGameUI() {
+        // ... (as previously defined, includes stopConfetti)
         stopConfetti();
-        stopAnyActiveGameOrNetworkSession(true);
+        stopAnyActiveGameOrNetworkSession(true); 
         state.setPvpRemoteActive(false);
         const initState = logic.initializeGame(state, state.currentDifficulty);
 
@@ -305,19 +309,21 @@ document.addEventListener('DOMContentLoaded', () => {
         state.setPlayersData([{ id: 0, name: "Jugador", icon: "✏️", color: state.DEFAULT_PLAYER_COLORS[0], score: 0 }]);
         state.setCurrentPlayerId(0);
 
-        setupGameBoardUI(true);
+        setupGameBoardUI(true); 
         showScreen('game');
         displayMessage("Haz clic en una letra para adivinar...", 'info', true);
     }
 
     function setupGameBoardUI(isMyTurnCurrently) {
-        createAlphabetKeyboard(isMyTurnCurrently); // This now considers isMyTurn and gameActive
+        // ... (as previously defined)
+        createAlphabetKeyboard(isMyTurnCurrently); 
         updateWordDisplay();
         updateStarsDisplay();
         updateGuessedLettersDisplay();
-        updateScoreDisplayUI();
+        updateScoreDisplayUI(); 
         updateCurrentPlayerTurnUI();
         updateDifficultyButtonUI();
+
 
         if(clueButtonEl) {
             clueButtonEl.style.display = 'inline-block';
@@ -325,16 +331,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if(clueDisplayAreaEl) clueDisplayAreaEl.style.display = state.clueUsedThisGame ? 'block' : 'none';
         if(clueTextEl && state.clueUsedThisGame) clueTextEl.textContent = state.currentWordObject?.definition || "";
-        // updateAllAlphabetButtons implicitly handled by createAlphabetKeyboard and individual disabling
     }
 
     function handleLetterClickUI(letter, buttonElement) {
+        // ... (as previously defined, includes triggerVibration)
         if (!state.gameActive || (buttonElement && buttonElement.disabled)) return;
-        triggerVibration(25); // Haptic feedback for any letter click attempt
+        triggerVibration(25); 
 
         if (state.pvpRemoteActive) {
             if (state.networkRoomData.myPlayerIdInRoom === state.currentPlayerId) {
-                if(buttonElement) buttonElement.disabled = true;
+                if(buttonElement) buttonElement.disabled = true; 
                 peerConnection.sendGuessToHost(letter);
             } else {
                 displayMessage("No es tu turno.", 'error');
@@ -360,6 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleClueRequestUI() {
+        // ... (as previously defined, includes triggerVibration)
         if (!state.gameActive || state.clueUsedThisGame || (state.pvpRemoteActive && state.networkRoomData.myPlayerIdInRoom !== state.currentPlayerId) ) {
             if (state.pvpRemoteActive && state.networkRoomData.myPlayerIdInRoom !== state.currentPlayerId) {
                 displayMessage("No es tu turno para pedir pista.", "error");
@@ -385,7 +392,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function endGameUI(isWin) { // For local game over
-        updateAllAlphabetButtons(true);
+        // ... (as previously defined, includes triggerVibration and startConfetti)
+        updateAllAlphabetButtons(true); 
         if(clueButtonEl) clueButtonEl.disabled = true;
 
         if(playAgainButtonEl) playAgainButtonEl.style.display = 'inline-block';
@@ -411,29 +419,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function returnToMainMenuUI() {
+        // ... (as previously defined, includes stopConfetti)
         stopConfetti();
         stopAnyActiveGameOrNetworkSession();
     }
 
     function stopAnyActiveGameOrNetworkSession(preserveUIScreen = false) {
+        // ... (as previously defined, includes stopConfetti)
         console.log("[Main] stopAnyActiveGameOrNetworkSession. Preserve UI:", preserveUIScreen);
         const wasPvpActive = state.pvpRemoteActive;
 
-        if (state.gameActive) logic.initializeGame(state, state.currentDifficulty);
+        if (state.gameActive) logic.initializeGame(state, state.currentDifficulty); 
         state.setGameActive(false);
 
         if (wasPvpActive) {
-            peerConnection.closeAllConnectionsAndSession();
+            peerConnection.closeAllConnectionsAndSession(); 
             if (state.networkRoomData.roomState === 'seeking_match' && state.myPeerId) {
                 matchmaking.leaveQueue(state.myPeerId);
             }
         }
-        state.resetFullLocalStateForNewUIScreen();
+        state.resetFullLocalStateForNewUIScreen(); 
 
         if (!preserveUIScreen) {
-            showScreen('localSetup');
+            showScreen('localSetup'); 
             updateDifficultyButtonUI();
-            if (gameModeTabs.length > 0) {
+            if (gameModeTabs.length > 0) { 
                 gameModeTabs.forEach(t => t.classList.toggle('active', t.dataset.mode === 'local'));
             }
         }
@@ -446,11 +456,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Network UI and Flow Functions ---
     function getPlayerCustomizationDataFromUI() {
+        // ... (as previously defined)
         return {
             name: networkPlayerNameInput?.value.trim() || `Pizarrin${Math.floor(Math.random()*100)}`,
             icon: networkPlayerIconSelect?.value || state.AVAILABLE_ICONS[0],
-            // Color will be assigned by host or pizarraState default for network games initially
-            color: state.DEFAULT_PLAYER_COLORS[0] 
+            color: state.DEFAULT_PLAYER_COLORS[state.networkRoomData.players.length % state.DEFAULT_PLAYER_COLORS.length] 
         };
     }
 
@@ -461,26 +471,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const hostPlayerData = getPlayerCustomizationDataFromUI();
         const gameSettings = {
-            difficulty: state.currentDifficulty, // Host sets difficulty for the room
+            difficulty: state.currentDifficulty,
             maxPlayers: parseInt(networkMaxPlayersSelect.value) || 2
         };
 
         try {
-            await peerConnection.hostNewRoom(hostPlayerData, gameSettings);
-            // Success is handled by onPeerOpen -> _finalizeHostSetup -> uiUpdateCallbacks.showLobby
+            const hostPeerId = await peerConnection.hostNewRoom(hostPlayerData, gameSettings);
+            // The promise resolves when the host's PeerJS ID is available and basic room state is set.
+            // Now, main.js explicitly calls the UI update to show the lobby.
+            hideModal(); // Hide "Creating room..."
+            window.pizarraUiUpdateCallbacks.showLobby(true); // true because this client is the host
+
+            // If this hosting action should also list the room on matchmaking:
+            if (matchmaking && typeof matchmaking.updateHostedRoomStatus === 'function' && hostPeerId) {
+                 matchmaking.updateHostedRoomStatus(
+                    hostPeerId, // raw peer id (which is state.networkRoomData.roomId)
+                    state.networkRoomData.gameSettings,
+                    state.networkRoomData.maxPlayers,
+                    state.networkRoomData.players.length, // Should be 1 (the host)
+                    'hosting_waiting_for_players'
+                );
+            }
+
         } catch (error) {
             hideModal();
             showModal(`Error al crear la sala: ${error.message || 'Desconocido'}.`);
-            stopAnyActiveGameOrNetworkSession(true); showScreen('networkSetup');
+            stopAnyActiveGameOrNetworkSession(true);
+            showScreen('networkSetup');
         }
     }
     
     function displayRoomQRCodeAndLink(roomId, maxPlayers) {
+        // ... (as previously defined, ensures PIZARRA_BASE_URL is used)
         if (!networkInfoAreaEl || !networkInfoTitleEl || !networkInfoTextEl || !qrCodeContainerEl || !copyRoomLinkButtonEl) return;
-        const gameLink = `${PIZARRA_BASE_URL}?room=${roomId}`;
+
+        const gameLink = `${PIZARRA_BASE_URL}?room=${roomId}`; 
         networkInfoTitleEl.textContent = "¡Sala Lista! Invita Jugadores";
         networkInfoTextEl.innerHTML = `ID de Sala: <strong>${state.PIZARRA_PEER_ID_PREFIX}${roomId}</strong><br>Enlace: <a href="${gameLink}" target="_blank" class="underline hover:text-pink-400">${gameLink}</a>`;
-        qrCodeContainerEl.innerHTML = '';
+
+        qrCodeContainerEl.innerHTML = ''; 
         if (window.QRious) {
             const canvas = document.createElement('canvas');
             new QRious({ element: canvas, value: gameLink, size: 128, padding: 5, level: 'M', foreground: '#f0f0f0', background: '#4a4e4a' });
@@ -492,14 +521,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 .catch(() => displayMessage("Error al copiar", "error", false, lobbyMessageAreaEl || messageAreaEl));
             triggerVibration(30);
         };
-        showScreen('networkInfo'); // Show this section along with lobby usually
+        // Show this section as part of the lobby display for the host
+        if(networkInfoAreaEl && state.networkRoomData.isRoomLeader) networkInfoAreaEl.style.display = 'block';
     }
 
     function hideNetworkInfoArea() {
+        // ... (as previously defined)
         if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';
     }
 
     async function joinRandomGameUI() {
+        // ... (as previously defined)
         stopAnyActiveGameOrNetworkSession(true);
         showModal("Buscando una sala al azar...");
         triggerVibration(50);
@@ -520,8 +552,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'inline-block';
                     if(networkInfoTitleEl) networkInfoTitleEl.textContent = "Buscando Partida...";
                     if(networkInfoTextEl) networkInfoTextEl.textContent = "Intentando encontrar oponentes...";
-                    if(qrCodeContainerEl) qrCodeContainerEl.innerHTML = '';
-                    showScreen('networkInfo');
+                    if(qrCodeContainerEl) qrCodeContainerEl.innerHTML = ''; 
+                    showScreen('networkInfo'); 
                 },
                 onMatchFoundAndJoiningRoom: async (leaderRawPeerIdToJoin, roomDetails) => {
                     hideModal(); showModal(`Sala encontrada (${state.PIZARRA_PEER_ID_PREFIX}${leaderRawPeerIdToJoin}). Conectando...`);
@@ -533,13 +565,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 },
                 onMatchFoundAndHostingRoom: async (myNewRawPeerIdForHosting, initialHostData) => {
-                    hideModal();
+                    hideModal(); 
                     try { await peerConnection.hostNewRoom(myPlayerData, initialHostData.gameSettings); } 
                     catch (hostError) {
                         showModal(`Error al crear sala desde matchmaking: ${hostError.message}`);
                         stopAnyActiveGameOrNetworkSession(true); showScreen('networkSetup');
                     }
-                    if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
+                     if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
                 },
                 onError: (errMsg) => {
                     hideModal(); showModal(`Error de Matchmaking: ${errMsg}`);
@@ -554,6 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateLobbyUI() {
+        // ... (as previously defined)
         if (!lobbyAreaEl || !state.pvpRemoteActive || !state.networkRoomData) return;
         const roomData = state.networkRoomData;
         if (lobbyRoomIdDisplayEl) lobbyRoomIdDisplayEl.textContent = roomData.roomId ? `${state.PIZARRA_PEER_ID_PREFIX}${roomData.roomId}` : 'N/A';
@@ -615,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isMyTurn = state.networkRoomData.myPlayerIdInRoom === state.currentPlayerId;
             setupGameBoardUI(isMyTurn);
             showScreen('game');
-            displayMessage("¡El juego en red ha comenzado!", 'info', true);
+            displayMessage("¡Juego en red ha comenzado!", 'info', true);
         },
         updateGameFromNetwork: (guessResultData) => {
             state.setGuessedLetters(new Set(guessResultData.guessedLetters));
@@ -628,10 +661,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             const isMyTurn = state.networkRoomData.myPlayerIdInRoom === state.currentPlayerId;
-            setupGameBoardUI(isMyTurn); // Updates word, stars, alphabet, scores, turn
+            setupGameBoardUI(isMyTurn);
             const { guess, result } = guessResultData;
             displayMessage(result.correct ? `'${guess}' es CORRECTA.` : `'${guess}' es INCORRECTA.`, result.correct ? 'success' : 'error');
-            if (result.wordSolved || result.gameOver) state.setGameActive(false); // GAME_OVER_ANNOUNCEMENT handles UI end
+            if (result.wordSolved || result.gameOver) state.setGameActive(false);
         },
         displayClueFromNetwork: (clueData) => {
             state.setClueUsedThisGame(clueData.clueUsed);
@@ -643,14 +676,17 @@ document.addEventListener('DOMContentLoaded', () => {
             displayMessage("Pista revelada para todos.", 'info');
         },
         showNetworkGameOver: (gameOverData) => {
-            state.setGameActive(false); updateAllAlphabetButtons(true); if(clueButtonEl) clueButtonEl.disabled = true;
+             state.setGameActive(false); updateAllAlphabetButtons(true); if(clueButtonEl) clueButtonEl.disabled = true;
             let message = gameOverData.reason ? `Juego terminado: ${gameOverData.reason}.` : "¡Juego Terminado!";
             let isWinForLocalPlayer = false;
             if (gameOverData.winnerData) {
-                const winners = gameOverData.winnerData.winners.map(w => `${w.icon || ''}${w.name}`).join(' y ');
-                isWinForLocalPlayer = gameOverData.winnerData.winners.some(w => w.id === state.networkRoomData.myPlayerIdInRoom);
-                if(gameOverData.winnerData.isTie && winners) message += ` ¡Empate entre ${winners}!`;
-                else if (winners) message += ` ¡Ganador(es): ${winners}!`;
+                 const winners = gameOverData.winnerData.winners.map(w => `${w.icon || ''}${w.name}`).join(' y ');
+                 isWinForLocalPlayer = gameOverData.winnerData.winners.some(w => w.id === state.networkRoomData.myPlayerIdInRoom);
+                 if(gameOverData.winnerData.isTie && winners) {
+                    message += ` ¡Empate entre ${winners}!`;
+                    isWinForLocalPlayer = true; // Count tie as a "celebration" event for involved players
+                 }
+                 else if (winners) message += ` ¡Ganador(es): ${winners}!`;
             }
             if(gameOverData.finalScores) {
                 gameOverData.finalScores.forEach(ps => {
@@ -659,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateScoreDisplayUI();
             }
             showModal(message, [{text: "Volver al Menú", action: () => { stopConfetti(); returnToMainMenuUI();}, className: 'action-button'}]);
-            if (isWinForLocalPlayer || (gameOverData.winnerData?.isTie && gameOverData.winnerData.winners.length > 1)) {
+            if (isWinForLocalPlayer) {
                 triggerVibration([100, 40, 100, 40, 200]); startConfetti();
             } else { triggerVibration([70,50,70]); }
         }
@@ -667,6 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listener Setup ---
     function initializeAppEventListeners() {
+        // ... (all event listeners as previously defined) ...
         gameModeTabs.forEach(tab => tab.addEventListener('click', () => {
             stopAnyActiveGameOrNetworkSession(true);
             gameModeTabs.forEach(t => t.classList.remove('active')); tab.classList.add('active');
@@ -684,7 +721,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if(hostGameButton) hostGameButton.addEventListener('click', hostGameUI);
         if(joinRandomButton) joinRandomButton.addEventListener('click', joinRandomGameUI);
         if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.addEventListener('click', () => {
-            matchmaking.leaveQueue(state.myPeerId); stopAnyActiveGameOrNetworkSession(true);
+            if(state.myPeerId) matchmaking.leaveQueue(state.myPeerId); 
+            stopAnyActiveGameOrNetworkSession(true);
             showScreen('networkSetup'); displayMessage("Búsqueda cancelada.", "info");
         });
         if(lobbyToggleReadyButtonEl) lobbyToggleReadyButtonEl.addEventListener('click', () => {
@@ -695,7 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
             peerConnection.leaderStartGameRequest(); triggerVibration(50);
         });
         if(lobbyLeaveRoomButtonEl) lobbyLeaveRoomButtonEl.addEventListener('click', () => {
-            showModal("¿Seguro que quieres salir?", [{text: "Sí, Salir", action: stopAnyActiveGameOrNetworkSession, className: 'action-button-danger'}, {text: "No", action: hideModal}]);
+             showModal("¿Seguro que quieres salir?", [{text: "Sí, Salir", action: stopAnyActiveGameOrNetworkSession, className: 'action-button-danger'}, {text: "No", action: hideModal}]);
             triggerVibration(30);
         });
         if(modalCloseButtonEl) modalCloseButtonEl.addEventListener('click', hideModal);
@@ -706,38 +744,39 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeApp() {
         initializeAppEventListeners();
         if (typeof DICTIONARY_DATA !== 'undefined' && DICTIONARY_DATA.length > 0) {
-            populatePlayerIcons(); updateDifficultyButtonUI(); returnToMainMenuUI(); // Start at main setup
+            populatePlayerIcons(); updateDifficultyButtonUI(); returnToMainMenuUI();
         } else {
             showModal("Error Crítico: Diccionario no cargado.");
         }
-        processUrlJoin(); // Check for room ID in URL
+        processUrlJoin();
     }
     
-    async function processUrlJoin() { // Simplified version
+    async function processUrlJoin() {
         const urlParams = new URLSearchParams(window.location.search);
         const roomIdFromUrl = urlParams.get('room');
         if (roomIdFromUrl && roomIdFromUrl.trim()) {
-            window.history.replaceState({}, document.title, PIZARRA_BASE_URL); // Clean URL
-            showModal(`¿Unirte a la sala ${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl}? Configura tu identidad de red primero.`, [
-                {text: "Ir a Config. Red", action: () => {
-                    hideModal();
-                    gameModeTabs.forEach(t => t.classList.toggle('active', t.dataset.mode === 'network'));
-                    showScreen('networkSetup');
-                    // User needs to click a "Join by ID" button after this (not yet implemented)
-                    // For now, we can imagine they'll click "Join Random" which will be modified or a new button "Join by ID"
-                    // would use this roomIdFromUrl.
-                    // To auto-trigger join after this modal:
-                    // showModal(`Conectando a ${roomIdFromUrl}...`);
-                    // const joinerPlayerData = getPlayerCustomizationDataFromUI();
-                    // state.setPvpRemoteActive(true);
-                    // try { await peerConnection.joinRoomById(roomIdFromUrl.trim(), joinerPlayerData); }
-                    // catch (error) { hideModal(); showModal(`Error al unirse: ${error.message}`); stopAnyActiveGameOrNetworkSession(true); showScreen('networkSetup');}
-                    alert(`Funcionalidad "Unirse por ID" (${roomIdFromUrl}) pendiente de botón dedicado. Configura tu identidad y usa "Unirse al Azar" o espera a que el hostear una sala sea implementado con este ID si eres el host.`);
+            window.history.replaceState({}, document.title, PIZARRA_BASE_URL); 
+            showModal(`Intentando unirse a la sala ${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl}. ¿Configurar tu identidad y unirte?`, [
+                {text: "Sí, Unirme", className: 'action-button-confirm', action: async () => {
+                    stopAnyActiveGameOrNetworkSession(true); 
+                    gameModeTabs.forEach(t => t.classList.toggle('active', t.dataset.mode === 'network')); // Switch to network tab visually
+                    showScreen('networkSetup'); // So user can see their identity if needed
+                    
+                    showModal(`Conectando a ${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl}...`);
+                    const joinerPlayerData = getPlayerCustomizationDataFromUI(); // Get latest identity from UI
+                    state.setPvpRemoteActive(true);
+                    try { 
+                        await peerConnection.joinRoomById(roomIdFromUrl.trim(), joinerPlayerData);
+                        // Success is handled by callbacks to window.pizarraUiUpdateCallbacks.showLobby
+                    } catch (error) { 
+                        hideModal(); 
+                        showModal(`Error al unirse a la sala: ${error.message || 'Desconocido'}`);
+                        stopAnyActiveGameOrNetworkSession(true); showScreen('networkSetup');
+                    }
                 }},
                 {text: "Cancelar", action: hideModal, className: 'action-button-secondary'}
             ]);
         }
     }
-
     initializeApp();
 });
