@@ -399,3 +399,34 @@ footer { margin-top:30px; font-size:1em; color:#b0b0b0; }
         opacity: 0;
     }
 }
+
+/* style.css - Potentially add at the end or in a modal specific section */
+.modal-content .modal-form-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    text-align: left; /* Align labels and inputs left */
+}
+
+.modal-content .modal-form-inputs label {
+    font-size: 1em;
+    color: #e0e0e0; /* Chalky color for labels */
+    margin-bottom: 3px;
+}
+
+.modal-content .modal-form-inputs input[type="text"],
+.modal-content .modal-form-inputs select {
+    font-family: 'Patrick Hand', cursive;
+    width: 100%;
+    padding: 8px 10px;
+    background-color: rgba(0,0,0,0.2); /* Darker input background inside modal */
+    border: 1px solid #777;
+    border-radius: 5px;
+    color: #f0f0f0; /* Chalk text for input */
+    font-size: 1em;
+    box-sizing: border-box;
+}
+.modal-content .modal-form-inputs input::placeholder { color: #999; }
+.modal-content .modal-form-inputs select option { background-color: #3d403d; color: #f0f0f0; }
