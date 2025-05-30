@@ -39,6 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCloseButtonEl = document.getElementById('modal-close-button');
     const modalDynamicButtonsEl = document.getElementById('modal-dynamic-buttons'); // For checking children length
 
+    // Additional DOM elements needed by main.js
+    const clueDisplayAreaEl = document.getElementById('clue-display-area');
+    const messageAreaEl = document.getElementById('message-area');
+    const networkInfoTitleEl = document.getElementById('network-info-title');
+    const networkInfoTextEl = document.getElementById('network-info-text');
+    const qrCodeContainerEl = document.getElementById('qr-code-container');
 
     // --- UI Update Functions (Specific adaptations from your RCA) ---
 

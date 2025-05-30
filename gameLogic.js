@@ -184,6 +184,46 @@ export function checkLossConditionForPlayer(playerId) {
     return state.getAttemptsFor(playerId) <= 0;
 }
 
+/**
+ * Determines the winner(s) and returns winner data for game over scenarios.
+ * Returns an object with winners array and tie information.
+ */
+export function getWinnerData(stateRef) {
+    const players = stateRef.getPlayersData();
+    if (!players || players.length === 0) {
+        return { winners: [], isTie: false };
+    }
+
+    // If word was solved, all players who have attempts left are winners
+    const wordSolved = checkWinCondition();
+    if (wordSolved) {
+        const winners = players.filter(p => stateRef.getAttemptsFor(p.id) > 0);
+        return { 
+            winners: winners.length > 0 ? winners : [players[0]], // Fallback to first player if none have attempts
+            isTie: winners.length > 1 
+        };
+    }
+
+    // If word not solved, find players with highest score or most attempts remaining
+    const maxScore = Math.max(...players.map(p => p.score || 0));
+    const topScorers = players.filter(p => (p.score || 0) === maxScore);
+    
+    if (topScorers.length === 1) {
+        return { winners: topScorers, isTie: false };
+    } else if (topScorers.length > 1) {
+        // Tie-breaker: most attempts remaining
+        const maxAttempts = Math.max(...topScorers.map(p => stateRef.getAttemptsFor(p.id)));
+        const finalWinners = topScorers.filter(p => stateRef.getAttemptsFor(p.id) === maxAttempts);
+        return { 
+            winners: finalWinners, 
+            isTie: finalWinners.length > 1 
+        };
+    }
+
+    // Fallback: no clear winner
+    return { winners: [], isTie: false };
+}
+
 
 /**
  * Handles a clue request.

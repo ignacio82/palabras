@@ -12,7 +12,7 @@ export let gameStartSound = null;  // Exporting as it's directly used by name in
 let clueRevealSound = null;
 let errorSound = null;      // For invalid actions or general errors
 
-let soundsCurrentlyInitialized = false; // Internal flag for this module
+export let soundsCurrentlyInitialized = false; // Export the initialization flag
 let hapticsEnabled = true; // User preference, can be made a setting in pizarraState.js later
 
 /**
