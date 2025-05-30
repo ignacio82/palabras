@@ -5,7 +5,7 @@
 
 // ---------- GAME CONSTANTS ----------
 export const DEFAULT_PLAYER_COLORS = ['#FF69B4', '#00BFFF', '#FFD700', '#32CD32', '#FF7F50', '#DA70D6'];
-export const AVAILABLE_ICONS = ['✏️', '🌟', '🍎', '💡', '📖', '🧑‍🏫', '🎓', '🖍️', '🎨', '🏆'];
+export const AVAILABLE_ICONS = ['🦄', '🌈', '⭐', '🌸', '🦋', '🎀', '💖', '🌺', '✨', '🌟', '🧚‍♀️', '👑', '🍭', '🎈', '🌙']; // Updated for girl-friendly icons
 export const MAX_PLAYERS_LOCAL = 4;
 export const MAX_PLAYERS_NETWORK = 4;
 export const MIN_PLAYERS_NETWORK = 2;
@@ -160,18 +160,18 @@ export function resetNetworkRoomData() {
         setGamePhase('idle');
     }
 }
-export function addPlayerToNetworkRoom(player) { /* ... same ... */ 
+export function addPlayerToNetworkRoom(player) {
     const existingPlayerIndex = networkRoomData.players.findIndex(p => p.peerId === player.peerId);
     if (existingPlayerIndex === -1) networkRoomData.players.push(clone(player));
     else networkRoomData.players[existingPlayerIndex] = { ...networkRoomData.players[existingPlayerIndex], ...clone(player) };
     networkRoomData.players.sort((a, b) => (a.id === undefined ? Infinity : a.id) - (b.id === undefined ? Infinity : b.id));
 }
-export function removePlayerFromNetworkRoom(peerIdToRemove) { /* ... same ... */ 
+export function removePlayerFromNetworkRoom(peerIdToRemove) {
     const initialCount = networkRoomData.players.length;
     networkRoomData.players = networkRoomData.players.filter(p => p.peerId !== peerIdToRemove);
     if (networkRoomData.players.length < initialCount) console.log(`[State] Player ${peerIdToRemove} removed from network room.`);
 }
-export function updatePlayerInNetworkRoom(peerIdToUpdate, updates) { /* ... same ... */ 
+export function updatePlayerInNetworkRoom(peerIdToUpdate, updates) {
     const playerIndex = networkRoomData.players.findIndex(p => p.peerId === peerIdToUpdate);
     if (playerIndex !== -1) networkRoomData.players[playerIndex] = { ...networkRoomData.players[playerIndex], ...clone(updates) };
 }
@@ -187,6 +187,12 @@ export function getAttemptsFor(playerId) {
   // console.warn(`[State] getAttemptsFor: Invalid playerId ${playerId} or attempts array not ready. Returning MAX_ATTEMPTS.`);
   return MAX_ATTEMPTS; 
 }
+
+// NEW: Add the missing getter function
+export function getRemainingAttemptsPerPlayer() {
+  return [...remainingAttemptsPerPlayer]; // Return a copy to prevent external modification
+}
+
 export function getGameActive() { return gameActive; }
 export function getCurrentDifficulty() { return currentDifficulty; }
 export function getClueUsedThisGame() { return clueUsedThisGame; }
@@ -220,7 +226,7 @@ export function resetFullLocalStateForNewUIScreen() {
     console.log("[State] resetFullLocalStateForNewUIScreen completed.");
 }
 export function normalizeString(str) { return normalizeStringInternal(str); }
-export function getLocalPlayerCustomizationForNetwork() { /* ... same, ensure DOM IDs are correct ... */ 
+export function getLocalPlayerCustomizationForNetwork() {
     const nameEl = document.getElementById(`network-player-name`);
     const iconEl = document.getElementById(`network-player-icon`);
     const name = nameEl?.value.trim() || `Pizarrín${Math.floor(Math.random()*100)}`;
@@ -229,12 +235,12 @@ export function getLocalPlayerCustomizationForNetwork() { /* ... same, ensure DO
     if (networkRoomData?.players?.length > 0) colorIndex = networkRoomData.players.length % DEFAULT_PLAYER_COLORS.length;
     return { name, icon, color: DEFAULT_PLAYER_COLORS[colorIndex] };
 }
-export function getSanitizedNetworkRoomDataForClient() { /* ... same ... */ 
+export function getSanitizedNetworkRoomDataForClient() {
     if (!networkRoomData) return {};
     const { _peerInitPromise, _peerInitResolve, _peerInitReject, _setupCompleteCallback, _setupErrorCallback, ...sanitizedData } = networkRoomData;
     return clone(sanitizedData);
 }
-export function logCurrentState(context = "Generic") { /* ... same, add remainingAttemptsPerPlayer ... */ 
+export function logCurrentState(context = "Generic") {
     console.log(`--- CURRENT GAME STATE (${context}) ---`);
     console.log("Difficulty:", currentDifficulty, "Game Active:", gameActive, "Game Phase:", gamePhase);
     console.log("Word Object:", currentWordObject ? currentWordObject.word : "N/A", "Norm Word:", currentWord);
