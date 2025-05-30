@@ -15,12 +15,12 @@ body {
 .container {
     background-color: #4a4e4a; /* Slightly lighter blackboard shade for the 'board' */
     padding: 25px 30px;
-    border-radius: 15px; /* Less rounded for a board feel */
-    box-shadow: 0 0 0 10px #8B4513, 0 5px 15px 12px rgba(0,0,0,0.3); /* Wooden frame effect & shadow */
-    border: 5px solid #7a3e10; /* Inner dark wood */
+    border-radius: 15px;
+    box-shadow: 0 0 0 10px #6B4F34, 0 5px 15px 12px rgba(0,0,0,0.3); /* Wooden frame effect */
+    border: 5px solid #50321A; /* Inner dark wood */
     text-align: center;
     width: 100%;
-    max-width: 650px; /* Slightly wider for alphabet */
+    max-width: 680px; /* Slightly wider for new elements */
 }
 
 header h1 {
@@ -28,47 +28,131 @@ header h1 {
     color: #ffffff; /* Bright Chalk White */
     font-size: 2.8em;
     margin-top: 0;
+    margin-bottom: 20px; /* Space before difficulty */
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
+}
+
+/* --- Difficulty Selection --- */
+#game-setup {
     margin-bottom: 25px;
-    text-shadow: 1px 1px 1px rgba(0,0,0,0.2); /* Subtle shadow */
 }
 
-#game-status {
-    margin-bottom: 20px;
-    font-size: 1.4em;
-}
-
-#stars-display-container {
-    color: #f0f0f0; /* Chalk white */
-    font-weight: normal;
+#difficulty-selection-container p {
+    font-size: 1.3em;
+    color: #e0e0e0; /* Lighter chalk for instruction */
     margin-bottom: 10px;
 }
 
+#difficulty-selection-container {
+    display: flex;
+    justify-content: center;
+    align-items: center; /* Vertically align items if p and buttons are direct children */
+    gap: 10px; /* Gap between buttons if p is separate */
+    flex-wrap: wrap; /* Allow buttons to wrap */
+}
+
+.difficulty-button {
+    font-family: 'Fredoka One', 'Patrick Hand', cursive;
+    background-color: transparent;
+    color: #d0d0d0; /* Dimmer chalk for inactive */
+    border: 2px solid #777; /* Dim chalk border */
+    border-radius: 8px;
+    padding: 8px 15px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+.difficulty-button:hover {
+    color: #ffffff;
+    border-color: #f0f0f0; /* Bright chalk border on hover */
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.difficulty-button.active {
+    color: #fffacd; /* LemonChiffon (light yellow chalk) for active */
+    border-color: #fffacd;
+    background-color: rgba(255, 250, 205, 0.1); /* Subtle highlight */
+    box-shadow: 0 0 8px rgba(255, 250, 205, 0.3);
+}
+
+
+/* --- Main Game Area --- */
+#game-status {
+    margin-bottom: 15px;
+    font-size: 1.4em;
+    display: flex; /* For aligning stars and clue button */
+    justify-content: space-around; /* Space them out a bit */
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping if space is tight */
+    gap: 15px; /* Gap between stars and clue button */
+}
+
+#stars-display-container {
+    color: #f0f0f0;
+    font-weight: normal;
+    margin-bottom: 0; /* Reset margin as flex handles spacing */
+}
+
 #stars-display {
-    color: #fffacd; /* LemonChiffon (light yellow chalk for stars) */
+    color: #fffacd;
     font-size: 1.6em;
     letter-spacing: 0.1em;
     line-height: 1;
 }
 
+#clue-button {
+    font-family: 'Patrick Hand', 'Comic Neue', cursive;
+    background-color: rgba(255, 255, 255, 0.1); /* Slight chalk dust */
+    color: #a0c3d1; /* Light chalk blue */
+    border: 2px dashed #a0c3d1; /* Dashed border for clue button */
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 1em; /* Relative to game-status font size */
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#clue-button:hover:not(:disabled) {
+    color: #b0d3e1;
+    border-color: #b0d3e1;
+    background-color: rgba(176, 211, 225, 0.2);
+}
+#clue-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+    border-style: solid; /* Change border style when disabled */
+}
+
+
+#clue-display-area {
+    background-color: rgba(0,0,0,0.1); /* Slightly different background for the clue box */
+    border: 1px dashed #b0b0b0; /* Dashed chalk border */
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin: 10px auto 20px auto; /* Centered with some margin */
+    max-width: 90%;
+    font-size: 1.1em;
+    color: #e0e0e0; /* Lighter chalk for clue text */
+    text-align: left; /* Clues might be longer */
+}
+#clue-display-area strong {
+    color: #fffacd; /* Light yellow for "Pista:" */
+}
+
+
 #message-area {
     min-height: 1.6em;
-    margin-top: 5px;
-    margin-bottom: 15px;
+    margin-top: 0; /* Adjusted margin */
+    margin-bottom: 20px;
     font-weight: bold;
     font-size: 1.2em;
 }
 
-.message.success {
-    color: #a2d9a1; /* Light chalk green */
-}
-
-.message.error {
-    color: #f4a09a; /* Light chalk red/pink */
-}
-
-.message.info {
-    color: #a0c3d1; /* Light chalk blue */
-}
+.message.success { color: #a2d9a1; }
+.message.error { color: #f4a09a; }
+.message.info { color: #a0c3d1; }
 
 #word-display-section {
     margin-bottom: 25px;
@@ -80,7 +164,7 @@ header h1 {
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
-    min-height: 60px; /* Taller for bigger letters */
+    min-height: 60px;
     margin-bottom: 25px;
 }
 
@@ -90,22 +174,16 @@ header h1 {
     justify-content: center;
     align-items: center;
     width: 45px;
-    height: 55px; /* Slightly taller */
-    border-bottom: 3px solid #d3d3d3; /* Chalk line for underscore */
-    font-size: 2.5em; /* Bigger chalk letters */
-    color: #ffffff; /* White chalk */
+    height: 55px;
+    border-bottom: 3px solid #d3d3d3;
+    font-size: 2.5em;
+    color: #ffffff;
     text-transform: uppercase;
     line-height: 1;
-    font-weight: normal; /* Chalk is not usually bold */
+    font-weight: normal;
 }
-
-.letter-box.empty { /* When it's an underscore */
-    color: transparent; /* Make the underscore character itself invisible if it was typed */
-}
-.letter-box:not(.empty) { /* When a letter is revealed */
-    border-bottom: 3px solid transparent; /* Remove underscore line if letter is present */
-}
-
+.letter-box.empty { color: transparent; }
+.letter-box:not(.empty) { border-bottom: 3px solid transparent; }
 
 #alphabet-section {
     margin: 30px auto;
@@ -116,16 +194,16 @@ header h1 {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px; /* Gap between letter buttons */
-    max-width: 500px; /* Control width of keyboard */
+    gap: 8px;
+    max-width: 500px;
     margin: 0 auto;
 }
 
 .alphabet-button {
     font-family: 'Patrick Hand', 'Comic Neue', cursive;
     background-color: transparent;
-    color: #f0f0f0; /* Chalk white */
-    border: 2px solid transparent; /* Invisible border initially */
+    color: #f0f0f0;
+    border: 2px solid transparent;
     border-radius: 8px;
     width: 40px;
     height: 40px;
@@ -136,72 +214,55 @@ header h1 {
     justify-content: center;
     align-items: center;
     padding: 0;
-    user-select: none; /* Prevent text selection on click */
+    user-select: none;
 }
-
 .alphabet-button:hover:not(:disabled) {
-    border-color: #b0b0b0; /* Light grey chalk border on hover */
+    border-color: #b0b0b0;
     color: #ffffff;
-    background-color: rgba(255,255,255,0.1); /* Slight chalk dust effect */
+    background-color: rgba(255,255,255,0.1);
 }
-
-.alphabet-button:active:not(:disabled) {
-    background-color: rgba(255,255,255,0.2);
-}
-
+.alphabet-button:active:not(:disabled) { background-color: rgba(255,255,255,0.2); }
 .alphabet-button:disabled {
-    color: #777; /* Dimmed chalk for disabled/guessed letters */
+    color: #777;
     cursor: default;
     opacity: 0.6;
-    /* text-decoration: line-through; Optional: strike-through */
 }
 
 #guessed-letters-section {
     margin-bottom: 20px;
     font-size: 1.1em;
 }
-
 #guessed-letters-section p {
     margin: 8px 0;
-    color: #d3d3d3; /* Light grey chalk */
+    color: #d3d3d3;
 }
-
 .letters {
     font-weight: normal;
     letter-spacing: 0.1em;
     line-height: 1.5;
 }
+.letters.correct { color: #c1e1c1; }
+.letters.incorrect { color: #ffb6b3; }
 
-.letters.correct {
-    color: #c1e1c1; /* Pale Green Chalk */
-}
+#controls-section { margin-top: 25px; }
 
-.letters.incorrect {
-    color: #ffb6b3; /* Pale Red/Pink Chalk */
-}
-
-#controls-section {
-    margin-top: 25px;
-}
-
-button#play-again-button { /* More specific selector */
+button#play-again-button {
     font-family: 'Fredoka One', 'Patrick Hand', cursive;
     padding: 12px 25px;
-    border: 2px solid #f0f0f0; /* Chalk border */
+    border: 2px solid #f0f0f0;
     border-radius: 10px;
-    background-color: #5c605c; /* Darker button background */
-    color: #f0f0f0; /* Chalk white text */
+    background-color: #5c605c;
+    color: #f0f0f0;
     font-size: 1.2em;
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s;
     text-transform: uppercase;
-    box-shadow: none; /* Remove previous 3D shadow */
+    box-shadow: none;
 }
-
 button#play-again-button:hover {
     background-color: #6c706c;
     color: #ffffff;
-    transform: none; /* Remove previous hover transform */
+    transform: none;
     box-shadow: none;
 }
 button#play-again-button:active {
@@ -210,67 +271,37 @@ button#play-again-button:active {
     background-color: #4a4e4a;
 }
 
-
 footer {
     margin-top: 30px;
     font-size: 1em;
-    color: #b0b0b0; /* Dimmer chalk for footer */
+    color: #b0b0b0;
 }
 
 /* Responsive adjustments */
 @media (max-width: 680px) {
     .container {
         padding: 20px 15px;
-        box-shadow: 0 0 0 5px #8B4513, 0 3px 10px 7px rgba(0,0,0,0.3);
+        box-shadow: 0 0 0 5px #6B4F34, 0 3px 10px 7px rgba(0,0,0,0.3);
         border-width: 3px;
     }
-    header h1 {
-        font-size: 2.2em;
-    }
-    .letter-box {
-        width: 35px;
-        height: 45px;
-        font-size: 2em;
-        gap: 6px;
-    }
-    .alphabet-button {
-        width: 35px;
-        height: 35px;
-        font-size: 1.4em;
-        gap: 5px;
-    }
-    #alphabet-keyboard-container {
-        max-width: 100%;
-        gap: 6px;
-    }
-    #game-status, #guessed-letters-section, #message-area {
-        font-size: 1.1em;
-    }
-    #stars-display {
-        font-size: 1.4em;
-    }
+    header h1 { font-size: 2.2em; }
+    .letter-box { width: 35px; height: 45px; font-size: 2em; gap: 6px; }
+    .alphabet-button { width: 35px; height: 35px; font-size: 1.4em; gap: 5px; }
+    #alphabet-keyboard-container { max-width: 100%; gap: 6px; }
+    #game-status, #guessed-letters-section, #message-area { font-size: 1.1em; }
+    #stars-display { font-size: 1.4em; }
+    #difficulty-selection-container { flex-direction: column; gap: 8px; } /* Stack difficulty buttons on smaller screens */
+    .difficulty-button { font-size: 0.9em; padding: 6px 12px;}
+    #clue-button { font-size: 0.9em; padding: 6px 10px;}
 }
 
 @media (max-width: 480px) {
-    header h1 {
-        font-size: 1.8em;
-    }
-    .letter-box {
-        width: 30px;
-        height: 40px;
-        font-size: 1.6em;
-    }
-     .alphabet-button {
-        width: 30px; /* Even smaller for very small screens */
-        height: 30px;
-        font-size: 1.2em;
-        margin: 2px; /* Ensure they don't stick too much */
-        gap: 4px;
-    }
-    #alphabet-keyboard-container {
-        gap: 4px;
-    }
-    #guessed-letters-section {
-        font-size: 1em;
-    }
+    header h1 { font-size: 1.8em; }
+    .letter-box { width: 30px; height: 40px; font-size: 1.6em; }
+    .alphabet-button { width: 30px; height: 30px; font-size: 1.2em; margin: 2px; gap: 4px;}
+    #alphabet-keyboard-container { gap: 4px; }
+    #guessed-letters-section { font-size: 1em; }
+    #difficulty-selection-container { margin-bottom: 15px; }
+    #clue-display-area { font-size: 1em; padding: 8px 10px;}
+
 }

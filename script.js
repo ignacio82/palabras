@@ -2,15 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Game Configuration ---
-    const WORDS = [
-        "SOL", "LUNA", "CASA", "MAMA", "PAPA", "GATO", "PERRO", "AGUA", "PAN", "FLOR",
-        "TREN", "PATO", "OSO", "UVA", "PIE", "MANO", "OJO", "LUZ", "MAR", "SAL",
-        "PAZ", "REY", "FIN", "OLA", "DIA", "RIO", "PEZ", "LEO", "ANA", "MAS",
-        "DOS", "TRES", "SEIS", "ROSA", "DADO", "NIDO", "SAPO", "RANA", "LAPIZ", "MESA",
-        "PALA", "PISO", "PILA", "PIPA", "PERA", "PELO", "RATA", "SOPA", "TAZA", "TELA",
-        "VASO", "COCO", "MANI", "PINA", "BANCO", "BOTE", "FOCA", "HADA", "KIWI", "LATA",
-        "NIÑO", "NIÑA", "AÑO" // Added words with Ñ
-    ];
+    // DICTIONARY_DATA is expected to be loaded from dictionary.js
     const MAX_ATTEMPTS = 6;
     const STAR_SYMBOL = "🌟";
     const ALPHABET = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split('');
@@ -24,19 +16,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const correctLettersDisplayEl = document.getElementById('correct-letters-display');
     const playAgainButtonEl = document.getElementById('play-again-button');
 
+    const difficultyButtons = document.querySelectorAll('.difficulty-button');
+    const clueButtonEl = document.getElementById('clue-button');
+    const clueDisplayAreaEl = document.getElementById('clue-display-area');
+    const clueTextEl = document.getElementById('clue-text');
+    const gameAreaEl = document.getElementById('game-area'); // Main game area
+
     // --- Game State Variables ---
-    let currentWord = '';
+    let currentWord = ''; // The word to guess (normalized: uppercase, no accents)
+    let currentWordObject = null; // { word: "Original", definition: "...", difficulty: "..." }
     let guessedLetters = new Set();
     let remainingAttempts = 0;
     let gameActive = false;
     let messageTimeout = null;
+    let currentDifficulty = "easy"; // Default difficulty
+    let clueUsedThisGame = false;
 
-    // --- Core Game Functions ---
-
-    function getRandomWord() {
-        return WORDS[Math.floor(Math.random() * WORDS.length)].toUpperCase();
+    // --- Helper Functions ---
+    function normalizeString(str) {
+        if (!str) return "";
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
     }
 
+    function getRandomWord() {
+        if (typeof DICTIONARY_DATA === 'undefined' || DICTIONARY_DATA.length === 0) {
+            console.error("¡Diccionario no cargado o vacío!");
+            return null;
+        }
+
+        const availableWords = DICTIONARY_DATA.filter(item => item.difficulty === currentDifficulty);
+
+        if (availableWords.length === 0) {
+            console.warn(`No hay palabras para la dificultad: ${currentDifficulty}`);
+            return null;
+        }
+
+        const randomIndex = Math.floor(Math.random() * availableWords.length);
+        currentWordObject = availableWords[randomIndex];
+        return normalizeString(currentWordObject.word); // Return normalized word for guessing
+    }
+
+    // --- Display Functions ---
     function displayMessage(text, type = 'info', persistent = false) {
         if (messageTimeout) {
             clearTimeout(messageTimeout);
@@ -51,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             messageTimeout = setTimeout(() => {
                 if (gameActive) {
                     displayMessage(defaultInstruction, 'info');
-                } else if (messageAreaEl.textContent === text) {
+                } else if (messageAreaEl.textContent === text && type !== 'success' && type !== 'error') { // Avoid clearing final win/loss
                     messageAreaEl.textContent = '\u00A0';
                     messageAreaEl.className = 'message';
                 }
@@ -73,13 +93,13 @@ document.addEventListener('DOMContentLoaded', () => {
         wordDisplayContainerEl.innerHTML = '';
         let allLettersGuessedCorrectly = true;
 
-        for (const letter of currentWord) {
+        for (const letter of currentWord) { // currentWord is already normalized
             const letterBox = document.createElement('div');
             letterBox.classList.add('letter-box');
             if (guessedLetters.has(letter)) {
                 letterBox.textContent = letter;
             } else {
-                letterBox.textContent = ''; // Handled by CSS border-bottom for underscore look
+                letterBox.textContent = '';
                 letterBox.classList.add('empty');
                 allLettersGuessedCorrectly = false;
             }
@@ -93,9 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const incorrectArr = [];
         const sortedGuessedLetters = Array.from(guessedLetters).sort((a, b) => a.localeCompare(b, 'es'));
 
-
         for (const letter of sortedGuessedLetters) {
-            if (currentWord.includes(letter)) {
+            const normalizedLetter = normalizeString(letter); // Ensure comparison is normalized
+            if (currentWord.includes(normalizedLetter)) {
                 correctArr.push(letter);
             } else {
                 incorrectArr.push(letter);
@@ -106,12 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function createAlphabetKeyboard() {
-        alphabetKeyboardContainerEl.innerHTML = ''; // Clear existing buttons
+        alphabetKeyboardContainerEl.innerHTML = '';
         ALPHABET.forEach(letter => {
             const button = document.createElement('button');
             button.classList.add('alphabet-button');
             button.textContent = letter;
-            button.dataset.letter = letter; // Store letter in data attribute for easy access
+            button.dataset.letter = letter;
             button.addEventListener('click', () => {
                 if (gameActive && !button.disabled) {
                     handleGuess(letter);
@@ -121,52 +141,87 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function updateDifficultyButtons() {
+        difficultyButtons.forEach(button => {
+            if (button.dataset.difficulty === currentDifficulty) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+    }
+
+    // --- Game Logic Functions ---
     function startGame() {
         gameActive = true;
-        currentWord = getRandomWord();
         guessedLetters.clear();
         remainingAttempts = MAX_ATTEMPTS;
+        clueUsedThisGame = false;
 
-        createAlphabetKeyboard(); // Generate or reset the keyboard
+        currentWord = getRandomWord(); // This now sets currentWordObject as well
+
+        if (!currentWord) {
+            displayMessage(`No hay palabras para la dificultad '${currentDifficulty}'. Por favor, elige otra.`, 'error', true);
+            gameActive = false;
+            clueButtonEl.style.display = 'none';
+            gameAreaEl.style.opacity = '0.5'; // Dim the game area
+            // Optionally disable alphabet keyboard if it was already generated
+            document.querySelectorAll('.alphabet-button').forEach(button => button.disabled = true);
+            return;
+        }
+        gameAreaEl.style.opacity = '1'; // Ensure game area is fully visible
+
+
+        createAlphabetKeyboard();
         displayMessage("Haz clic en una letra para adivinar...", 'info', true);
         updateStarsDisplay();
         updateWordDisplay();
         updateGuessedLettersDisplay();
+        updateDifficultyButtons();
+
+        clueButtonEl.style.display = 'inline-block';
+        clueButtonEl.disabled = false;
+        clueDisplayAreaEl.style.display = 'none';
+        clueTextEl.textContent = '';
 
         playAgainButtonEl.style.display = 'none';
     }
 
     function endGame(isWin) {
         gameActive = false;
-        // Disable all alphabet buttons
         document.querySelectorAll('.alphabet-button').forEach(button => button.disabled = true);
+        clueButtonEl.disabled = true; // Disable clue button at game end
         playAgainButtonEl.style.display = 'inline-block';
 
         if (isWin) {
-            displayMessage(`¡GANASTE! 🎉 La palabra era: ${currentWord}`, 'success', true);
+            displayMessage(`¡GANASTE! 🎉 La palabra era: ${currentWordObject.word}`, 'success', true);
         } else {
-            for(const letter of currentWord) {
-                if (!guessedLetters.has(letter)) {
-                     guessedLetters.add(letter);
+            // Reveal the word only if it wasn't fully guessed (e.g. if lost by attempts)
+            if (currentWordObject && currentWordObject.word) {
+                 // Add all letters of the original word to guessedLetters to display them
+                for(const letter of normalizeString(currentWordObject.word)) {
+                    guessedLetters.add(letter);
                 }
+                updateWordDisplay(); // Update to show the full word
+                displayMessage(`¡Oh no! 😢 La palabra era: ${currentWordObject.word}`, 'error', true);
+            } else {
+                 displayMessage(`¡Oh no! 😢 Intenta de nuevo.`, 'error', true);
             }
-            updateWordDisplay();
-            displayMessage(`¡Oh no! 😢 La palabra era: ${currentWord}`, 'error', true);
         }
     }
 
     function handleGuess(letter) {
         if (!gameActive || guessedLetters.has(letter)) return;
 
-        // Disable the clicked button on the on-screen keyboard
         const button = alphabetKeyboardContainerEl.querySelector(`.alphabet-button[data-letter="${letter}"]`);
         if (button) {
             button.disabled = true;
         }
 
         guessedLetters.add(letter);
+        const normalizedLetter = normalizeString(letter); // Guessed letter is already from ALPHABET (A-Z,Ñ)
 
-        if (currentWord.includes(letter)) {
+        if (currentWord.includes(normalizedLetter)) {
             displayMessage(`¡Muy bien! '${letter}' está en la palabra. 👍`, 'success');
         } else {
             remainingAttempts--;
@@ -184,9 +239,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function handleDifficultyChange(event) {
+        const newDifficulty = event.target.dataset.difficulty;
+        if (newDifficulty && newDifficulty !== currentDifficulty) {
+            currentDifficulty = newDifficulty;
+            startGame(); // Restart game with new difficulty
+        } else if (newDifficulty === currentDifficulty) {
+            // If clicking current difficulty, perhaps just highlight it or do nothing
+            updateDifficultyButtons();
+        }
+    }
+
+    function handleClueRequest() {
+        if (!gameActive || clueUsedThisGame || !currentWordObject) return;
+
+        clueUsedThisGame = true;
+        clueButtonEl.disabled = true;
+        clueTextEl.textContent = currentWordObject.definition;
+        clueDisplayAreaEl.style.display = 'block';
+
+        // Optional: Cost for a clue
+        // remainingAttempts--;
+        // updateStarsDisplay();
+        // if (remainingAttempts <= 0 && !updateWordDisplay()) { // Check if player lost after clue cost
+        //     endGame(false);
+        // }
+
+        displayMessage("¡Pista revelada!", 'info');
+    }
+
     // --- Event Listeners ---
+    difficultyButtons.forEach(button => {
+        button.addEventListener('click', handleDifficultyChange);
+    });
+
+    clueButtonEl.addEventListener('click', handleClueRequest);
     playAgainButtonEl.addEventListener('click', startGame);
 
     // --- Initialize Game ---
-    startGame();
+    if (typeof DICTIONARY_DATA !== 'undefined' && DICTIONARY_DATA.length > 0) {
+        startGame();
+    } else {
+        displayMessage("Error: No se pudo cargar el diccionario de palabras.", "error", true);
+        gameAreaEl.style.opacity = '0.5';
+        console.error("DICTIONARY_DATA no está definido o está vacío. Asegúrate que dictionary.js se cargue correctamente y contenga datos.");
+    }
 });

@@ -13,10 +13,25 @@
             <h1>✏️ Pizarra de Palabras 칠판</h1>
         </header>
 
-        <main>
-            <section id="game-status">
+        <section id="game-setup">
+            <div id="difficulty-selection-container">
+                <p>Elige la dificultad:</p>
+                <button class="difficulty-button active" data-difficulty="easy">Fácil</button>
+                <button class="difficulty-button" data-difficulty="medium">Medio</button>
+                <button class="difficulty-button" data-difficulty="hard">Difícil</button>
+            </div>
+        </section>
+
+        <main id="game-area"> <section id="game-status">
                 <p id="stars-display-container">Estrellitas: <span id="stars-display"></span></p>
-                <p id="message-area" class="message">&nbsp;</p> </section>
+                <button id="clue-button" style="display: none;">💡 Pedir Pista</button>
+            </section>
+
+            <div id="clue-display-area" style="display: none;">
+                <p><strong>Pista:</strong> <span id="clue-text">Tu pista aparecerá aquí.</span></p>
+            </div>
+
+            <p id="message-area" class="message">&nbsp;</p>
 
             <section id="word-display-section">
                 <div id="word-display-container">
@@ -43,6 +58,5 @@
         </footer>
     </div>
 
-    <script src="script.js"></script>
-</body>
+    <script src="dictionary.js"></script> <script src="script.js"></script>   </body>
 </html>
