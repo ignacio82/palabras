@@ -1,6 +1,6 @@
 /* style.css */
 body {
-    font-family: 'Patrick Hand', 'Comic Neue', cursive;
+    font-family: 'Patrick Hand', 'Comic Neue', cursive; /* Chalk-like font first */
     background-color: #3d403d; /* Dark blackboard grey */
     color: #f0f0f0; /* Chalk white */
     display: flex;
@@ -26,10 +26,10 @@ body {
 
 header h1 {
     font-family: 'Fredoka One', 'Patrick Hand', cursive;
-    color: #ffffff;
+    color: #ffffff; /* Bright Chalk White */
     font-size: 2.6em;
     margin-top: 0;
-    margin-bottom: 20px;
+    margin-bottom: 20px; /* Space before difficulty */
     text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
 }
 
@@ -129,24 +129,32 @@ header h1 {
     background-color: #6c706c;
     color: #ffffff;
 }
+.action-button:disabled, .action-button-secondary:disabled, .action-button-danger:disabled, .action-button-confirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #555;
+    border-color: #777;
+    color: #999;
+}
+
 .action-button-confirm {
     background-color: #5a8c5a; /* Chalky green */
     border-color: #a2d9a1;
     color: #a2d9a1;
 }
-.action-button-confirm:hover { background-color: #6a9c6a; color: #c1e1c1;}
+.action-button-confirm:hover:not(:disabled) { background-color: #6a9c6a; color: #c1e1c1;}
 .action-button-danger {
     background-color: #8c5a5a; /* Chalky red */
     border-color: #f4a09a;
     color: #f4a09a;
 }
-.action-button-danger:hover { background-color: #9c6a6a; color: #ffb6b3;}
+.action-button-danger:hover:not(:disabled) { background-color: #9c6a6a; color: #ffb6b3;}
 .action-button-secondary {
     background-color: #5a6a8c; /* Chalky blue */
     border-color: #a0c3d1;
     color: #a0c3d1;
 }
-.action-button-secondary:hover { background-color: #6a7a9c; color: #b0d3e1;}
+.action-button-secondary:hover:not(:disabled) { background-color: #6a7a9c; color: #b0d3e1;}
 
 
 /* --- Network Specific UI --- */
@@ -161,7 +169,7 @@ header h1 {
     background-color: rgba(0,0,0,0.1);
 }
 #network-info-area h3 { font-size: 1.3em; color: #fffacd; margin-bottom: 10px; }
-#qr-code-container { margin: 10px auto; background-color: #fff; padding: 10px; border-radius: 5px; width: 128px; height: 128px; } /* QRious generates canvas */
+#qr-code-container { margin: 10px auto; background-color: #fff; padding: 10px; border-radius: 5px; width: 128px; height: 128px; display: flex; justify-content: center; align-items: center;}
 #qr-code-container canvas { display: block; width: 100% !important; height: 100% !important; }
 #network-info-text { font-size: 1em; margin-bottom: 10px; word-break: break-all; }
 
@@ -178,7 +186,7 @@ header h1 {
 #lobby-room-id-display, #lobby-game-settings-display { font-size: 0.9em; color: #c0c0c0; margin-bottom: 5px; }
 #lobby-room-id-display span, #lobby-game-settings-display span { font-weight: bold; color: #f0f0f0; }
 
-#lobby-player-list { margin-top: 15px; space-y-2; display: flex; flex-direction: column; gap: 8px; }
+#lobby-player-list { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
 .player-lobby-card {
     display: flex;
     justify-content: space-between;
@@ -186,11 +194,11 @@ header h1 {
     background-color: rgba(255,255,255,0.05);
     padding: 8px 12px;
     border-radius: 6px;
-    border-left: 5px solid; /* Color will be set by JS */
+    border-left: 5px solid; /* Player color will be set by JS */
 }
-.player-lobby-card .name { font-size: 1.1em; color: #f0f0f0; }
-.player-lobby-card .icon { margin-right: 8px; }
-.player-lobby-card .status { font-size: 0.9em; padding: 3px 8px; border-radius: 10px; }
+.player-lobby-card .name { font-size: 1.1em; color: #f0f0f0; margin-left: 5px; }
+.player-lobby-card .icon { margin-right: 8px; font-size: 1.2em; }
+.player-lobby-card .status { font-size: 0.9em; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
 .player-lobby-card .status.ready { background-color: #a2d9a1; color: #3d403d; }
 .player-lobby-card .status.not-ready { background-color: #f4a09a; color: #3d403d; }
 .player-lobby-card .status.disconnected { background-color: #888; color: #ddd; }
@@ -205,9 +213,9 @@ header h1 {
 }
 #game-status {
     margin-bottom: 10px;
-    font-size: 1.2em; /* Adjusted from 1.4 for more space */
+    font-size: 1.2em;
     display: flex;
-    justify-content: space-between; /* Space out items */
+    justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
@@ -217,18 +225,18 @@ header h1 {
 #current-player-turn-display { color: #fffacd; font-weight: bold; }
 #stars-display-container { color: #f0f0f0; margin-bottom: 0; }
 #stars-display { color: #fffacd; font-size: 1.4em; letter-spacing: 0.1em; }
-#clue-button { /* Style similar to difficulty buttons or other action buttons */
+#clue-button {
     font-family: 'Patrick Hand', 'Comic Neue', cursive;
     background-color: transparent;
     color: #a0c3d1;
     border: 2px dashed #a0c3d1;
     padding: 6px 10px;
-    font-size: 0.9em; /* Relative to game-status font size */
+    font-size: 0.9em;
     border-radius: 8px;
     cursor: pointer;
 }
 #clue-button:hover:not(:disabled) { color: #b0d3e1; border-color: #b0d3e1; background-color: rgba(176,211,225,0.1); }
-#clue-button:disabled { opacity: 0.5; cursor: default; border-style: solid; }
+#clue-button:disabled { opacity: 0.5; cursor: not-allowed; border-style: solid; }
 
 #clue-display-area {
     background-color: rgba(0,0,0,0.1);
@@ -251,8 +259,8 @@ header h1 {
 #word-display-section { margin-bottom: 20px; }
 #word-display-container { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:10px; min-height:60px; margin-bottom:20px;}
 .letter-box { font-family:'Patrick Hand',cursive; display:inline-flex; justify-content:center; align-items:center; width:45px; height:55px; border-bottom:3px solid #d3d3d3; font-size:2.5em; color:#fff; text-transform:uppercase; line-height:1; font-weight:normal; }
-.letter-box.empty { color:transparent; }
-.letter-box:not(.empty) { border-bottom:3px solid transparent; }
+.letter-box.empty { color:transparent; } /* Underscore is the border */
+.letter-box:not(.empty) { border-bottom:3px solid transparent; } /* Remove border when letter is present */
 
 #alphabet-section { margin:25px auto; padding:10px; }
 #alphabet-keyboard-container { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; max-width:500px; margin:0 auto; }
@@ -279,25 +287,23 @@ header h1 {
 .letters.incorrect { color:#ffb6b3; }
 
 #controls-section { margin-top:20px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;}
-/* Play Again and Main Menu buttons already covered by .action-button or specific styles */
 
 /* --- Modal Dialog --- */
 .modal {
-    /* display: none; /* JS handles this with inline style */
     position: fixed;
-    z-index: 1000;
+    z-index: 1000; /* Below confetti container */
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.6); /* Semi-transparent black overlay */
-    display: flex; /* For centering content */
+    background-color: rgba(0,0,0,0.7); /* Darker overlay for modal */
+    display: flex;
     justify-content: center;
     align-items: center;
 }
 .modal-content {
-    background-color: #4a4e4a; /* Blackboard color */
+    background-color: #4a4e4a; /* Blackboard color for modal background */
     color: #f0f0f0; /* Chalk text */
     margin: auto;
     padding: 25px;
@@ -307,6 +313,8 @@ header h1 {
     max-width: 450px;
     box-shadow: 0 5px 20px rgba(0,0,0,0.4);
     text-align: center;
+    position: relative; /* For stacking context if needed */
+    z-index: 1001; /* Above its own overlay, but below confetti if desired, or above */
 }
 .modal-content p { margin-bottom: 20px; font-size: 1.2em; line-height: 1.5; }
 .modal-buttons-container { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
@@ -316,7 +324,7 @@ header h1 {
 footer { margin-top:30px; font-size:1em; color:#b0b0b0; }
 
 /* Responsive adjustments */
-@media (max-width: 700px) { /* Slightly adjusted breakpoint */
+@media (max-width: 700px) {
     .container { padding: 15px 20px; box-shadow: 0 0 0 7px #6B4F34, 0 3px 10px 8px rgba(0,0,0,0.3); }
     header h1 { font-size: 2.2em; }
     .game-setup-section h2 { font-size: 1.3em; }
@@ -327,6 +335,8 @@ footer { margin-top:30px; font-size:1em; color:#b0b0b0; }
     #alphabet-keyboard-container { max-width:100%; gap:6px; }
     #game-status { font-size:1.1em; flex-direction: column; gap: 8px; }
     #clue-button {font-size: 0.9em; }
+    .player-lobby-card .name {font-size: 1em;}
+    .player-lobby-card .status {font-size: 0.8em;}
 }
 
 @media (max-width: 480px) {
@@ -343,4 +353,49 @@ footer { margin-top:30px; font-size:1em; color:#b0b0b0; }
     #clue-display-area { font-size: 0.95em; padding: 8px 10px;}
     .modal-content { padding: 20px; }
     .modal-content p { font-size: 1.1em; }
+    #network-info-text {font-size: 0.9em;}
+    .player-lobby-card { padding: 6px 10px;}
+}
+
+/* --- Confetti Styles --- */
+#confetti-container {
+    position: fixed; /* Cover the whole viewport */
+    top: 0;
+    left: 0;
+    width: 100vw; /* Use viewport width */
+    height: 100vh; /* Use viewport height */
+    pointer-events: none; /* Important: allows clicks to pass through to elements underneath */
+    overflow: hidden; /* Pieces that fly off screen won't cause scrollbars */
+    z-index: 2000; /* Make sure it's on top of game elements, but allow modals to be above if needed */
+}
+
+.confetti-piece {
+    position: absolute;
+    width: 8px;  /* Small width */
+    height: 15px; /* Slightly taller for a rectangular feel */
+    opacity: 0.9;
+    /* background-color will be set by JavaScript */
+    animation: fall linear forwards; /* JS will set animation-duration per piece */
+    will-change: transform, opacity; /* Hint for browser performance */
+}
+
+@keyframes fall {
+    0% {
+        transform: translateY(-60px) rotateZ(0deg) rotateX(0deg); /* Start above screen */
+        opacity: 1;
+    }
+    25% { /* Add a bit of horizontal sway */
+        transform: translateX(calc(var(--drift) * 20px)) translateY(25vh) rotateZ(180deg) rotateX(180deg);
+    }
+    50% {
+        transform: translateX(calc(var(--drift) * -20px)) translateY(50vh) rotateZ(360deg) rotateX(360deg);
+        opacity: 0.8;
+    }
+    75% {
+        transform: translateX(calc(var(--drift) * 10px)) translateY(75vh) rotateZ(540deg) rotateX(540deg);
+    }
+    100% {
+        transform: translateY(105vh) rotateZ(720deg) rotateX(720deg); /* End below screen */
+        opacity: 0;
+    }
 }
