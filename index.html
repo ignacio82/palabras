@@ -41,8 +41,7 @@
                 <input type="text" id="network-player-name" placeholder="Escribe tu nombre aquí" maxlength="15" value="Danielle">
                 <label for="network-player-icon">🎭 Tu Ícono Favorito:</label>
                 <select id="network-player-icon">
-                    <!-- Will be populated by JavaScript -->
-                </select>
+                    </select>
             </div>
             <div>
                 <label for="network-max-players">👥 ¿Cuántos amigos pueden jugar? (2-4):</label>
@@ -71,8 +70,7 @@
             <p id="lobby-room-id-display">🆔 ID de Sala: <span>Cargando...</span></p>
             <p id="lobby-game-settings-display">⚙️ Dificultad: <span id="lobby-difficulty-display"></span> | 👥 Jugadores: <span id="lobby-player-count-display"></span></p>
             <div id="lobby-player-list">
-                <!-- Players will be populated here -->
-            </div>
+                </div>
             <p id="lobby-message-area" class="message">&nbsp;</p>
             <div class="lobby-actions">
                 <button id="lobby-toggle-ready-button" class="action-button">👍 ¡Estoy Lista!</button>
@@ -104,8 +102,7 @@
 
             <section id="guessed-letters-section">
                 <div id="score-display-area">
-                    <!-- Score cards will be populated here -->
-                </div>
+                    </div>
                 <p>❌ Letras incorrectas: <span id="incorrect-letters-display" class="letters incorrect">Ninguna</span></p>
                 <p>✅ Letras correctas: <span id="correct-letters-display" class="letters correct">Ninguna</span></p>
             </section>
@@ -127,20 +124,18 @@
         <div class="modal-content">
             <p id="modal-message-text"></p>
             <div id="modal-dynamic-buttons" class="modal-buttons-container">
-                <!-- Dynamic buttons will be added here -->
-            </div>
+                </div>
             <button id="modal-close-button" class="action-button-secondary">❌ Cerrar</button>
         </div>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="peerjs-multiplayer.js"></script>
-    <script src="dictionary.js"></script>
+    <script src="peerjs-multiplayer.js"></script> <script src="dictionary.js"></script>
     <script type="module" src="pizarraState.js"></script>
     <script type="module" src="gameLogic.js"></script>
     <script type="module" src="pizarraPeerConnection.js"></script>
     <script type="module" src="pizarraMatchmaking.js"></script>
-    <script type="module" src="main.js"></script>
+    <script type="module" src="pizarraNetHandlers.js"></script> <script type="module" src="main.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-</body>
+    </body>
 </html>
