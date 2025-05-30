@@ -1,5 +1,6 @@
 // pizarraUi.js
 import * as state from './pizarraState.js';
+import { normalizeLetter as normalizeGameLetter } from './util.js'; // Import and alias normalizeLetter
 
 // --- DOM Element References (fetched once) ---
 let localGameSetupSection, networkGameSetupSection, gameAreaEl, lobbyAreaEl, networkInfoAreaEl;
@@ -169,21 +170,22 @@ export function updateWordDisplay() {
     if (!currentWord) return;
     
     const guessed = state.getGuessedLetters();
-    console.log(`[pizarraUi] updateWordDisplay: Word "${currentWord}", Guessed letters: [${Array.from(guessed).join(', ')}]`);
+    // console.log(`[pizarraUi] updateWordDisplay: Word "${currentWord}", Guessed letters: [${Array.from(guessed).join(', ')}]`);
     
-    for (const letter of currentWord) {
+    for (const letter of currentWord) { // currentWord is already normalized (uppercase, no accents except Ñ)
         const letterBox = document.createElement('div'); 
         letterBox.classList.add('letter-box');
         
-        // Normalize letter to lowercase for comparison with guessed letters
-        const normalizedLetter = letter.toLowerCase();
-        if (guessed.has(normalizedLetter)) {
-            letterBox.textContent = letter.toUpperCase(); // Display as uppercase
-            console.log(`[pizarraUi] updateWordDisplay: Showing letter "${letter}" (normalized: "${normalizedLetter}")`);
+        // letter from currentWord is e.g. 'M', 'A', 'Ñ', 'O'
+        // guessed letters are stored normalized (lowercase, e.g. 'm', 'a', 'ñ', 'o')
+        const normalizedLetterFromWord = normalizeGameLetter(letter); // Ensure this matches how guessed letters are stored
+        if (guessed.has(normalizedLetterFromWord)) {
+            letterBox.textContent = letter.toUpperCase(); 
+            // console.log(`[pizarraUi] updateWordDisplay: Showing letter "${letter}" (normalized: "${normalizedLetterFromWord}")`);
         } else { 
             letterBox.textContent = ''; 
             letterBox.classList.add('empty');
-            console.log(`[pizarraUi] updateWordDisplay: Hiding letter "${letter}" (normalized: "${normalizedLetter}")`);
+            // console.log(`[pizarraUi] updateWordDisplay: Hiding letter "${letter}" (normalized: "${normalizedLetterFromWord}")`);
         }
         wordDisplayContainerEl.appendChild(letterBox);
     }
@@ -192,75 +194,82 @@ export function updateWordDisplay() {
 export function updateGuessedLettersDisplay() {
     if (!correctLettersDisplayEl || !incorrectLettersDisplayEl) return;
     const correctArr = [], incorrectArr = [];
-    const guessed = state.getGuessedLetters(); 
-    const currentWord = state.getCurrentWord();
+    const guessed = state.getGuessedLetters(); // Contains normalized, lowercase letters
+    const currentWord = state.getCurrentWord(); // Contains normalized, uppercase letters
     const sortedGuessedLetters = Array.from(guessed).sort((a,b)=>a.localeCompare(b,'es'));
     
-    console.log(`[pizarraUi] updateGuessedLettersDisplay: Word "${currentWord}", Guessed: [${sortedGuessedLetters.join(', ')}]`);
+    // console.log(`[pizarraUi] updateGuessedLettersDisplay: Word "${currentWord}", Guessed: [${sortedGuessedLetters.join(', ')}]`);
     
-    for (const letter of sortedGuessedLetters) {
-        // Check if the lowercase guessed letter exists in the lowercase word
-        if (currentWord?.toLowerCase().includes(letter.toLowerCase())) {
-            correctArr.push(letter.toUpperCase());
+    for (const guessedLetter of sortedGuessedLetters) { // guessedLetter is like 'a', 'm', 'ñ'
+        // currentWord is 'MANO'. We need to check if normalized guessedLetter is in normalized currentWord.
+        // Since currentWord is already normalized (uppercase), and guessedLetter is normalized (lowercase),
+        // we can convert currentWord to lowercase for includes check.
+        if (currentWord?.toLowerCase().includes(guessedLetter)) {
+            correctArr.push(guessedLetter.toUpperCase());
         } else {
-            incorrectArr.push(letter.toUpperCase());
+            incorrectArr.push(guessedLetter.toUpperCase());
         }
     }
     
     correctLettersDisplayEl.textContent = correctArr.join(', ') || 'Ninguna';
     incorrectLettersDisplayEl.textContent = incorrectArr.join(', ') || 'Ninguna';
     
-    console.log(`[pizarraUi] updateGuessedLettersDisplay: Correct: [${correctArr.join(', ')}], Incorrect: [${incorrectArr.join(', ')}]`);
+    // console.log(`[pizarraUi] updateGuessedLettersDisplay: Correct: [${correctArr.join(', ')}], Incorrect: [${incorrectArr.join(', ')}]`);
 }
 
 export function createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback) {
     if (!alphabetKeyboardContainerEl) return;
     alphabetKeyboardContainerEl.innerHTML = '';
-    const guessed = state.getGuessedLetters(); 
+    const guessed = state.getGuessedLetters(); // This is a Set of normalized (lowercase) letters
     const gameIsActive = state.getGameActive();
     
-    console.log("[pizarraUi] Creating alphabet keyboard. Game active:", gameIsActive, "My turn:", isMyTurnCurrently, "Guessed letters:", Array.from(guessed));
+    // console.log("[pizarraUi] Creating alphabet keyboard. Game active:", gameIsActive, "My turn:", isMyTurnCurrently, "Guessed letters:", Array.from(guessed));
     
-    state.ALPHABET.forEach(letter => {
+    state.ALPHABET.forEach(letter => { // letter here is uppercase, e.g., "A", "Ñ"
         const button = document.createElement('button');
         button.classList.add('alphabet-button'); 
         button.textContent = letter; 
-        button.dataset.letter = letter;
+        button.dataset.letter = letter; // Store the original uppercase letter for the callback
         
-        const isGuessed = guessed.has(letter);
+        // Normalize the button's letter for checking against the (already normalized) guessed set
+        const normalizedButtonLetter = normalizeGameLetter(letter); // e.g., "m", "a", "ñ"
+        const isGuessed = guessed.has(normalizedButtonLetter);
+        
         const shouldDisable = !gameIsActive || !isMyTurnCurrently || isGuessed;
         
         button.disabled = shouldDisable;
         
-        // Add visual feedback for guessed letters
         if (isGuessed) {
-            button.classList.add('guessed');
+            button.classList.add('guessed'); // CSS will gray it out
         }
         
         button.addEventListener('click', () => {
             if (!button.disabled && typeof onLetterClickCallback === 'function') {
-                console.log("[pizarraUi] Letter clicked:", letter, "Button disabled:", button.disabled);
-                onLetterClickCallback(letter, button);
+                // console.log("[pizarraUi] Letter clicked:", letter, "Button disabled:", button.disabled);
+                onLetterClickCallback(letter, button); // Pass the original uppercase letter
             }
         });
         alphabetKeyboardContainerEl.appendChild(button);
     });
 }
 
-// updateAllAlphabetButtons might not be strictly needed if createAlphabetKeyboard is always used for refresh
 export function updateAllAlphabetButtons(disableCompletely) {
     if (!alphabetKeyboardContainerEl) return;
-    const guessed = state.getGuessedLetters(); const gameIsActive = state.getGameActive();
+    const guessed = state.getGuessedLetters(); // Set of normalized (lowercase) letters
+    const gameIsActive = state.getGameActive();
     alphabetKeyboardContainerEl.querySelectorAll('.alphabet-button').forEach(button => {
-        const letter = button.dataset.letter;
-        const isGuessed = guessed.has(letter);
+        const letterFromButton = button.dataset.letter; // Original uppercase letter (e.g., "A", "Ñ")
+        const normalizedButtonLetter = normalizeGameLetter(letterFromButton); // Normalized (e.g., "a", "ñ")
+        const isGuessed = guessed.has(normalizedButtonLetter);
+
         if (disableCompletely) {
             button.disabled = true;
         } else {
-            button.disabled = isGuessed || !gameIsActive;
+            // Disable if the game is not active OR if the letter has been guessed.
+            // Turn logic is handled by createAlphabetKeyboard which is preferred.
+            button.disabled = !gameIsActive || isGuessed;
         }
         
-        // Add visual feedback for guessed letters
         if (isGuessed) {
             button.classList.add('guessed');
         } else {
@@ -269,7 +278,7 @@ export function updateAllAlphabetButtons(disableCompletely) {
     });
 }
 
-export function updateAlphabetEnablement(onLetterClickCallback) { // As per your RCA, now calls createAlphabetKeyboard
+export function updateAlphabetEnablement(onLetterClickCallback) { 
     if(!uiInitialized) initializeUiDOMReferences();
     if (!alphabetKeyboardContainerEl) return;
     if (!state.getGameActive()) { 
@@ -310,13 +319,13 @@ export function updateCurrentPlayerTurnUI() {
 
 export function renderFullGameBoard(isMyTurnCurrently, onLetterClickCallback) {
     if(!uiInitialized) initializeUiDOMReferences();
-    console.log("[pizarraUi] renderFullGameBoard called. Is my turn:", isMyTurnCurrently);
+    // console.log("[pizarraUi] renderFullGameBoard called. Is my turn:", isMyTurnCurrently);
     updateWordDisplay();
     updateStarsDisplay();
     updateGuessedLettersDisplay();
     updateScoreDisplayUI();
     updateCurrentPlayerTurnUI();
-    createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback); // Always recreate to ensure proper state
+    createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback); 
     
     if(clueButtonEl) {
         clueButtonEl.style.display = 'inline-block';
@@ -326,7 +335,7 @@ export function renderFullGameBoard(isMyTurnCurrently, onLetterClickCallback) {
     if(clueTextEl && state.getClueUsedThisGame()) clueTextEl.textContent = state.getCurrentWordObject()?.definition || "";
 }
 
-export function displayClueOnUI(clueDefinition) { // Renamed to avoid conflict with gameLogic.requestClue
+export function displayClueOnUI(clueDefinition) { 
     if(!uiInitialized) initializeUiDOMReferences();
     if(clueTextEl) clueTextEl.textContent = clueDefinition;
     if(clueDisplayAreaEl) clueDisplayAreaEl.style.display = 'block';
