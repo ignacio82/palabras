@@ -1,6 +1,5 @@
 // pizarraNetHandlers.js
 import * as state from './pizarraState.js';
-// ui import removed as UI updates are now triggered by a callback in main.js
 
 /**
  * Attaches a data listener to a connection, specifically for handling 'state_sync' messages.
@@ -10,7 +9,7 @@ import * as state from './pizarraState.js';
  */
 export function attach(conn) {
   conn.on('data', data => {
-    if (data?.type === 'state_sync') {
+    if (data?.type === 'state_sync') { // Ensure this matches MSG_TYPE.STATE_SYNC from peerConnection
       console.log(`[NetHandlers] Received state_sync from ${conn.peer}:`, data.payload);
       // Client updates its local state based on the host's authoritative state
       if (!state.getNetworkRoomData().isRoomLeader) { // Ensure only clients process incoming state_sync this way
@@ -32,17 +31,28 @@ export function attach(conn) {
  */
 export function broadcastState(hostConnectionsMap) {
   if (!state.getNetworkRoomData().isRoomLeader) {
-    // console.warn("[NetHandlers] broadcastState called by non-leader. Aborting.");
     return; 
   }
 
-  const snapshot = state.getRawNetworkRoomData(); // Get the full, clone-safe network data from host's perspective
-  // console.log("[NetHandlers] Host broadcasting state_sync:", snapshot);
+  // Construct the snapshot including word game specific state
+  const snapshot = {
+    ...state.getRawNetworkRoomData(), // Base room data (players, settings, roomState etc.)
+    // Include word game state, ensuring they are serializable
+    currentWordObject: state.getCurrentWordObject(), // Already a clone or null
+    guessedLetters: Array.from(state.getGuessedLetters()), // Convert Set to Array
+    remainingAttemptsPerPlayer: state.getRemainingAttemptsPerPlayer(), // Already an array
+    currentPlayerId: state.getCurrentPlayerId(),
+    clueUsedThisGame: state.getClueUsedThisGame(),
+    gameActive: state.getGameActive() // Include game active status
+  };
+  
+  console.log("[NetHandlers] Host broadcasting state_sync:", snapshot);
 
   hostConnectionsMap.forEach((clientEntry, peerId) => {
     if (clientEntry.connObject && clientEntry.connObject.open) {
       try {
-        clientEntry.connObject.send({ type: 'state_sync', payload: snapshot });
+        // Ensure the type string matches exactly what clients expect (e.g., from MSG_TYPE.STATE_SYNC)
+        clientEntry.connObject.send({ type: 'state_sync', payload: snapshot }); 
       } catch (e) {
         console.error(`[NetHandlers] Error sending state_sync to client ${peerId}:`, e);
       }
