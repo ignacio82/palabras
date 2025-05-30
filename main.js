@@ -128,23 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Local game
         console.log("[Main] Processing local game guess for letter:", letter);
         
-        // Disable button immediately to prevent multiple clicks
-        if (buttonElement) {
-            buttonElement.disabled = true;
-            buttonElement.classList.add('guessed');
-        }
-        
         const result = logic.processGuess(letter); // gameLogic.processGuess updates state
         
         console.log("[Main] Guess result:", result);
 
-        // Update the entire UI to reflect the new state
-        ui.updateStarsDisplay(); 
-        ui.updateWordDisplay();  
-        ui.updateGuessedLettersDisplay(); 
-        
-        // Recreate alphabet keyboard with proper states
-        updateAlphabetEnablement();
+        // Update the entire UI to reflect the new state including alphabet buttons
+        ui.renderFullGameBoard(true, handleLetterClickUI);
 
         if (result.correct) {
             ui.displayMessage(`¡Muy bien! '${result.letter}' está en la palabra. 👍`, 'success');
@@ -161,8 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
         }
-        
-        ui.updateCurrentPlayerTurnUI();
     }
 
     function handleClueRequestUI() {

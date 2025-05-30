@@ -111,7 +111,7 @@ export function processGuess(letter) {
     guessedLetters.add(l); // Add to guessed set
     state.setGuessedLetters(guessedLetters); // Update state
 
-    const wasCorrect = state.getCurrentWord().includes(l);
+    const wasCorrect = state.getCurrentWord().toLowerCase().includes(l);
     let attemptsLeftForPlayer = state.getAttemptsFor(affectedPlayerId);
 
     if (!wasCorrect) {
@@ -196,9 +196,11 @@ export function checkWinCondition() {
     const guessedLetters = state.getGuessedLetters();
     console.log(`[GameLogic] checkWinCondition: Word "${currentWord}", Guessed letters: [${Array.from(guessedLetters).join(', ')}]`);
     
+    // Check each letter in the word (normalize to lowercase for comparison)
     for (const letter of currentWord) {
-        if (!guessedLetters.has(letter)) {
-            console.log(`[GameLogic] checkWinCondition: Missing letter "${letter}" - word not solved`);
+        const normalizedLetter = letter.toLowerCase();
+        if (!guessedLetters.has(normalizedLetter)) {
+            console.log(`[GameLogic] checkWinCondition: Missing letter "${letter}" (normalized: "${normalizedLetter}") - word not solved`);
             return false;
         }
     }
