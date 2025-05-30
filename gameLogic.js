@@ -1,60 +1,49 @@
 // gameLogic.js
 
+import * as state from './pizarraState.js';
+import { normalizeLetter } from './util.js'; // Using the new util.js
+
 // Assuming DICTIONARY_DATA is globally available from dictionary.js
-// Assuming pizarraState.js is loaded and its exports are available if this were a module (see note below)
-
-// For a modular approach, you'd typically use:
-// import * as state from './pizarraState.js';
-// import { DICTIONARY_DATA } from './dictionary.js'; // If dictionary.js also used ES6 modules
-
-// Since we are not yet using full ES6 modules via <script type="module"> for all files,
-// we'll assume DICTIONARY_DATA is global, and for state, we'll define functions
-// that would interact with a state object if it were passed or imported.
-// For now, let's make it work with the global/semi-global structure evolving.
-// Ideally, pizarraState.js would export functions to get/set state, and this module would call them.
-
-// --- Helper Functions ---
-function normalizeStringForGame(str) {
-    if (!str) return "";
-    // This function should match how it's defined or used in pizarraState.js or main.js
-    // For consistency, let's assume a global `normalizeString` or that `pizarraState.normalizeString` exists.
-    // If not, we can define it here or ensure it's provided.
-    // Using a simple version for now, assuming pizarraState.js might have a more robust one.
-    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-}
-
-
-// --- Core Game Logic Functions ---
 
 /**
  * Initializes a new game round.
- * Relies on main.js to update UI elements based on returned state or direct calls to UI functions.
- * stateRef: A reference to the state management object (like the one in pizarraState.js)
+ * stateRef: A reference to the state management object (pizarraState.js exports)
+ * difficulty: The difficulty string ("easy", "medium", "hard")
  */
 export function initializeGame(stateRef, difficulty) {
-    stateRef.resetGameFlowState(); // Resets word, guessed letters, attempts, clue status
+    stateRef.resetGameFlowState();
     stateRef.setCurrentDifficulty(difficulty);
-    stateRef.setGameActive(true); // Mark game as active
 
     const wordSelected = selectNewWord(stateRef);
     if (!wordSelected) {
-        stateRef.setGameActive(false);
+        stateRef.setGameActive(false); // Ensure game is not active if no word
         return { success: false, message: `No hay palabras para la dificultad '${difficulty}'.` };
     }
 
-    stateRef.setRemainingAttempts(stateRef.MAX_ATTEMPTS); // Use constant from state
-    stateRef.guessedLetters.clear();
-    stateRef.setClueUsedThisGame(false);
+    // Initialize attempts per player based on current playersData
+    // playersData should be set before calling initializeGame (e.g., by main.js or network logic)
+    if (stateRef.playersData && stateRef.playersData.length > 0) {
+        stateRef.initRemainingAttempts(stateRef.playersData.length);
+    } else {
+        // Fallback for local single player if playersData isn't set up yet by main.js
+        // This path should ideally be handled by main.js ensuring playersData has at least one player.
+        stateRef.initRemainingAttempts(1); 
+        if (stateRef.playersData.length === 0) { // If truly no player data, set up a default local player
+            stateRef.setPlayersData([{id: 0, name: "Jugador 1", icon: "✏️", color: state.DEFAULT_PLAYER_COLORS[0], score: 0}]);
+            stateRef.setCurrentPlayerId(0);
+        }
+    }
+    
+    stateRef.setGameActive(true);
+    stateRef.guessedLetters.clear(); // Cleared in resetGameFlowState, but good to be explicit
+    stateRef.setClueUsedThisGame(false); // Cleared in resetGameFlowState
 
-    // For Pizarra (single local player for now), player ID is implicitly 0 or managed by main.js
-    // stateRef.setCurrentPlayerId(0); // Example if managing here
-
+    console.log(`[GameLogic] Game initialized. Word: ${stateRef.currentWordObject?.word}, Difficulty: ${difficulty}, CurrentPlayerID: ${stateRef.currentPlayerId}`);
     return { success: true, currentWordObject: stateRef.currentWordObject };
 }
 
 /**
  * Selects a new word based on the current difficulty set in stateRef.
- * Updates stateRef.currentWordObject and stateRef.currentWord.
  */
 export function selectNewWord(stateRef) {
     if (typeof DICTIONARY_DATA === 'undefined' || DICTIONARY_DATA.length === 0) {
@@ -73,68 +62,113 @@ export function selectNewWord(stateRef) {
 
     const randomIndex = Math.floor(Math.random() * availableWords.length);
     const selectedWordObj = availableWords[randomIndex];
-    stateRef.setCurrentWordObject(selectedWordObj); // Sets both currentWordObject and normalized currentWord in state
+    stateRef.setCurrentWordObject(selectedWordObj); // This also sets the normalized state.currentWord
     return true;
 }
 
 /**
  * Processes a player's letter guess.
- * Updates stateRef (guessedLetters, remainingAttempts, gameActive).
- * Returns an object indicating the outcome.
+ * Directly uses the imported 'state' module.
  */
-export function processGuess(stateRef, letter) {
-    if (!stateRef.gameActive) {
-        return { validGuess: false, message: "El juego no está activo." };
-    }
-    if (!letter || letter.length !== 1 || !stateRef.ALPHABET.includes(letter.toUpperCase())) {
-        return { validGuess: false, message: "Intento inválido." };
-    }
-
-    const upperLetter = letter.toUpperCase();
-
-    if (stateRef.guessedLetters.has(upperLetter)) {
-        return { validGuess: false, alreadyGuessed: true, letter: upperLetter, message: "Ya intentaste esa letra." };
-    }
-
-    stateRef.guessedLetters.add(upperLetter);
-
-    const letterIsInWord = stateRef.currentWord.includes(upperLetter);
-
-    if (letterIsInWord) {
-        const wordSolved = checkWinCondition(stateRef);
-        if (wordSolved) {
-            stateRef.setGameActive(false);
-        }
-        return {
-            validGuess: true,
-            correct: true,
-            letter: upperLetter,
-            wordSolved: wordSolved,
-            remainingAttempts: stateRef.remainingAttempts
-        };
-    } else {
-        stateRef.setRemainingAttempts(stateRef.remainingAttempts - 1);
-        const gameOver = checkLossCondition(stateRef);
-        if (gameOver) {
-            stateRef.setGameActive(false);
-        }
-        return {
-            validGuess: true,
+export function processGuess(letter) {
+    if (!state.gameActive) {
+         return {
+            letter: normalizeLetter(letter), // Still normalize for consistency in return
             correct: false,
-            letter: upperLetter,
-            gameOver: gameOver,
-            remainingAttempts: stateRef.remainingAttempts
+            affectedPlayerId: state.currentPlayerId,
+            attemptsLeft: state.getAttemptsFor(state.currentPlayerId),
+            nextPlayerId: state.currentPlayerId,
+            wordSolved: false,
+            gameOver: true, // Game is over if not active
+            error: "El juego no está activo."
         };
     }
+
+    const l = normalizeLetter(letter);
+    const affectedPlayerId = state.currentPlayerId; // The player making the guess
+
+    if (state.guessedLetters.has(l)) {
+        // Letter already guessed, turn might not change, attempts not affected
+        return {
+            letter: l,
+            correct: state.currentWord.includes(l), // It was correct previously
+            alreadyGuessed: true,
+            affectedPlayerId: affectedPlayerId,
+            attemptsLeft: state.getAttemptsFor(affectedPlayerId),
+            nextPlayerId: affectedPlayerId, // Turn doesn't change for an already guessed letter
+            wordSolved: checkWinCondition(state),
+            gameOver: state.getAttemptsFor(affectedPlayerId) <= 0 && !checkWinCondition(state)
+        };
+    }
+
+    state.guessedLetters.add(l); // Add to guessed set
+
+    const wasCorrect = state.currentWord.includes(l);
+    let attemptsLeftForPlayer = state.getAttemptsFor(affectedPlayerId);
+
+    if (!wasCorrect) {
+        state.decAttemptsFor(affectedPlayerId);
+        attemptsLeftForPlayer = state.getAttemptsFor(affectedPlayerId); // Get updated attempts
+    }
+
+    const wordSolved = checkWinCondition(state);
+    const playerLost = attemptsLeftForPlayer <= 0 && !wordSolved;
+    const gameIsOver = wordSolved || playerLost;
+
+    if (gameIsOver) {
+        state.setGameActive(false);
+    }
+
+    // Determine next player ID
+    // If correct guess and word not solved, player might continue (Pizarra current single player model).
+    // For multiplayer, turn always passes unless player solves the word or a specific rule says otherwise.
+    // Your proposal: const nextPid = (pid + 1) % state.playersData.length; This always passes turn.
+    let nextPlayerId;
+    if (gameIsOver) {
+        nextPlayerId = -1; // No next player if game is over
+    } else if (wasCorrect && !wordSolved) { 
+        // Pizarra is single player or host manages turns. If host, turn might not change yet.
+        // For strict round-robin as per your proposal:
+        nextPlayerId = (affectedPlayerId + 1) % state.playersData.length;
+        // However, if Pizarra logic is "player continues on correct guess", this should be:
+        // nextPlayerId = affectedPlayerId; 
+        // For now, following your round-robin proposal:
+        if (state.playersData.length === 0) { // Should not happen if game started
+            console.error("[GameLogic] playersData is empty during nextPid calculation!");
+            nextPlayerId = 0; // Fallback
+        } else {
+             nextPlayerId = state.playersData[ (state.playersData.findIndex(p => p.id === affectedPlayerId) + 1) % state.playersData.length ].id;
+        }
+
+    } else { // Incorrect guess or word solved
+        if (state.playersData.length === 0) {
+             console.error("[GameLogic] playersData is empty during nextPid calculation!");
+            nextPlayerId = 0; // Fallback
+        } else {
+            nextPlayerId = state.playersData[ (state.playersData.findIndex(p => p.id === affectedPlayerId) + 1) % state.playersData.length ].id;
+        }
+    }
+
+
+    return {
+        letter: l,
+        correct: wasCorrect,
+        affectedPlayerId: affectedPlayerId,
+        attemptsLeft: attemptsLeftForPlayer,
+        nextPlayerId: nextPlayerId,
+        wordSolved: wordSolved,
+        gameOver: gameIsOver // True if word solved OR player lost
+    };
 }
 
 /**
  * Checks if the current word has been completely guessed.
+ * Uses the imported 'state'.
  */
-export function checkWinCondition(stateRef) {
-    if (!stateRef.currentWord) return false;
-    for (const letter of stateRef.currentWord) {
-        if (!stateRef.guessedLetters.has(letter)) {
+export function checkWinCondition() {
+    if (!state.currentWord) return false;
+    for (const letter of state.currentWord) {
+        if (!state.guessedLetters.has(letter)) {
             return false;
         }
     }
@@ -142,36 +176,43 @@ export function checkWinCondition(stateRef) {
 }
 
 /**
- * Checks if the player has run out of attempts.
+ * Checks if a specific player has run out of attempts.
+ * This determines if *that player* has lost their chance for this word.
+ * The overall game might end if all players lose or if the word is solved.
  */
-export function checkLossCondition(stateRef) {
-    return stateRef.remainingAttempts <= 0;
+export function checkLossConditionForPlayer(playerId) {
+    return state.getAttemptsFor(playerId) <= 0;
 }
+
 
 /**
  * Handles a clue request.
- * Updates stateRef.clueUsedThisGame.
- * Returns an object with the clue or an error message.
+ * Uses the imported 'state'.
  */
-export function requestClue(stateRef) {
-    if (!stateRef.gameActive) {
+export function requestClue() {
+    if (!state.gameActive) {
         return { success: false, message: "El juego no está activo para pedir pistas." };
     }
-    if (stateRef.clueUsedThisGame) {
+    if (state.clueUsedThisGame) {
         return { success: false, message: "Ya usaste la pista para esta palabra." };
     }
-    if (!stateRef.currentWordObject || !stateRef.currentWordObject.definition) {
+    if (!state.currentWordObject || !state.currentWordObject.definition) {
         return { success: false, message: "No hay pista disponible para esta palabra." };
     }
 
-    stateRef.setClueUsedThisGame(true);
-    // Optional: Implement a cost for the clue, e.g.,
-    // stateRef.setRemainingAttempts(stateRef.remainingAttempts - 1);
-    // if (checkLossCondition(stateRef)) { stateRef.setGameActive(false); }
+    state.setClueUsedThisGame(true);
+    // No cost for clue in this version, as per previous logic.
+    // If a cost was introduced (e.g., losing an attempt):
+    // const pid = state.currentPlayerId;
+    // state.decAttemptsFor(pid);
+    // const attemptsLeft = state.getAttemptsFor(pid);
+    // const wordSolved = checkWinCondition(state);
+    // const playerLost = attemptsLeft <= 0 && !wordSolved;
+    // if (playerLost) state.setGameActive(false);
 
     return {
         success: true,
-        clue: stateRef.currentWordObject.definition,
-        // remainingAttempts: stateRef.remainingAttempts // if clue has a cost
+        clue: state.currentWordObject.definition,
+        // gameOver: state.gameActive ? false : true // if clue cost could end game
     };
 }
