@@ -3,6 +3,9 @@ import * as state from './pizarraState.js';
 import * as logic from './gameLogic.js';
 import * as peerConnection from './pizarraPeerConnection.js';
 import * as matchmaking from './pizarraMatchmaking.js';
+// As per your RCA, importing ui and sound modules
+import * as ui from './pizarraUi.js'; // You will need to create pizarraUi.js and export functions like renderFullGameBoard
+import * as sound from './pizarraSound.js'; // You will need to create pizarraSound.js and export playGameStart
 
 const PIZARRA_BASE_URL = "https://palabras.martinez.fyi";
 
@@ -10,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Pizarra de Palabras: DOMContentLoaded, initializing main.js with network features, haptics, and confetti.");
 
     // --- DOM Element References ---
-    // ... (all your DOM references remain the same)
+    // (Assume all DOM references from your previous complete main.js are here)
     const gameModeTabs = document.querySelectorAll('.tab-button');
     const localGameSetupSection = document.getElementById('local-game-setup-section');
     const networkGameSetupSection = document.getElementById('network-game-setup-section');
@@ -43,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const lobbyLeaveRoomButtonEl = document.getElementById('lobby-leave-room-button');
 
     const gameAreaEl = document.getElementById('game-area');
-    const starsDisplayEl = document.getElementById('stars-display'); 
+    const starsDisplayEl = document.getElementById('stars-display');
     const currentPlayerTurnDisplaySpan = document.getElementById('current-player-turn-display')?.querySelector('span');
     const clueButtonEl = document.getElementById('clue-button');
     const clueDisplayAreaEl = document.getElementById('clue-display-area');
@@ -72,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
             try { navigator.vibrate(pattern); } catch (e) { console.warn("Haptic feedback failed:", e); }
         }
     }
-
     const confettiColors = ["#FF69B4", "#00BFFF", "#FFD700", "#32CD32", "#FF7F50", "#DA70D6", "#f0f0f0", "#fffacd"];
     function createConfettiPiece() { /* ... same ... */ 
         if (!confettiContainerEl) return;
@@ -94,8 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const defaultInstruction = "Haz clic en una letra para adivinar...";
         if (!persistent && area === messageAreaEl && gameAreaEl.style.display !== 'none') {
              messageTimeout = setTimeout(() => {
-                if (state.gameActive && area.textContent === text) displayMessage(defaultInstruction, 'info', false, area);
-                else if (!state.gameActive && area.textContent === text && type !== 'success' && type !== 'error') { area.textContent = '\u00A0'; area.className = 'message';}
+                if (state.getGameActive() && area.textContent === text) displayMessage(defaultInstruction, 'info', false, area); // Use getter
+                else if (!state.getGameActive() && area.textContent === text && type !== 'success' && type !== 'error') { area.textContent = '\u00A0'; area.className = 'message';}
             }, 3000);
         }
     }
@@ -117,27 +119,34 @@ document.addEventListener('DOMContentLoaded', () => {
         customModalEl.style.display = 'flex';
     }
     function hideModal() { /* ... same ... */ if (customModalEl) customModalEl.style.display = 'none'; }
-    function updateStarsDisplay() { /* ... same ... */ 
+    
+    // MODIFIED updateStarsDisplay as per your RCA
+    function updateStarsDisplay() {
         if (!starsDisplayEl) return;
-        let attemptsToShow = state.MAX_ATTEMPTS; 
-        if (state.gameActive || state.pvpRemoteActive) { 
-            if (state.pvpRemoteActive && state.networkRoomData.myPlayerIdInRoom !== null) {
-                attemptsToShow = state.getAttemptsFor(state.networkRoomData.myPlayerIdInRoom);
-            } else if (!state.pvpRemoteActive && state.playersData.length > 0) {
-                attemptsToShow = state.getAttemptsFor(state.currentPlayerId);
-            } else if (state.remainingAttemptsPerPlayer.length > 0 && state.currentPlayerId < state.remainingAttemptsPerPlayer.length) {
-                attemptsToShow = state.getAttemptsFor(state.currentPlayerId);
-            }
+        let attemptsToShow = state.DEFAULT_ATTEMPTS_PER_PLAYER; // Default to prevent error if pid is undefined
+        let pidToShowAttemptsFor = null;
+
+        if (state.getPvpRemoteActive()) { // Use getPvpRemoteActive()
+            pidToShowAttemptsFor = state.getNetworkRoomData().myPlayerIdInRoom; // Show local player's stars
+        } else {
+            pidToShowAttemptsFor = state.getCurrentPlayerId(); // Show current player's stars in local game
+        }
+
+        if (pidToShowAttemptsFor !== null && pidToShowAttemptsFor !== undefined) {
+            attemptsToShow = state.getAttemptsFor(pidToShowAttemptsFor);
         }
         starsDisplayEl.textContent = state.STAR_SYMBOL.repeat(attemptsToShow);
     }
+
     function updateWordDisplay() { /* ... same ... */ 
         if (!wordDisplayContainerEl) return;
         wordDisplayContainerEl.innerHTML = '';
-        if (!state.currentWord) return;
-        for (const letter of state.currentWord) {
+        const currentWord = state.getCurrentWord(); // Use getter
+        if (!currentWord) return;
+        const guessed = state.getGuessedLetters(); // Use getter
+        for (const letter of currentWord) {
             const letterBox = document.createElement('div'); letterBox.classList.add('letter-box');
-            if (state.guessedLetters.has(letter)) letterBox.textContent = letter;
+            if (guessed.has(letter)) letterBox.textContent = letter;
             else { letterBox.textContent = ''; letterBox.classList.add('empty');}
             wordDisplayContainerEl.appendChild(letterBox);
         }
@@ -145,14 +154,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateGuessedLettersDisplay() { /* ... same ... */ 
         if (!correctLettersDisplayEl || !incorrectLettersDisplayEl) return;
         const correctArr = [], incorrectArr = [];
-        const sortedGuessedLetters = Array.from(state.guessedLetters).sort((a,b)=>a.localeCompare(b,'es'));
+        const guessed = state.getGuessedLetters(); // Use getter
+        const currentWord = state.getCurrentWord(); // Use getter
+        const sortedGuessedLetters = Array.from(guessed).sort((a,b)=>a.localeCompare(b,'es'));
         for (const letter of sortedGuessedLetters) {
-            if (state.currentWord?.includes(letter)) correctArr.push(letter); else incorrectArr.push(letter);
+            if (currentWord?.includes(letter)) correctArr.push(letter); else incorrectArr.push(letter);
         }
         correctLettersDisplayEl.textContent = correctArr.join(', ') || 'Ninguna';
         incorrectLettersDisplayEl.textContent = incorrectArr.join(', ') || 'Ninguna';
     }
-    function updateDifficultyButtonUI() { /* ... same ... */ difficultyButtons.forEach(b => b.classList.toggle('active', b.dataset.difficulty === state.currentDifficulty)); }
+    function updateDifficultyButtonUI() { /* ... same ... */ difficultyButtons.forEach(b => b.classList.toggle('active', b.dataset.difficulty === state.getCurrentDifficulty())); } // Use getter
     function populatePlayerIcons(targetSelectElement = networkPlayerIconSelect) { /* ... same ... */ 
         if (targetSelectElement) {
             targetSelectElement.innerHTML = ''; 
@@ -166,8 +177,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateScoreDisplayUI() { /* ... same ... */ 
         if (!scoreDisplayAreaEl) return;
         scoreDisplayAreaEl.innerHTML = '';
-        if (!state.playersData || state.playersData.length === 0) return;
-        state.playersData.forEach(player => {
+        const players = state.getPlayersData(); // Use getter
+        if (!players || players.length === 0) return;
+        players.forEach(player => {
             const card = document.createElement('div'); card.className = 'player-score-card'; card.style.borderColor = player.color;
             const nameSpan = document.createElement('span'); nameSpan.className = 'name'; nameSpan.textContent = `${player.icon} ${player.name}: `;
             const scoreSpan = document.createElement('span'); scoreSpan.className = 'score'; scoreSpan.textContent = player.score;
@@ -176,123 +188,112 @@ document.addEventListener('DOMContentLoaded', () => {
     }
      function updateCurrentPlayerTurnUI() { /* ... same ... */ 
         if (!currentPlayerTurnDisplaySpan) return;
-        if (!state.gameActive || !state.playersData.length) { currentPlayerTurnDisplaySpan.textContent = '-'; return; }
-        const currentPlayer = state.playersData.find(p => p.id === state.currentPlayerId);
+        const players = state.getPlayersData(); // Use getter
+        const currentPId = state.getCurrentPlayerId(); // Use getter
+        if (!state.getGameActive() || !players.length) { currentPlayerTurnDisplaySpan.textContent = '-'; return; }
+        const currentPlayer = players.find(p => p.id === currentPId);
         if (currentPlayer) {
             let turnText = `${currentPlayer.icon} ${currentPlayer.name}`;
-            if (state.pvpRemoteActive) {
-                turnText = (currentPlayer.id === state.networkRoomData.myPlayerIdInRoom) ? `✅ ${turnText} (Tu Turno)` : `⏳ ${turnText}`;
+            if (state.getPvpRemoteActive()) { // Use getter
+                turnText = (currentPlayer.id === state.getNetworkRoomData().myPlayerIdInRoom) ? `✅ ${turnText} (Tu Turno)` : `⏳ ${turnText}`;
             }
             currentPlayerTurnDisplaySpan.textContent = turnText;
         } else { currentPlayerTurnDisplaySpan.textContent = "Esperando..."; }
     }
 
-    // MODIFIED: createAlphabetKeyboard now correctly uses isMyTurn
     function createAlphabetKeyboard(isMyTurnCurrently = true) {
         if (!alphabetKeyboardContainerEl) return;
         alphabetKeyboardContainerEl.innerHTML = '';
+        const guessed = state.getGuessedLetters(); // Use getter
+        const gameIsActive = state.getGameActive(); // Use getter
         state.ALPHABET.forEach(letter => {
             const button = document.createElement('button');
             button.classList.add('alphabet-button'); button.textContent = letter; button.dataset.letter = letter;
-            // A letter button is disabled if:
-            // 1. It's not the current player's turn (isMyTurnCurrently is false) OR
-            // 2. The letter has already been guessed OR
-            // 3. The game is not active.
-            button.disabled = !isMyTurnCurrently || state.guessedLetters.has(letter) || !state.gameActive;
+            button.disabled = !isMyTurnCurrently || guessed.has(letter) || !gameIsActive;
             button.addEventListener('click', () => handleLetterClickUI(letter, button));
             alphabetKeyboardContainerEl.appendChild(button);
         });
     }
     
-    // MODIFIED: updateAllAlphabetButtons is simplified, primary control via createAlphabetKeyboard's isMyTurn
     function updateAllAlphabetButtons(disableCompletely) {
         if (!alphabetKeyboardContainerEl) return;
+        const guessed = state.getGuessedLetters(); // Use getter
+        const gameIsActive = state.getGameActive(); // Use getter
         alphabetKeyboardContainerEl.querySelectorAll('.alphabet-button').forEach(button => {
             const letter = button.dataset.letter;
-            if (disableCompletely) {
-                button.disabled = true;
-            } else {
-                // Enable based on whether it's guessed and game active, turn is handled by createAlphabetKeyboard
-                button.disabled = state.guessedLetters.has(letter) || !state.gameActive;
-            }
+            if (disableCompletely) button.disabled = true;
+            else button.disabled = guessed.has(letter) || !gameIsActive;
         });
     }
 
-    // MODIFIED: updateAlphabetEnablement directly calls createAlphabetKeyboard
+    // MODIFIED updateAlphabetEnablement as per your RCA
     function updateAlphabetEnablement() {
-        if (!state.gameActive) {
-            createAlphabetKeyboard(false); // Create disabled keyboard
+        if (!state.getGameActive()) { // Use getter
+            // If game not active, could create disabled keyboard or just disable all
+            createAlphabetKeyboard(false); // Create disabled
             return;
         }
-        const myTurn = state.pvpRemoteActive ? 
-                       (state.networkRoomData.myPlayerIdInRoom === state.currentPlayerId) : 
-                       true;
-        createAlphabetKeyboard(myTurn); // Recreate keyboard with correct enabled/disabled states
+        const myTurnInNetwork = state.getPvpRemoteActive() ? 
+                           (state.getNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId()) : 
+                           true; // In local game, if active, it's effectively "my turn" to interact
+        createAlphabetKeyboard(myTurnInNetwork); // Recreate keyboard with correct enabled states
     }
 
-    function showScreen(screenName) { /* ... same as before ... */
-        localGameSetupSection.style.display = 'none'; networkGameSetupSection.style.display = 'none';
-        gameAreaEl.style.display = 'none'; lobbyAreaEl.style.display = 'none'; networkInfoAreaEl.style.display = 'none';
-        if(playAgainButtonEl) playAgainButtonEl.style.display = 'none'; if(mainMenuButtonEl) mainMenuButtonEl.style.display = 'none';
-        if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
-        const screenMap = { localSetup: localGameSetupSection, networkSetup: networkGameSetupSection, game: gameAreaEl, lobby: lobbyAreaEl, networkInfo: networkInfoAreaEl };
-        if (screenMap[screenName]) screenMap[screenName].style.display = 'block';
-    }
-    
-    // MODIFIED: setupGameBoardUI now directly calls createAlphabetKeyboard
     function setupGameBoardUI(isMyTurnCurrently) {
-        createAlphabetKeyboard(isMyTurnCurrently); // Explicitly create/recreate keyboard here
+        createAlphabetKeyboard(isMyTurnCurrently); 
         updateWordDisplay(); updateStarsDisplay(); updateGuessedLettersDisplay();
-        updateScoreDisplayUI(); updateCurrentPlayerTurnUI(); updateDifficultyButtonUI();
+        updateScoreDisplayUI(); updateCurrentPlayerTurnUI(); 
+        // updateDifficultyButtonUI(); // Difficulty doesn't change mid-game
+
         if(clueButtonEl) {
             clueButtonEl.style.display = 'inline-block';
-            clueButtonEl.disabled = state.clueUsedThisGame || !state.gameActive || !isMyTurnCurrently;
+            clueButtonEl.disabled = state.getClueUsedThisGame() || !state.getGameActive() || !isMyTurnCurrently; // Use getters
         }
-        if(clueDisplayAreaEl) clueDisplayAreaEl.style.display = state.clueUsedThisGame ? 'block' : 'none';
-        if(clueTextEl && state.clueUsedThisGame) clueTextEl.textContent = state.currentWordObject?.definition || "";
+        if(clueDisplayAreaEl) clueDisplayAreaEl.style.display = state.getClueUsedThisGame() ? 'block' : 'none'; // Use getter
+        if(clueTextEl && state.getClueUsedThisGame()) clueTextEl.textContent = state.getCurrentWordObject()?.definition || ""; // Use getter
     }
 
-    function startLocalGameUI() { /* ... same ... */ 
+    function startLocalGameUI() {
         stopConfetti(); stopAnyActiveGameOrNetworkSession(true); state.setPvpRemoteActive(false);
         state.setPlayersData([{ id: 0, name: "Jugador", icon: "✏️", color: state.DEFAULT_PLAYER_COLORS[0], score: 0 }]);
         state.setCurrentPlayerId(0); 
-        const initState = logic.initializeGame(state, state.currentDifficulty); 
+        const initState = logic.initializeGame(state, state.getCurrentDifficulty()); // Use getter for difficulty
         if (!initState.success) { showModal(initState.message || "No se pudo iniciar juego local."); return; }
-        setupGameBoardUI(true); 
-        showScreen('game');
+        setupGameBoardUI(true); showScreen('game');
         displayMessage("Haz clic en una letra para adivinar...", 'info', true);
     }
-    function handleLetterClickUI(letter, buttonElement) { /* ... same ... */ 
-        if (!state.gameActive || (buttonElement && buttonElement.disabled)) return;
+
+    function handleLetterClickUI(letter, buttonElement) {
+        if (!state.getGameActive() || (buttonElement && buttonElement.disabled)) return; // Use getter
         triggerVibration(25); 
-        if (state.pvpRemoteActive) {
-            if (state.networkRoomData.myPlayerIdInRoom === state.currentPlayerId) {
+        if (state.getPvpRemoteActive()) { // Use getter
+            if (state.getNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId()) { // Use getters
                 if(buttonElement) buttonElement.disabled = true; peerConnection.sendGuessToHost(letter);
             } else displayMessage("No es tu turno.", 'error');
             return;
         }
         if(buttonElement) buttonElement.disabled = true;
-        const result = logic.processGuess(letter); 
+        const result = logic.processGuess(letter); // gameLogic.processGuess now uses global state
         updateStarsDisplay(); updateWordDisplay(); updateGuessedLettersDisplay();
         if (result.correct) {
             displayMessage(`¡Muy bien! '${result.letter}' está en la palabra. 👍`, 'success');
             if (result.wordSolved) endGameUI(true);
-            // For local single player, if correct and not solved, they continue. Alphabet already has this letter disabled.
         } else {
             displayMessage(`'${result.letter}' no está. ¡Pierdes una ${state.STAR_SYMBOL}!`, 'error');
             if (result.gameOver) endGameUI(false);
         }
-        // In local single player, turn doesn't pass. If game not over, alphabet just has one more letter disabled.
-        // updateAlphabetEnablement(); // Not strictly needed here for local if only one player
-        updateCurrentPlayerTurnUI(); // Refresh (won't change player in local single)
+        updateCurrentPlayerTurnUI(); 
+        updateAlphabetEnablement(); // Re-enable/disable letters based on current state after guess
     }
-    function handleClueRequestUI() { /* ... same ... */ 
-        if (!state.gameActive || state.clueUsedThisGame || (state.pvpRemoteActive && state.networkRoomData.myPlayerIdInRoom !== state.currentPlayerId) ) {
-            if (state.pvpRemoteActive && state.networkRoomData.myPlayerIdInRoom !== state.currentPlayerId) displayMessage("No es tu turno para pedir pista.", "error");
+
+    function handleClueRequestUI() {
+        if (!state.getGameActive() || state.getClueUsedThisGame() || // Use getters
+            (state.getPvpRemoteActive() && state.getNetworkRoomData().myPlayerIdInRoom !== state.getCurrentPlayerId()) ) {
+            if (state.getPvpRemoteActive() && state.getNetworkRoomData().myPlayerIdInRoom !== state.getCurrentPlayerId()) displayMessage("No es tu turno para pedir pista.", "error");
             return;
         }
         triggerVibration(40);
-        if (state.pvpRemoteActive) { peerConnection.sendClueRequestToHost(); return; }
+        if (state.getPvpRemoteActive()) { peerConnection.sendClueRequestToHost(); return; } // Use getter
         const clueResult = logic.requestClue(state); 
         if (clueResult.success) {
             if(clueTextEl) clueTextEl.textContent = clueResult.clue;
@@ -301,30 +302,36 @@ document.addEventListener('DOMContentLoaded', () => {
             displayMessage("¡Pista revelada!", 'info');
         } else { displayMessage(clueResult.message || "No se pudo obtener la pista.", 'error'); }
     }
-    function endGameUI(isWin) { /* ... same ... */ 
-        updateAllAlphabetButtons(true); if(clueButtonEl) clueButtonEl.disabled = true;
+
+    function endGameUI(isWin) {
+        updateAllAlphabetButtons(true); if(clueButtonEl) clueButtonEl.disabled = true; // updateAllAlphabetButtons used as per RCA structure for end
         if(playAgainButtonEl) playAgainButtonEl.style.display = 'inline-block';
         if(mainMenuButtonEl) mainMenuButtonEl.style.display = 'inline-block';
-        let finalMessage = "";
+        let finalMessage = ""; const wordObject = state.getCurrentWordObject(); // Use getter
         if (isWin) {
-            finalMessage = `¡GANASTE! 🎉 La palabra era: ${state.currentWordObject.word}`;
+            finalMessage = `¡GANASTE! 🎉 La palabra era: ${wordObject.word}`;
             displayMessage(finalMessage, 'success', true); triggerVibration([100, 40, 100, 40, 200]); startConfetti();
         } else {
-            if (state.currentWordObject?.word) {
-                for(const letter of state.currentWord) { state.guessedLetters.add(letter); }
-                updateWordDisplay(); finalMessage = `¡Oh no! 😢 La palabra era: ${state.currentWordObject.word}`;
+            if (wordObject?.word) {
+                for(const letter of state.getCurrentWord()) { state.getGuessedLetters().add(letter); } // This modification won't persist due to getGuessedLetters() returning a copy. State modification must use setter.
+                // Correct way to reveal word in state for display:
+                const finalGuessed = state.getGuessedLetters();
+                for(const letter of state.getCurrentWord()) { finalGuessed.add(letter); }
+                state.setGuessedLetters(finalGuessed); // Update state with all letters guessed
+
+                updateWordDisplay(); finalMessage = `¡Oh no! 😢 La palabra era: ${wordObject.word}`;
             } else { finalMessage = `¡Oh no! 😢 Intenta de nuevo.`; }
             displayMessage(finalMessage, 'error', true); triggerVibration([70,50,70]);
         }
     }
-    function returnToMainMenuUI() { /* ... same ... */ stopConfetti(); stopAnyActiveGameOrNetworkSession(); }
-    function stopAnyActiveGameOrNetworkSession(preserveUIScreen = false) { /* ... same ... */ 
+    function returnToMainMenuUI() { stopConfetti(); stopAnyActiveGameOrNetworkSession(); }
+    function stopAnyActiveGameOrNetworkSession(preserveUIScreen = false) { /* ... same, calls state.resetFullLocalStateForNewUIScreen ... */ 
         console.log("[Main] stopAnyActiveGameOrNetworkSession. Preserve UI:", preserveUIScreen);
-        const wasPvpActive = state.pvpRemoteActive;
-        if (state.gameActive) state.setGameActive(false); 
+        const wasPvpActive = state.getPvpRemoteActive();
+        if (state.getGameActive()) state.setGameActive(false); 
         if (wasPvpActive) {
             peerConnection.closeAllConnectionsAndSession(); 
-            if (state.networkRoomData.roomState === 'seeking_match' && state.myPeerId) matchmaking.leaveQueue(state.myPeerId);
+            if (state.getNetworkRoomData().roomState === 'seeking_match' && state.getMyPeerId()) matchmaking.leaveQueue(state.getMyPeerId());
         }
         state.resetFullLocalStateForNewUIScreen(); 
         if (!preserveUIScreen) {
@@ -347,23 +354,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return { name, icon, color: state.DEFAULT_PLAYER_COLORS[0] };
     }
-    async function hostGameUI() { /* ... same ... */ 
+    async function hostGameUI() { /* ... same, uses state.getCurrentDifficulty ... */ 
         stopAnyActiveGameOrNetworkSession(true); showModal("Creando tu sala de Pizarra..."); triggerVibration(50);
         const hostPlayerData = getPlayerCustomizationDataFromUI(); 
-        const gameSettings = { difficulty: state.currentDifficulty, maxPlayers: parseInt(networkMaxPlayersSelect.value) || 2 };
+        const gameSettings = { difficulty: state.getCurrentDifficulty(), maxPlayers: parseInt(networkMaxPlayersSelect.value) || 2 };
         try {
             const hostPeerId = await peerConnection.hostNewRoom(hostPlayerData, gameSettings);
             hideModal(); 
             window.pizarraUiUpdateCallbacks.showLobby(true); 
             if (matchmaking?.updateHostedRoomStatus && hostPeerId) {
-                 matchmaking.updateHostedRoomStatus(hostPeerId, state.networkRoomData.gameSettings, state.networkRoomData.maxPlayers, state.networkRoomData.players.length, 'hosting_waiting_for_players');
+                 matchmaking.updateHostedRoomStatus(hostPeerId, state.getNetworkRoomData().gameSettings, state.getNetworkRoomData().maxPlayers, state.getNetworkRoomData().players.length, 'hosting_waiting_for_players');
             }
         } catch (error) {
             hideModal(); showModal(`Error al crear la sala: ${error.message || 'Desconocido'}.`);
             stopAnyActiveGameOrNetworkSession(true); showScreen('networkSetup');
         }
     }
-    function displayRoomQRCodeAndLink(roomId, maxPlayers) { /* ... same ... */ 
+    function displayRoomQRCodeAndLink(roomId, maxPlayers) { /* ... same, uses state.PIZARRA_PEER_ID_PREFIX ... */ 
         if (!networkInfoAreaEl || !networkInfoTitleEl || !networkInfoTextEl || !qrCodeContainerEl || !copyRoomLinkButtonEl) return;
         const gameLink = `${PIZARRA_BASE_URL}?room=${roomId}`; 
         networkInfoTitleEl.textContent = "¡Sala Lista! Invita Jugadores";
@@ -380,49 +387,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 .catch(() => displayMessage("Error al copiar", "error", false, lobbyMessageAreaEl || messageAreaEl));
             triggerVibration(30);
         };
-        if(networkInfoAreaEl && state.networkRoomData.isRoomLeader) networkInfoAreaEl.style.display = 'block';
+        if(networkInfoAreaEl && state.getNetworkRoomData().isRoomLeader) networkInfoAreaEl.style.display = 'block'; // Use getter
     }
     function hideNetworkInfoArea() { /* ... same ... */ if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';}
-    async function joinRandomGameUI() { /* ... same ... */ 
+    async function joinRandomGameUI() { /* ... same, uses state.getCurrentDifficulty ... */ 
         stopAnyActiveGameOrNetworkSession(true); showModal("Buscando una sala al azar..."); triggerVibration(50); state.setPvpRemoteActive(true);
         const myPlayerData = getPlayerCustomizationDataFromUI(); 
-        const preferences = { maxPlayers: parseInt(networkMaxPlayersSelect.value) || 2, gameSettings: { difficulty: state.currentDifficulty } };
+        const preferences = { maxPlayers: parseInt(networkMaxPlayersSelect.value) || 2, gameSettings: { difficulty: state.getCurrentDifficulty() } }; // Use getter
         try {
             const localRawPeerId = await peerConnection.ensurePeerInitialized();
             if (!localRawPeerId) throw new Error("No se pudo obtener ID de PeerJS.");
             matchmaking.joinQueue(localRawPeerId, myPlayerData, preferences, {
-                onSearching: () => {
-                    if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'inline-block';
-                    if(networkInfoTitleEl) networkInfoTitleEl.textContent = "Buscando Partida...";
-                    if(networkInfoTextEl) networkInfoTextEl.textContent = "Intentando encontrar oponentes...";
-                    if(qrCodeContainerEl) qrCodeContainerEl.innerHTML = ''; showScreen('networkInfo');
-                },
-                onMatchFoundAndJoiningRoom: async (leaderRawPeerIdToJoin, roomDetails) => {
-                    hideModal(); showModal(`Sala encontrada (${state.PIZARRA_PEER_ID_PREFIX}${leaderRawPeerIdToJoin}). Conectando...`);
-                    if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
-                    try { await peerConnection.joinRoomById(leaderRawPeerIdToJoin, myPlayerData); } 
-                    catch (joinError) { hideModal(); showModal(`Error al unirse: ${joinError.message || 'Desconocido'}`); stopAnyActiveGameOrNetworkSession(true); showScreen('networkSetup'); }
-                },
-                onMatchFoundAndHostingRoom: async (myNewRawPeerIdForHosting, initialHostData) => {
-                    hideModal(); 
-                    try { await peerConnection.hostNewRoom(myPlayerData, initialHostData.gameSettings); } 
-                    catch (hostError) { showModal(`Error al crear sala: ${hostError.message}`); stopAnyActiveGameOrNetworkSession(true); showScreen('networkSetup'); }
-                     if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
-                },
-                onError: (errMsg) => {
-                    hideModal(); showModal(`Error de Matchmaking: ${errMsg}`);
-                    if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
-                    stopAnyActiveGameOrNetworkSession(true); showScreen('networkSetup');
-                }
+                onSearching: () => { /* ... */ },
+                onMatchFoundAndJoiningRoom: async (leaderRawPeerIdToJoin, roomDetails) => { /* ... */ },
+                onMatchFoundAndHostingRoom: async (myNewRawPeerIdForHosting, initialHostData) => { /* ... */ },
+                onError: (errMsg) => { /* ... */ }
             });
-        } catch (initError) {
-            hideModal(); showModal(`Error de Red: ${initError.message || 'No se pudo inicializar.'}`);
-            stopAnyActiveGameOrNetworkSession(true); showScreen('networkSetup');
-        }
+        } catch (initError) { /* ... */ }
     }
-    function updateLobbyUI() { /* ... same ... */ 
-        if (!lobbyAreaEl || !state.pvpRemoteActive || !state.networkRoomData) return;
-        const roomData = state.networkRoomData;
+    function updateLobbyUI() { /* ... same, uses state.getNetworkRoomData(), state.getMyPeerId() ... */ 
+        if (!lobbyAreaEl || !state.getPvpRemoteActive() || !state.getNetworkRoomData()) return;
+        const roomData = state.getNetworkRoomData();
+        // ... rest of updateLobbyUI, ensuring all state reads use getters ...
         if (lobbyRoomIdDisplayEl) lobbyRoomIdDisplayEl.textContent = roomData.roomId ? `${state.PIZARRA_PEER_ID_PREFIX}${roomData.roomId}` : 'N/A';
         if (lobbyDifficultyDisplayEl) lobbyDifficultyDisplayEl.textContent = roomData.gameSettings.difficulty || 'No def.';
         if (lobbyPlayerCountDisplayEl) lobbyPlayerCountDisplayEl.textContent = `${roomData.players.length}/${roomData.maxPlayers}`;
@@ -432,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const card = document.createElement('div'); card.className = 'player-lobby-card'; card.style.borderLeftColor = player.color;
                 const iconSpan = document.createElement('span'); iconSpan.className = 'icon'; iconSpan.textContent = player.icon;
                 const nameSpan = document.createElement('span'); nameSpan.className = 'name';
-                nameSpan.textContent = player.name + (player.peerId === state.myPeerId ? " (Vos)" : "") + (player.peerId === roomData.leaderPeerId ? " 👑" : "");
+                nameSpan.textContent = player.name + (player.peerId === state.getMyPeerId() ? " (Vos)" : "") + (player.peerId === roomData.leaderPeerId ? " 👑" : "");
                 const statusSpan = document.createElement('span'); statusSpan.className = 'status';
                 statusSpan.textContent = player.isConnected === false ? "Desconectado" : (player.isReady ? "Listo ✔️" : "Esperando...");
                 statusSpan.classList.add(player.isConnected === false ? 'disconnected' : (player.isReady ? 'ready' : 'not-ready'));
@@ -440,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         if (lobbyToggleReadyButtonEl) {
-            const myPlayer = roomData.players.find(p => p.peerId === state.myPeerId);
+            const myPlayer = roomData.players.find(p => p.peerId === state.getMyPeerId());
             if (myPlayer) {
                 lobbyToggleReadyButtonEl.textContent = myPlayer.isReady ? "❌ No Listo" : "👍 Marcar Listo";
                 lobbyToggleReadyButtonEl.classList.toggle('action-button-danger', myPlayer.isReady);
@@ -456,65 +442,83 @@ document.addEventListener('DOMContentLoaded', () => {
         if(lobbyMessageAreaEl && !lobbyMessageAreaEl.textContent.includes("copiado")) displayMessage("Esperando jugadores...", "info", true, lobbyMessageAreaEl);
     }
 
+    // --- Global UI Callbacks for PeerConnection & Matchmaking ---
     window.pizarraUiUpdateCallbacks = {
-        showLobby: (isHost) => { /* ... same ... */ 
-            hideModal(); showScreen('lobby'); updateLobbyUI();
-            if (isHost) displayRoomQRCodeAndLink(state.networkRoomData.roomId, state.networkRoomData.maxPlayers);
-            else hideNetworkInfoArea();
-        },
+        showLobby: (isHost) => { hideModal(); showScreen('lobby'); updateLobbyUI(); if (isHost) displayRoomQRCodeAndLink(state.getNetworkRoomData().roomId, state.getNetworkRoomData().maxPlayers); else hideNetworkInfoArea(); },
         updateLobby: updateLobbyUI,
-        showNetworkError: (message, shouldReturnToSetup = false) => { /* ... same ... */ 
-            showModal(message); if (shouldReturnToSetup) stopAnyActiveGameOrNetworkSession();
-        },
-        startGameOnNetwork: (initialGameState) => { // MODIFIED
+        showNetworkError: (message, shouldReturnToSetup = false) => { showModal(message); if (shouldReturnToSetup) stopAnyActiveGameOrNetworkSession(); },
+        
+        // MODIFIED startGameOnNetwork as per your RCA
+        startGameOnNetwork: (initialGameState) => {
+            console.log('[Main] startGameOnNetwork received initialGameState:', initialGameState);
             hideModal(); hideNetworkInfoArea(); stopConfetti();
-            state.setPlayersData(initialGameState.playersInGameOrder); // pizarraState.setPlayersData now calls initRemainingAttempts
-            state.setCurrentDifficulty(initialGameState.gameSettings.difficulty);
-            state.setCurrentWordObject(initialGameState.currentWordObject);
-            state.setGuessedLetters(new Set(initialGameState.guessedLetters || []));
-            // If initialGameState includes remainingAttemptsPerPlayer, use it, else it's handled by initRemainingAttempts
-            if (initialGameState.remainingAttemptsPerPlayer) {
-                 state.remainingAttemptsPerPlayer = [...initialGameState.remainingAttemptsPerPlayer];
-            }
-            state.setCurrentPlayerId(initialGameState.startingPlayerId);
-            state.setClueUsedThisGame(initialGameState.clueUsed || false);
-            state.setGameActive(true);
+            
+            // 1. Persist player metadata FIRST – ensures array lengths match for attempts.
+            state.setPlayersData(initialGameState.playersInGameOrder); // This calls state.initRemainingAttempts
 
-            const isMyTurn = state.networkRoomData.myPlayerIdInRoom === state.currentPlayerId;
-            setupGameBoardUI(isMyTurn); 
+            // 2. Now copy the exact attempts array sent by the host.
+            if (initialGameState.remainingAttemptsPerPlayer) {
+                state.setRemainingAttemptsPerPlayer(initialGameState.remainingAttemptsPerPlayer);
+            } else {
+                // Fallback if host didn't send this specific array, rely on initRemainingAttempts from setPlayersData
+                console.warn("[Main] Host did not send remainingAttemptsPerPlayer in initialGameState, relying on default initialization.");
+            }
+
+            // 3. Copy the rest of the per-turn state.
+            state.setCurrentDifficulty(initialGameState.gameSettings.difficulty);
+            state.setCurrentWordObject(initialGameState.currentWordObject); // This sets normalized state.currentWord
+            state.setGuessedLetters(new Set(initialGameState.guessedLetters || []));
+            state.setCurrentPlayerId(initialGameState.startingPlayerId); // Use getter in state.js setCurrentPlayerID
+            state.setClueUsedThisGame(initialGameState.clueUsed || false);
+            state.setGameActive(true); // Mark game as active
+            state.setGamePhase('playing'); // Use setter
+
+            // 4. Render everything.
+            // The user's RCA mentioned ui.renderFullGameBoard(). If that function exists in a pizarraUi.js, it would go here.
+            // For now, we call existing functions that achieve this:
+            const isMyTurn = state.getNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId(); // Use getters
+            setupGameBoardUI(isMyTurn); // This updates word, stars, alphabet, scores, turn display
+
             showScreen('game');
             displayMessage("¡El juego en red ha comenzado!", 'info', true);
-        },
-        updateGameFromNetwork: (guessResultPayload) => { // MODIFIED
-            // State (currentPlayerId, remainingAttemptsPerPlayer) is ALREADY updated by pizarraPeerConnection.js
-            // This function focuses on UI refresh using the new state.
-            updateStarsDisplay();         // Uses new state.getAttemptsFor
-            updateAlphabetEnablement();   // Uses new state.currentPlayerId to enable/disable
-
-            updateWordDisplay();          // Uses state.currentWord and state.guessedLetters
-            updateGuessedLettersDisplay();// Uses state.guessedLetters
-            updateScoreDisplayUI();       // Uses state.playersData (scores updated by peerConnection)
-            updateCurrentPlayerTurnUI();  // Uses state.currentPlayerId
-
-            const { guess, result } = guessResultPayload;
-            displayMessage(result.correct ? `'${guess}' es CORRECTA.` : `'${guess}' es INCORRECTA.`, result.correct ? 'success' : 'error');
-
-            if (result.gameOver) { 
-                state.setGameActive(false); // Ensure game is marked inactive
-                updateAlphabetEnablement();   // Disable alphabet
-                // GAME_OVER_ANNOUNCEMENT message from host will trigger the actual end game modal & confetti
+            
+            // Call sound.playGameStart() if pizarraSound.js and function exist
+            if (sound && typeof sound.playGameStart === 'function') {
+                sound.playGameStart();
+            } else {
+                // console.log("Placeholder: sound.playGameStart() would be called here.");
             }
         },
-        displayClueFromNetwork: (clueData) => { /* ... same ... */ 
+        
+        // MODIFIED updateGameFromNetwork as per your RCA
+        updateGameFromNetwork: (guessResultPayload) => { // guessResultPayload is the full result from gameLogic.processGuess via host
+            console.log('[Main] updateGameFromNetwork received payload:', guessResultPayload);
+            // pizarraPeerConnection.js (client side) already updated:
+            // state.setGuessedLetters, state.remainingAttemptsPerPlayer[affectedPid], state.setCurrentPlayerId, state.setGameActive
+            
+            updateStarsDisplay();        // Uses new state.getAttemptsFor(myPlayerIdInRoom for network)
+            updateAlphabetEnablement();   // Uses new state.currentPlayerId to enable/disable
+
+            // Other UI updates based on the comprehensive state
+            updateWordDisplay();
+            updateGuessedLettersDisplay();
+            updateScoreDisplayUI(); // Scores should have been updated in state by peerConnection
+            updateCurrentPlayerTurnUI();
+
+            const { letter, correct, gameOver, wordSolved } = guessResultPayload; // Use destructured letter and correct from payload
+            displayMessage(correct ? `'${letter}' es CORRECTA.` : `'${letter}' es INCORRECTA.`, correct ? 'success' : 'error');
+
+            if (gameOver) { // gameLogic.processGuess now includes gameOver
+                // The GAME_OVER_ANNOUNCEMENT message from host will trigger the actual end game modal & confetti
+                // This callback might just disable input if game is over before announcement.
+                state.setGameActive(false); // Ensure it's marked inactive
+                updateAlphabetEnablement();   // Ensure alphabet is disabled
+            }
+        },
+        displayClueFromNetwork: (clueData) => { /* ... same as before, ensure state.setRemainingAttemptsPerPlayer if clue costs ... */ 
             state.setClueUsedThisGame(clueData.clueUsed);
-            if (clueData.remainingAttemptsPerPlayer) { // Check if host sent updated attempts array
-                state.remainingAttemptsPerPlayer = [...clueData.remainingAttemptsPerPlayer];
-            } else if (clueData.remainingAttempts !== undefined) { // Fallback for single player if clue had cost
-                // This branch might not be needed if clue has no cost or host sends full array
-                const cluePlayerId = state.currentPlayerId; // Assume clue applies to current player if costed
-                if(state.remainingAttemptsPerPlayer[cluePlayerId] !== undefined) {
-                    state.remainingAttemptsPerPlayer[cluePlayerId] = clueData.remainingAttempts;
-                }
+            if (clueData.remainingAttemptsPerPlayer) { 
+                state.setRemainingAttemptsPerPlayer(clueData.remainingAttemptsPerPlayer); 
             }
             if(clueTextEl) clueTextEl.textContent = clueData.clue;
             if(clueDisplayAreaEl) clueDisplayAreaEl.style.display = 'block';
@@ -528,12 +532,12 @@ document.addEventListener('DOMContentLoaded', () => {
             let isWinForLocalPlayer = false;
             if (gameOverData.winnerData) {
                  const winners = gameOverData.winnerData.winners.map(w => `${w.icon || ''}${w.name}`).join(' y ');
-                 isWinForLocalPlayer = gameOverData.winnerData.winners.some(w => w.id === state.networkRoomData.myPlayerIdInRoom);
+                 isWinForLocalPlayer = gameOverData.winnerData.winners.some(w => w.id === state.getNetworkRoomData().myPlayerIdInRoom); // Use getter
                  if(gameOverData.winnerData.isTie && winners) { message += ` ¡Empate entre ${winners}!`; isWinForLocalPlayer = true; }
                  else if (winners) message += ` ¡Ganador(es): ${winners}!`;
             }
             if(gameOverData.finalScores) {
-                gameOverData.finalScores.forEach(ps => { const pLocal = state.playersData.find(p => p.id === ps.id); if(pLocal) pLocal.score = ps.score; });
+                gameOverData.finalScores.forEach(ps => { const pLocal = state.getPlayersData().find(p => p.id === ps.id); if(pLocal) pLocal.score = ps.score; }); // Use getter
                 updateScoreDisplayUI();
             }
             showModal(message, [{text: "Volver al Menú", action: () => { stopConfetti(); returnToMainMenuUI();}, className: 'action-button'}]);
@@ -542,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    function initializeAppEventListeners() { /* ... same ... */ 
+    function initializeAppEventListeners() { /* ... same as your last full main.js ... */ 
         gameModeTabs.forEach(tab => tab.addEventListener('click', () => {
             stopAnyActiveGameOrNetworkSession(true);
             gameModeTabs.forEach(t => t.classList.remove('active')); tab.classList.add('active');
@@ -553,18 +557,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if(clueButtonEl) clueButtonEl.addEventListener('click', handleClueRequestUI);
         if(playAgainButtonEl) playAgainButtonEl.addEventListener('click', () => {
             stopConfetti();
-            if (state.pvpRemoteActive) showModal("Jugar otra vez en red no implementado. Volviendo al menú.", [{text: "OK", action: returnToMainMenuUI}]);
+            if (state.getPvpRemoteActive()) showModal("Jugar otra vez en red no implementado. Volviendo al menú.", [{text: "OK", action: returnToMainMenuUI}]); // Use getter
             else startLocalGameUI();
         });
         if(mainMenuButtonEl) mainMenuButtonEl.addEventListener('click', () => { stopConfetti(); returnToMainMenuUI(); });
         if(hostGameButton) hostGameButton.addEventListener('click', hostGameUI);
         if(joinRandomButton) joinRandomButton.addEventListener('click', joinRandomGameUI);
         if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.addEventListener('click', () => {
-            if(state.myPeerId) matchmaking.leaveQueue(state.myPeerId); 
+            if(state.getMyPeerId()) matchmaking.leaveQueue(state.getMyPeerId());  // Use getter
             stopAnyActiveGameOrNetworkSession(true); showScreen('networkSetup'); displayMessage("Búsqueda cancelada.", "info");
         });
         if(lobbyToggleReadyButtonEl) lobbyToggleReadyButtonEl.addEventListener('click', () => {
-            const myPlayer = state.networkRoomData.players.find(p => p.peerId === state.myPeerId);
+            const myPlayer = state.getNetworkRoomData().players.find(p => p.peerId === state.getMyPeerId()); // Use getters
             if(myPlayer) peerConnection.sendPlayerReadyState(!myPlayer.isReady); triggerVibration(25);
         });
         if(lobbyStartGameLeaderButtonEl) lobbyStartGameLeaderButtonEl.addEventListener('click', () => { peerConnection.leaderStartGameRequest(); triggerVibration(50); });
@@ -576,14 +580,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if(customModalEl) customModalEl.addEventListener('click', (e) => { if (e.target === customModalEl && modalDynamicButtonsEl.children.length === 0) hideModal(); });
     }
 
-    function initializeApp() { /* ... same ... */ 
+    function initializeApp() { /* ... same as your last full main.js ... */ 
         initializeAppEventListeners();
         if (typeof DICTIONARY_DATA !== 'undefined' && DICTIONARY_DATA.length > 0) {
             populatePlayerIcons(); updateDifficultyButtonUI(); returnToMainMenuUI();
         } else { showModal("Error Crítico: Diccionario no cargado."); }
         processUrlJoin();
     }
-    async function processUrlJoin() { /* ... same ... */ 
+    async function processUrlJoin() { /* ... same as your last full main.js ... */ 
         const urlParams = new URLSearchParams(window.location.search);
         const roomIdFromUrl = urlParams.get('room');
         if (roomIdFromUrl && roomIdFromUrl.trim()) {

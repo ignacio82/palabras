@@ -1,4 +1,7 @@
 // pizarraState.js
+/* =========================================================================
+   Pizarra de Palabras – Reactive game-state container
+   ========================================================================= */
 
 // ---------- GAME CONSTANTS ----------
 export const DEFAULT_PLAYER_COLORS = ['#FF69B4', '#00BFFF', '#FFD700', '#32CD32', '#FF7F50', '#DA70D6'];
@@ -7,116 +10,122 @@ export const MAX_PLAYERS_LOCAL = 4;
 export const MAX_PLAYERS_NETWORK = 4;
 export const MIN_PLAYERS_NETWORK = 2;
 
-export const MAX_ATTEMPTS = 6; // Stays as the max for each player
+export const MAX_ATTEMPTS = 6; // Default max attempts for a player in a game
+export const DEFAULT_ATTEMPTS_PER_PLAYER = MAX_ATTEMPTS; // Explicit constant for clarity
 export const STAR_SYMBOL = "🌟";
 export const ALPHABET = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split('');
 export const PIZARRA_PEER_ID_PREFIX = "pizarra-";
 
-// ---------- CORE GAME STATE (Local & Gameplay) ----------
-export let currentWord = '';
-export let currentWordObject = null;
-export let guessedLetters = new Set();
-// export let remainingAttempts = MAX_ATTEMPTS; // REMOVED
-export let remainingAttemptsPerPlayer = []; // NEW: Array to store attempts for each player
-export let gameActive = false;
-export let currentDifficulty = "easy";
-export let clueUsedThisGame = false;
+/* ----------  PRIVATE, MUTABLE MODULE-LEVEL STATE  ---------- */
+// Core Gameplay State
+let currentWord = '';
+let currentWordObject = null;
+let guessedLetters = new Set();
+let remainingAttemptsPerPlayer  = []; // [attempts_p0, attempts_p1, ...]
+let currentPlayerId = 0; // Game-specific ID of the current player (0, 1, 2...)
+let gameActive = false; // General flag if a game (local or network) is in progress
+let gamePhase = 'idle'; // 'idle' | 'lobby' | 'playing' | 'ended' | specific network states
+let currentDifficulty = "easy";
+let clueUsedThisGame = false;
 
-export let playersData = []; // { id, name, icon, color, score } for current game instance
-export let currentPlayerId = 0; // ID of the current player
-
-// ---------- NETWORK PLAY STATE ----------
-export let pvpRemoteActive = false;
-export let myPeerId = null;
-
-export let networkRoomData = {
-    roomId: null,
-    leaderPeerId: null,
-    myPlayerIdInRoom: null,
-    isRoomLeader: false,
-    maxPlayers: MAX_PLAYERS_NETWORK,
-    players: [], // { id, peerId, name, icon, color, isReady, isConnected, score }
-    gameSettings: {
-        difficulty: "easy",
-    },
-    roomState: 'idle',
-    turnCounter: 0,
-    _peerInitPromise: null,
-    _peerInitResolve: null,
-    _peerInitReject: null,
-    _setupCompleteCallback: null,
-    _setupErrorCallback: null,
+// Network Play State
+let pvpRemoteActive = false;
+let myPeerId = null; // This client's raw PeerJS ID
+let networkRoomData = {
+    roomId: null, leaderPeerId: null, myPlayerIdInRoom: null, isRoomLeader: false,
+    maxPlayers: MAX_PLAYERS_NETWORK, players: [], // Network player metadata { id, peerId, name, icon, color, isReady, isConnected, score }
+    gameSettings: { difficulty: "easy" }, roomState: 'idle', turnCounter: 0,
+    _peerInitPromise: null, _peerInitResolve: null, _peerInitReject: null,
+    _setupCompleteCallback: null, _setupErrorCallback: null,
 };
+// Local Game Players Data (used by gameLogic when game is active)
+let localPlayersData = []; // [{ id, name, icon, color, score }]
 
-// ---------- STATE MUTATORS / SETTERS ----------
 
-// --- Core Game Mutators ---
+/* ----------  HELPERS  ---------- */
+function clone(value) {
+  try { return JSON.parse(JSON.stringify(value)); }
+  catch (e) { console.warn("Clone failed for value:", value); return value; }
+}
+
+function normalizeStringInternal(str) {
+    if (!str) return "";
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+}
+
+/* ----------  PUBLIC SETTERS for Core Gameplay State ---------- */
 export function setCurrentWordObject(obj) {
-    currentWordObject = obj;
-    if (obj && obj.word) {
-        currentWord = normalizeString(obj.word); // Uses normalizeString below
+    currentWordObject = obj ? clone(obj) : null;
+    if (currentWordObject && currentWordObject.word) {
+        currentWord = normalizeStringInternal(currentWordObject.word);
     } else {
         currentWord = "";
     }
+    // console.log(`[State] setCurrentWordObject. Word: ${currentWordObject?.word}, Normalized: ${currentWord}`);
 }
-export function setGuessedLetters(newSet) { guessedLetters = newSet; }
-// export function setRemainingAttempts(num) { remainingAttempts = num; } // REMOVED
+export function setGuessedLetters(newSet) { guessedLetters = newSet instanceof Set ? new Set(newSet) : new Set(newSet || []); }
 
-// NEW functions for per-player attempts
-export function initRemainingAttempts(numPlayers = 1) { // Default to 1 for local single player
-  remainingAttemptsPerPlayer = Array(Math.max(1, numPlayers)).fill(MAX_ATTEMPTS);
-  console.log(`[State] Initialized remainingAttemptsPerPlayer for ${numPlayers} players:`, JSON.parse(JSON.stringify(remainingAttemptsPerPlayer)));
+export function initRemainingAttempts(numPlayers, attempts = DEFAULT_ATTEMPTS_PER_PLAYER) {
+  remainingAttemptsPerPlayer = Array(Math.max(1, numPlayers)).fill(attempts);
+  console.log(`[State] Initialized remainingAttemptsPerPlayer for ${numPlayers} players with ${attempts} attempts:`, clone(remainingAttemptsPerPlayer));
 }
+
+export function setRemainingAttemptsPerPlayer(newArray) {
+  if (Array.isArray(newArray)) {
+    remainingAttemptsPerPlayer = Array.from(newArray); // Defensive copy
+    console.log(`[State] Set remainingAttemptsPerPlayer:`, clone(remainingAttemptsPerPlayer));
+  } else {
+    console.error("[State] setRemainingAttemptsPerPlayer: Provided value is not an array.", newArray);
+    // Optionally initialize if newArray is invalid but we know numPlayers
+    // initRemainingAttempts(localPlayersData.length || networkRoomData.players.length || 1);
+  }
+}
+
 export function decAttemptsFor(playerId) {
-  // Ensure playerID is a valid index for the array.
-  // Player IDs (0, 1, 2...) should directly map to array indices.
   if (playerId >= 0 && playerId < remainingAttemptsPerPlayer.length) {
     if (remainingAttemptsPerPlayer[playerId] > 0) {
         remainingAttemptsPerPlayer[playerId]--;
     }
-    console.log(`[State] Decremented attempts for player ${playerId}. Now: ${remainingAttemptsPerPlayer[playerId]}`);
+    // console.log(`[State] Decremented attempts for player ${playerId}. Now: ${remainingAttemptsPerPlayer[playerId]}`);
   } else {
-    console.warn(`[State] decAttemptsFor: Invalid playerId ${playerId} for remainingAttemptsPerPlayer of length ${remainingAttemptsPerPlayer.length}`);
+    // console.warn(`[State] decAttemptsFor: Invalid playerId ${playerId} for array of length ${remainingAttemptsPerPlayer.length}`);
   }
 }
-export function getAttemptsFor(playerId) {
-  if (playerId >= 0 && playerId < remainingAttemptsPerPlayer.length) {
-    return remainingAttemptsPerPlayer[playerId];
-  }
-  // Fallback or error for invalid playerId if necessary, though UI should usually display for valid players
-  console.warn(`[State] getAttemptsFor: Invalid playerId ${playerId}, returning MAX_ATTEMPTS as fallback.`);
-  return MAX_ATTEMPTS; 
+
+export function setGameActive(isActive) {
+    gameActive = isActive;
+    setGamePhase(isActive ? 'playing' : (gamePhase === 'playing' ? 'ended' : gamePhase));
+    // console.log(`[State] Game active set to: ${gameActive}`);
 }
-
-
-export function setGameActive(isActive) { gameActive = isActive; }
 export function setCurrentDifficulty(difficultyStr) { currentDifficulty = difficultyStr; }
 export function setClueUsedThisGame(wasUsed) { clueUsedThisGame = wasUsed; }
 
-export function setPlayersData(data) {
-    playersData = data.map(p => ({ ...p, score: p.score || 0, id: p.id }));
-    console.log("[State] setPlayersData (game instance):", JSON.parse(JSON.stringify(playersData)));
-    // When playersData is set (especially for network games), initialize attempts array
-    if (playersData.length > 0) {
-        initRemainingAttempts(playersData.length);
-    }
+export function setPlayersData(newPlayers) {
+  localPlayersData = newPlayers ? clone(newPlayers) : [];
+  initRemainingAttempts(localPlayersData.length || 1); // Reset attempts based on current game players
+  console.log("[State] setPlayersData (current game instance):", clone(localPlayersData));
 }
 export function setCurrentPlayerId(id) { currentPlayerId = id; }
+export function setGamePhase(phase) {
+    if (['idle', 'lobby', 'playing', 'ended', 'creating_room', 'connecting_to_lobby', 'awaiting_join_approval', 'seeking_match', 'game_over'].includes(phase)) {
+        gamePhase = phase;
+        console.log(`[State] Game phase set to: ${gamePhase}`);
+    } else {
+        console.warn(`[State] Attempted to set invalid game phase: ${phase}`);
+    }
+}
 
-// --- Network State Mutators ---
+/* ----------  PUBLIC SETTERS for Network State ---------- */
 export function setPvpRemoteActive(isActive) { pvpRemoteActive = isActive; }
 export function setMyPeerId(id) { myPeerId = id; }
-
 export function setNetworkRoomData(data) {
     const oldRoomState = networkRoomData.roomState;
     const preservedCallbacks = {
-        _peerInitPromise: networkRoomData._peerInitPromise,
-        _peerInitResolve: networkRoomData._peerInitResolve,
-        _peerInitReject: networkRoomData._peerInitReject,
-        _setupCompleteCallback: networkRoomData._setupCompleteCallback,
+        _peerInitPromise: networkRoomData._peerInitPromise, _peerInitResolve: networkRoomData._peerInitResolve,
+        _peerInitReject: networkRoomData._peerInitReject, _setupCompleteCallback: networkRoomData._setupCompleteCallback,
         _setupErrorCallback: networkRoomData._setupErrorCallback,
     };
-    networkRoomData = { ...preservedCallbacks, ...networkRoomData, ...data };
+    networkRoomData = { ...networkRoomData, ...data, ...preservedCallbacks }; // Apply preserved last to ensure they are not overwritten by spread of data if data also contains them as null
     if (data.hasOwnProperty('_peerInitPromise')) networkRoomData._peerInitPromise = data._peerInitPromise;
     if (data.hasOwnProperty('_peerInitResolve')) networkRoomData._peerInitResolve = data._peerInitResolve;
     if (data.hasOwnProperty('_peerInitReject')) networkRoomData._peerInitReject = data._peerInitReject;
@@ -124,11 +133,10 @@ export function setNetworkRoomData(data) {
     if (data.hasOwnProperty('_setupErrorCallback')) networkRoomData._setupErrorCallback = data._setupErrorCallback;
     if (data.roomState && data.roomState !== oldRoomState) {
         console.log(`[State] networkRoomData.roomState changed: ${oldRoomState} -> ${networkRoomData.roomState}`);
+        setGamePhase(data.roomState);
     }
 }
-
 export function resetNetworkRoomData() {
-    console.log("[State] Resetting networkRoomData (preserving promise handlers if any).");
     const preservedCallbacks = {
         _peerInitPromise: networkRoomData._peerInitPromise, _peerInitResolve: networkRoomData._peerInitResolve,
         _peerInitReject: networkRoomData._peerInitReject, _setupCompleteCallback: networkRoomData._setupCompleteCallback,
@@ -140,102 +148,97 @@ export function resetNetworkRoomData() {
         gameSettings: { difficulty: "easy" }, roomState: 'idle', turnCounter: 0,
         ...preservedCallbacks
     };
+    setGamePhase('idle');
 }
-
-export function addPlayerToNetworkRoom(player) {
+export function addPlayerToNetworkRoom(player) { /* ... same ... */ 
     const existingPlayerIndex = networkRoomData.players.findIndex(p => p.peerId === player.peerId);
-    if (existingPlayerIndex === -1) {
-        networkRoomData.players.push(player);
-    } else {
-        networkRoomData.players[existingPlayerIndex] = { ...networkRoomData.players[existingPlayerIndex], ...player };
-    }
+    if (existingPlayerIndex === -1) networkRoomData.players.push(clone(player));
+    else networkRoomData.players[existingPlayerIndex] = { ...networkRoomData.players[existingPlayerIndex], ...clone(player) };
     networkRoomData.players.sort((a, b) => (a.id === undefined ? Infinity : a.id) - (b.id === undefined ? Infinity : b.id));
 }
-
-export function removePlayerFromNetworkRoom(peerIdToRemove) {
+export function removePlayerFromNetworkRoom(peerIdToRemove) { /* ... same ... */ 
     const initialCount = networkRoomData.players.length;
     networkRoomData.players = networkRoomData.players.filter(p => p.peerId !== peerIdToRemove);
-    if (networkRoomData.players.length < initialCount) {
-        console.log(`[State] Player with peerId ${peerIdToRemove} removed from network room.`);
-    }
+    if (networkRoomData.players.length < initialCount) console.log(`[State] Player ${peerIdToRemove} removed from network room.`);
 }
-
-export function updatePlayerInNetworkRoom(peerIdToUpdate, updates) {
+export function updatePlayerInNetworkRoom(peerIdToUpdate, updates) { /* ... same ... */ 
     const playerIndex = networkRoomData.players.findIndex(p => p.peerId === peerIdToUpdate);
-    if (playerIndex !== -1) {
-        networkRoomData.players[playerIndex] = { ...networkRoomData.players[playerIndex], ...updates };
-    }
+    if (playerIndex !== -1) networkRoomData.players[playerIndex] = { ...networkRoomData.players[playerIndex], ...clone(updates) };
 }
 
+/* ----------  PUBLIC GETTERS for Core Gameplay State ---------- */
+export function getCurrentWord() { return currentWord; }
+export function getCurrentWordObject() { return currentWordObject ? clone(currentWordObject) : null; }
+export function getGuessedLetters() { return new Set(guessedLetters); }
+export function getAttemptsFor(playerId) {
+  if (playerId !== null && playerId !== undefined && playerId >= 0 && playerId < remainingAttemptsPerPlayer.length) {
+    return remainingAttemptsPerPlayer[playerId];
+  }
+  // console.warn(`[State] getAttemptsFor: Invalid playerId ${playerId} or attempts array not ready. Returning MAX_ATTEMPTS.`);
+  return MAX_ATTEMPTS; 
+}
+export function getGameActive() { return gameActive; }
+export function getCurrentDifficulty() { return currentDifficulty; }
+export function getClueUsedThisGame() { return clueUsedThisGame; }
+export function getPlayersData() { return clone(localPlayersData); }
+export function getCurrentPlayerId() { return currentPlayerId; }
+export function getGamePhase() { return gamePhase; }
+
+/* ----------  PUBLIC GETTERS for Network State ---------- */
+export function getPvpRemoteActive() { return pvpRemoteActive; }
+export function getMyPeerId() { return myPeerId; }
+export function getNetworkRoomData() { return getSanitizedNetworkRoomDataForClient(); }
+
+/* ---------- Combined State Management Functions ---------- */
 export function resetScores() {
-    if (playersData) playersData.forEach(p => p.score = 0);
+    if (localPlayersData) localPlayersData.forEach(p => p.score = 0);
     if (networkRoomData?.players) networkRoomData.players.forEach(p => p.score = 0);
 }
-
 export function resetGameFlowState() {
-    setCurrentWordObject(null);
-    guessedLetters.clear();
-    // remainingAttemptsPerPlayer is initialized by initRemainingAttempts, called when playersData is set or game starts
-    // initRemainingAttempts(playersData.length || 1); // Ensure it's initialized if playersData known
+    setCurrentWordObject(null); guessedLetters.clear();
+    // remainingAttemptsPerPlayer is initialized by initRemainingAttempts,
+    // which is called when setPlayersData is called or when a new game starts.
     clueUsedThisGame = false;
     if (pvpRemoteActive && networkRoomData) networkRoomData.turnCounter = 0;
     console.log(`[State] resetGameFlowState completed.`);
 }
-
 export function resetFullLocalStateForNewUIScreen() {
-    resetGameFlowState(); // Resets core game logic vars
-    resetScores();
-    playersData = [];
-    currentPlayerId = 0; // Default to player 0
-    currentDifficulty = "easy";
-    gameActive = false;
-    remainingAttemptsPerPlayer = []; // Clear this too
-
-    resetNetworkRoomData();
-    pvpRemoteActive = false;
-    myPeerId = null;
+    resetGameFlowState(); resetScores();
+    localPlayersData = []; currentPlayerId = 0; currentDifficulty = "easy";
+    gameActive = false; remainingAttemptsPerPlayer = [];
+    resetNetworkRoomData(); pvpRemoteActive = false; myPeerId = null;
     console.log("[State] resetFullLocalStateForNewUIScreen completed.");
 }
-
-export function normalizeString(str) {
-    if (!str) return "";
-    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-}
-
-export function getLocalPlayerCustomizationForNetwork(playerIndex = 0) {
-    const nameEl = document.getElementById(`network-player-name`); // Uses the main page input now
+export function normalizeString(str) { return normalizeStringInternal(str); }
+export function getLocalPlayerCustomizationForNetwork() { /* ... same, ensure DOM IDs are correct ... */ 
+    const nameEl = document.getElementById(`network-player-name`);
     const iconEl = document.getElementById(`network-player-icon`);
-    return {
-        name: nameEl?.value.trim() || `Pizarrín${Math.floor(Math.random()*100)}`,
-        icon: iconEl?.value || AVAILABLE_ICONS[0], // Default icon
-        // Color assigned by host or default, not taken from UI for *initial* join data for simplicity
-        color: DEFAULT_PLAYER_COLORS[playerIndex % DEFAULT_PLAYER_COLORS.length] 
-    };
+    const name = nameEl?.value.trim() || `Pizarrín${Math.floor(Math.random()*100)}`;
+    const icon = iconEl?.value || AVAILABLE_ICONS[0];
+    let colorIndex = 0;
+    if (networkRoomData?.players?.length > 0) colorIndex = networkRoomData.players.length % DEFAULT_PLAYER_COLORS.length;
+    return { name, icon, color: DEFAULT_PLAYER_COLORS[colorIndex] };
 }
-
-export function getSanitizedNetworkRoomDataForClient() {
+export function getSanitizedNetworkRoomDataForClient() { /* ... same ... */ 
     if (!networkRoomData) return {};
-    const {
-        _peerInitPromise, _peerInitResolve, _peerInitReject,
-        _setupCompleteCallback, _setupErrorCallback,
-        ...sanitizedData
-    } = networkRoomData;
-    return sanitizedData;
+    const { _peerInitPromise, _peerInitResolve, _peerInitReject, _setupCompleteCallback, _setupErrorCallback, ...sanitizedData } = networkRoomData;
+    return clone(sanitizedData);
 }
-
-export function logCurrentState(context = "Generic") {
-    // ... (can be expanded to log remainingAttemptsPerPlayer)
+export function logCurrentState(context = "Generic") { /* ... same, add remainingAttemptsPerPlayer ... */ 
     console.log(`--- CURRENT GAME STATE (${context}) ---`);
-    console.log("Difficulty:", currentDifficulty, "Game Active:", gameActive);
+    console.log("Difficulty:", currentDifficulty, "Game Active:", gameActive, "Game Phase:", gamePhase);
     console.log("Word Object:", currentWordObject ? currentWordObject.word : "N/A", "Norm Word:", currentWord);
-    console.log("Attempts Left (per player):", JSON.parse(JSON.stringify(remainingAttemptsPerPlayer)));
+    console.log("Attempts Left (per player):", clone(remainingAttemptsPerPlayer));
     console.log("Clue Used:", clueUsedThisGame);
     console.log("Guessed Letters:", Array.from(guessedLetters).join(', '));
-    console.log("Players Data (Game Instance):", JSON.parse(JSON.stringify(playersData)));
+    console.log("Players Data (Game Instance):", clone(localPlayersData));
     console.log("Current Player ID (Game Instance):", currentPlayerId);
     console.log("--- NETWORK STATE ---");
     console.log("PVP Remote Active:", pvpRemoteActive);
     console.log("My Peer ID:", myPeerId);
-    console.log("Network Room Data (Sanitized):", JSON.parse(JSON.stringify(getSanitizedNetworkRoomDataForClient())));
+    console.log("Network Room Data (Sanitized):", getSanitizedNetworkRoomDataForClient());
     console.log("------------------------");
 }
+
+// No direct 'let' exports for mutable state to prevent read-only assignment errors.
+// All state access and mutation should go through exported functions (getters/setters).
