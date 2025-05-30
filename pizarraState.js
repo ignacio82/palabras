@@ -94,8 +94,13 @@ export function decAttemptsFor(playerId) {
 
 export function setGameActive(isActive) {
     gameActive = isActive;
-    setGamePhase(isActive ? 'playing' : (gamePhase === 'playing' ? 'ended' : gamePhase));
-    // console.log(`[State] Game active set to: ${gameActive}`);
+    // Only change phase to 'ended' if we're explicitly ending a game that was playing
+    if (!isActive && gamePhase === 'playing') {
+        setGamePhase('ended');
+    } else if (isActive && gamePhase !== 'playing') {
+        setGamePhase('playing');
+    }
+    console.log(`[State] Game active set to: ${gameActive}, phase: ${gamePhase}`);
 }
 export function setCurrentDifficulty(difficultyStr) { currentDifficulty = difficultyStr; }
 export function setClueUsedThisGame(wasUsed) { clueUsedThisGame = wasUsed; }
@@ -133,7 +138,10 @@ export function setNetworkRoomData(data) {
     if (data.hasOwnProperty('_setupErrorCallback')) networkRoomData._setupErrorCallback = data._setupErrorCallback;
     if (data.roomState && data.roomState !== oldRoomState) {
         console.log(`[State] networkRoomData.roomState changed: ${oldRoomState} -> ${networkRoomData.roomState}`);
-        setGamePhase(data.roomState);
+        // Only update game phase for network room state changes if we're in network mode
+        if (pvpRemoteActive) {
+            setGamePhase(data.roomState);
+        }
     }
 }
 export function resetNetworkRoomData() {
@@ -148,7 +156,9 @@ export function resetNetworkRoomData() {
         gameSettings: { difficulty: "easy" }, roomState: 'idle', turnCounter: 0,
         ...preservedCallbacks
     };
-    setGamePhase('idle');
+    if (!pvpRemoteActive) {
+        setGamePhase('idle');
+    }
 }
 export function addPlayerToNetworkRoom(player) { /* ... same ... */ 
     const existingPlayerIndex = networkRoomData.players.findIndex(p => p.peerId === player.peerId);

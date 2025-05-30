@@ -107,7 +107,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleLetterClickUI(letter, buttonElement) {
-        if (!state.getGameActive() || (buttonElement && buttonElement.disabled)) return;
+        console.log("[Main] Letter clicked:", letter, "Game active:", state.getGameActive(), "Button disabled:", buttonElement?.disabled);
+        
+        if (!state.getGameActive() || (buttonElement && buttonElement.disabled)) {
+            console.log("[Main] Ignoring click - game not active or button disabled");
+            return;
+        }
         sound.triggerVibration(25);
 
         if (state.getPvpRemoteActive()) {
@@ -121,8 +126,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Local game
+        console.log("[Main] Processing local game guess for letter:", letter);
         if (buttonElement) buttonElement.disabled = true; // Disable button on UI first
         const result = logic.processGuess(letter); // gameLogic.processGuess updates state
+        
+        console.log("[Main] Guess result:", result);
 
         // UI updates based on the result for local game
         ui.updateStarsDisplay(); // Uses state updated by processGuess
@@ -132,11 +140,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (result.correct) {
             ui.displayMessage(`¡Muy bien! '${result.letter}' está en la palabra. 👍`, 'success');
             if (result.wordSolved) {
+                console.log("[Main] Word solved! Ending game.");
                 endGameUI(true);
             }
         } else {
             ui.displayMessage(`'${result.letter}' no está. ¡Pierdes una ${state.STAR_SYMBOL}!`, 'error');
             if (result.gameOver) {
+                console.log("[Main] Game over! Ending game.");
                 endGameUI(false);
             }
         }

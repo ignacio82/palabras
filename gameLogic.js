@@ -125,6 +125,16 @@ export function processGuess(letter) {
         state.setGameActive(false);
     }
 
+    // Update scores if word is solved
+    if (wordSolved) {
+        const playersData = state.getPlayersData();
+        const currentPlayer = playersData.find(p => p.id === affectedPlayerId);
+        if (currentPlayer) {
+            currentPlayer.score = (currentPlayer.score || 0) + 1;
+            state.setPlayersData(playersData); // Update the state with new scores
+        }
+    }
+
     // Determine next player ID
     // If correct guess and word not solved, player might continue (Pizarra current single player model).
     // For multiplayer, turn always passes unless player solves the word or a specific rule says otherwise.

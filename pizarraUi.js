@@ -190,13 +190,30 @@ export function updateGuessedLettersDisplay() {
 export function createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback) {
     if (!alphabetKeyboardContainerEl) return;
     alphabetKeyboardContainerEl.innerHTML = '';
-    const guessed = state.getGuessedLetters(); const gameIsActive = state.getGameActive();
+    const guessed = state.getGuessedLetters(); 
+    const gameIsActive = state.getGameActive();
+    
+    console.log("[pizarraUi] Creating alphabet keyboard. Game active:", gameIsActive, "My turn:", isMyTurnCurrently, "Guessed letters:", Array.from(guessed));
+    
     state.ALPHABET.forEach(letter => {
         const button = document.createElement('button');
-        button.classList.add('alphabet-button'); button.textContent = letter; button.dataset.letter = letter;
-        button.disabled = !isMyTurnCurrently || guessed.has(letter) || !gameIsActive;
+        button.classList.add('alphabet-button'); 
+        button.textContent = letter; 
+        button.dataset.letter = letter;
+        
+        const isGuessed = guessed.has(letter);
+        const shouldDisable = !gameIsActive || !isMyTurnCurrently || isGuessed;
+        
+        button.disabled = shouldDisable;
+        
+        // Add visual feedback for guessed letters
+        if (isGuessed) {
+            button.classList.add('guessed');
+        }
+        
         button.addEventListener('click', () => {
-            if (typeof onLetterClickCallback === 'function') {
+            if (!button.disabled && typeof onLetterClickCallback === 'function') {
+                console.log("[pizarraUi] Letter clicked:", letter, "Button disabled:", button.disabled);
                 onLetterClickCallback(letter, button);
             }
         });
@@ -210,15 +227,29 @@ export function updateAllAlphabetButtons(disableCompletely) {
     const guessed = state.getGuessedLetters(); const gameIsActive = state.getGameActive();
     alphabetKeyboardContainerEl.querySelectorAll('.alphabet-button').forEach(button => {
         const letter = button.dataset.letter;
-        if (disableCompletely) button.disabled = true;
-        else button.disabled = guessed.has(letter) || !gameIsActive;
+        const isGuessed = guessed.has(letter);
+        if (disableCompletely) {
+            button.disabled = true;
+        } else {
+            button.disabled = isGuessed || !gameIsActive;
+        }
+        
+        // Add visual feedback for guessed letters
+        if (isGuessed) {
+            button.classList.add('guessed');
+        } else {
+            button.classList.remove('guessed');
+        }
     });
 }
 
 export function updateAlphabetEnablement(onLetterClickCallback) { // As per your RCA, now calls createAlphabetKeyboard
     if(!uiInitialized) initializeUiDOMReferences();
     if (!alphabetKeyboardContainerEl) return;
-    if (!state.getGameActive()) { createAlphabetKeyboard(false, onLetterClickCallback); return; }
+    if (!state.getGameActive()) { 
+        createAlphabetKeyboard(false, onLetterClickCallback); 
+        return; 
+    }
     const myTurn = state.getPvpRemoteActive() ? 
                    (state.getNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId()) : 
                    true;
@@ -259,7 +290,7 @@ export function renderFullGameBoard(isMyTurnCurrently, onLetterClickCallback) {
     updateGuessedLettersDisplay();
     updateScoreDisplayUI();
     updateCurrentPlayerTurnUI();
-    updateAlphabetEnablement(onLetterClickCallback); // This will recreate the keyboard
+    createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback); // Always recreate to ensure proper state
     
     if(clueButtonEl) {
         clueButtonEl.style.display = 'inline-block';
@@ -351,7 +382,7 @@ export function updateLobbyUI() {
     }
 }
 
-export function displayRoomQRCodeAndLink(roomId, maxPlayers, baseShareUrl = PIZARRA_BASE_URL, peerIdPrefix = state.PIZARRA_PEER_ID_PREFIX) {
+export function displayRoomQRCodeAndLink(roomId, maxPlayers, baseShareUrl = "https://palabras.martinez.fyi", peerIdPrefix = state.PIZARRA_PEER_ID_PREFIX) {
     if(!uiInitialized) initializeUiDOMReferences();
     if (!networkInfoAreaEl || !networkInfoTitleEl || !networkInfoTextEl || !qrCodeContainerEl || !copyRoomLinkButtonEl) return;
     const gameLink = `${baseShareUrl}?room=${roomId}`; 

@@ -269,6 +269,20 @@ header h1 {
 .alphabet-button:active:not(:disabled) { background-color:rgba(255,255,255,0.2); }
 .alphabet-button:disabled { color:#777; cursor:default; opacity:.6; }
 
+/* NEW: Style for guessed letters */
+.alphabet-button.guessed {
+    background-color: #555;
+    color: #999;
+    border-color: #777;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+.alphabet-button.guessed:hover {
+    background-color: #555;
+    color: #999;
+    border-color: #777;
+}
+
 #guessed-letters-section { margin-bottom:15px; font-size:1.1em; }
 #score-display-area { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 10px; }
 .player-score-card {
