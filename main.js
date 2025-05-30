@@ -127,32 +127,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Local game
         console.log("[Main] Processing local game guess for letter:", letter);
-        if (buttonElement) buttonElement.disabled = true; // Disable button on UI first
+        
+        // Disable button immediately to prevent multiple clicks
+        if (buttonElement) {
+            buttonElement.disabled = true;
+            buttonElement.classList.add('guessed');
+        }
+        
         const result = logic.processGuess(letter); // gameLogic.processGuess updates state
         
         console.log("[Main] Guess result:", result);
 
-        // UI updates based on the result for local game
-        ui.updateStarsDisplay(); // Uses state updated by processGuess
-        ui.updateWordDisplay();  // Uses state updated by processGuess
-        ui.updateGuessedLettersDisplay(); // Uses state updated by processGuess
+        // Update the entire UI to reflect the new state
+        ui.updateStarsDisplay(); 
+        ui.updateWordDisplay();  
+        ui.updateGuessedLettersDisplay(); 
+        
+        // Recreate alphabet keyboard with proper states
+        updateAlphabetEnablement();
 
         if (result.correct) {
             ui.displayMessage(`¡Muy bien! '${result.letter}' está en la palabra. 👍`, 'success');
             if (result.wordSolved) {
                 console.log("[Main] Word solved! Ending game.");
                 endGameUI(true);
+                return;
             }
         } else {
             ui.displayMessage(`'${result.letter}' no está. ¡Pierdes una ${state.STAR_SYMBOL}!`, 'error');
             if (result.gameOver) {
                 console.log("[Main] Game over! Ending game.");
                 endGameUI(false);
+                return;
             }
         }
-        // For local single player, turn doesn't "pass", player continues or game ends.
-        // Alphabet buttons for already guessed letters will be disabled by the next full render or specific update.
-        updateAlphabetEnablement(); // Re-check and disable guessed/enable active player
+        
         ui.updateCurrentPlayerTurnUI();
     }
 

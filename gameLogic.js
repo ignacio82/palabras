@@ -92,6 +92,8 @@ export function processGuess(letter) {
     const affectedPlayerId = state.getCurrentPlayerId(); // The player making the guess
     const guessedLetters = state.getGuessedLetters();
 
+    console.log(`[GameLogic] Processing guess: ${l}, Current word: ${state.getCurrentWord()}, Already guessed: ${Array.from(guessedLetters)}`);
+
     if (guessedLetters.has(l)) {
         // Letter already guessed, turn might not change, attempts not affected
         return {
@@ -120,6 +122,8 @@ export function processGuess(letter) {
     const wordSolved = checkWinCondition();
     const playerLost = attemptsLeftForPlayer <= 0 && !wordSolved;
     const gameIsOver = wordSolved || playerLost;
+
+    console.log(`[GameLogic] Letter ${l} is ${wasCorrect ? 'correct' : 'incorrect'}. Word solved: ${wordSolved}, Player lost: ${playerLost}, Game over: ${gameIsOver}`);
 
     if (gameIsOver) {
         state.setGameActive(false);
@@ -184,13 +188,22 @@ export function processGuess(letter) {
  */
 export function checkWinCondition() {
     const currentWord = state.getCurrentWord();
-    if (!currentWord) return false;
+    if (!currentWord) {
+        console.log("[GameLogic] checkWinCondition: No current word");
+        return false;
+    }
+    
     const guessedLetters = state.getGuessedLetters();
+    console.log(`[GameLogic] checkWinCondition: Word "${currentWord}", Guessed letters: [${Array.from(guessedLetters).join(', ')}]`);
+    
     for (const letter of currentWord) {
         if (!guessedLetters.has(letter)) {
+            console.log(`[GameLogic] checkWinCondition: Missing letter "${letter}" - word not solved`);
             return false;
         }
     }
+    
+    console.log("[GameLogic] checkWinCondition: All letters found - word solved!");
     return true;
 }
 
