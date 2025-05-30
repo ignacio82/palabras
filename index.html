@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estrellitas de Palabras</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Fredoka+One&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ Estrellitas de Palabras ✨</h1>
+        </header>
+
+        <main>
+            <section id="game-status">
+                <p id="stars-display-container">Estrellitas: <span id="stars-display"></span></p>
+                <p id="message-area" class="message">&nbsp;</p> </section>
+
+            <section id="word-display-section">
+                <div id="word-display-container">
+                    </div>
+            </section>
+
+            <section id="input-section">
+                <input type="text" id="letter-input" maxlength="1" placeholder="Ingresa una letra" autofocus>
+                <button id="guess-button">¡Adivinar!</button>
+            </section>
+
+            <section id="guessed-letters-section">
+                <p>Letras incorrectas: <span id="incorrect-letters-display" class="letters incorrect"></span></p>
+                <p>Letras correctas: <span id="correct-letters-display" class="letters correct"></span></p>
+            </section>
+
+            <section id="controls-section">
+                <button id="play-again-button" style="display:none;">Jugar Otra Vez</button>
+            </section>
+        </main>
+
+        <footer>
+            <p>¡Diviértete aprendiendo!</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

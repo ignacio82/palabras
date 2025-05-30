@@ -1,0 +1,249 @@
+/* style.css */
+body {
+    font-family: 'Comic Neue', cursive;
+    background-color: #fff0f5; /* Light pastel pink background */
+    color: #4a4a4a; /* Dark grey for text */
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px; /* Add padding around the body */
+    box-sizing: border-box; /* Makes padding and border inclusive in width/height */
+}
+
+.container {
+    background-color: #ffffff; /* White card for content */
+    padding: 25px 35px;
+    border-radius: 25px; /* More rounded corners */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); /* Softer shadow */
+    text-align: center;
+    width: 100%;
+    max-width: 550px; /* Slightly narrower for a cozier feel */
+}
+
+header h1 {
+    font-family: 'Fredoka One', cursive;
+    color: #ff69b4; /* Hot Pink */
+    font-size: 2.6em; /* Slightly adjusted */
+    margin-top: 0;
+    margin-bottom: 25px;
+    text-shadow: 2px 2px 0px #ffd700; /* Gold shadow, no blur */
+}
+
+#game-status {
+    margin-bottom: 20px;
+    font-size: 1.3em; /* Adjusted size */
+}
+
+#stars-display-container {
+    color: #6a0dad; /* Purple */
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+#stars-display {
+    color: #ffd700; /* Gold for stars */
+    font-size: 1.5em; /* Make stars bigger */
+    letter-spacing: 0.1em;
+    display: inline-block; /* Helps with vertical alignment if needed */
+    line-height: 1;
+}
+
+#message-area {
+    min-height: 1.6em; /* Reserve space for messages */
+    margin-top: 5px; /* Reduced margin */
+    margin-bottom: 15px;
+    font-weight: bold;
+    font-size: 1.15em;
+}
+
+.message.success {
+    color: #22bb33; /* Brighter Green */
+}
+
+.message.error {
+    color: #bb2124; /* Brighter Red */
+}
+
+.message.info {
+    color: #5bc0de; /* Lighter Info Blue */
+}
+
+#word-display-section {
+    margin-bottom: 25px;
+}
+
+#word-display-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap; /* Allow letters to wrap on smaller screens */
+    gap: 8px; /* Spacing between letters */
+    min-height: 50px;
+    margin-bottom: 20px;
+}
+
+.letter-box {
+    font-family: 'Fredoka One', cursive;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 40px; /* Slightly smaller */
+    height: 40px;
+    border: 3px solid #ffb6c1; /* Light Pink border */
+    border-radius: 10px;
+    font-size: 1.8em;
+    color: #ff69b4; /* Hot Pink for letters */
+    background-color: #fffacd; /* Lemon Chiffon (pale yellow) */
+    text-transform: uppercase;
+    font-weight: bold;
+    line-height: 1; /* Ensure text is centered vertically */
+}
+
+.letter-box.empty {
+    color: #cccccc; /* Lighter Grey for underscores */
+    background-color: #f8f8f8;
+}
+
+#input-section {
+    margin-bottom: 25px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+#letter-input {
+    font-family: 'Comic Neue', cursive;
+    padding: 10px 15px;
+    border: 2px solid #ffb6c1; /* Light Pink */
+    border-radius: 10px;
+    font-size: 1.1em; /* Adjusted size */
+    width: 60px; /* Width for a single character */
+    text-align: center;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+#letter-input::placeholder {
+    color: #bbbbbb;
+    text-transform: none;
+    font-weight: normal;
+}
+
+button {
+    font-family: 'Fredoka One', cursive;
+    padding: 10px 20px; /* Adjusted padding */
+    border: none;
+    border-radius: 10px;
+    background-color: #ff69b4; /* Hot Pink */
+    color: white;
+    font-size: 1.1em; /* Adjusted size */
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.1s ease;
+    box-shadow: 0 4px #e0559d; /* Darker pink for 3D effect */
+    text-transform: uppercase;
+}
+
+button:hover {
+    background-color: #ff85c1; /* Lighter Pink on hover */
+    transform: translateY(-2px);
+    box-shadow: 0 6px #e0559d;
+}
+
+button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px #e0559d;
+}
+
+#guessed-letters-section {
+    margin-bottom: 20px;
+    font-size: 1.05em; /* Adjusted size */
+}
+
+#guessed-letters-section p {
+    margin: 6px 0;
+    color: #6a0dad; /* Purple */
+}
+
+.letters {
+    font-weight: bold;
+    word-wrap: break-word;
+    letter-spacing: 0.15em; /* Increased spacing for guessed letters */
+    line-height: 1.5; /* Improve readability if letters wrap */
+}
+
+.letters.correct {
+    color: #22bb33; /* Brighter Green */
+}
+
+.letters.incorrect {
+    color: #bb2124; /* Brighter Red */
+}
+
+#controls-section {
+    margin-top: 25px;
+}
+
+#play-again-button {
+    background-color: #ffd700; /* Gold */
+    color: #6a0dad; /* Purple text */
+    font-size: 1.2em; /* Adjusted size */
+    padding: 12px 25px; /* Adjusted padding */
+    box-shadow: 0 4px #c7a300; /* Darker gold for 3D effect */
+}
+
+#play-again-button:hover {
+    background-color: #ffe44d; /* Lighter Gold on hover */
+    box-shadow: 0 6px #c7a300;
+}
+
+#play-again-button:active {
+    box-shadow: 0 2px #c7a300;
+}
+
+footer {
+    margin-top: 30px;
+    font-size: 0.95em; /* Adjusted size */
+    color: #ff69b4; /* Hot Pink */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 480px) {
+    body {
+        padding: 10px;
+    }
+    .container {
+        padding: 20px 15px;
+    }
+    header h1 {
+        font-size: 2em;
+    }
+    .letter-box {
+        width: 30px;
+        height: 30px;
+        font-size: 1.3em; /* Smaller letters for word display */
+        gap: 5px;
+        border-width: 2px;
+    }
+    #letter-input {
+        padding: 8px 10px;
+        font-size: 1em;
+        width: 50px;
+    }
+    button {
+        padding: 8px 15px;
+        font-size: 1em;
+    }
+    #play-again-button {
+        font-size: 1em;
+        padding: 10px 20px;
+    }
+    #game-status, #guessed-letters-section, #message-area {
+        font-size: 1em;
+    }
+    #stars-display {
+        font-size: 1.3em;
+    }
+}
