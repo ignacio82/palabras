@@ -1,307 +1,346 @@
 /* style.css */
 body {
-    font-family: 'Patrick Hand', 'Comic Neue', cursive; /* Chalk-like font first */
+    font-family: 'Patrick Hand', 'Comic Neue', cursive;
     background-color: #3d403d; /* Dark blackboard grey */
     color: #f0f0f0; /* Chalk white */
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: flex-start; /* Align to top for scrolling */
     min-height: 100vh;
     margin: 0;
     padding: 20px;
     box-sizing: border-box;
+    overflow-y: auto; /* Allow body to scroll if content overflows */
 }
 
 .container {
-    background-color: #4a4e4a; /* Slightly lighter blackboard shade for the 'board' */
-    padding: 25px 30px;
+    background-color: #4a4e4a; /* Blackboard surface */
+    padding: 20px 25px;
     border-radius: 15px;
-    box-shadow: 0 0 0 10px #6B4F34, 0 5px 15px 12px rgba(0,0,0,0.3); /* Wooden frame effect */
+    box-shadow: 0 0 0 10px #6B4F34, 0 5px 15px 12px rgba(0,0,0,0.3); /* Wooden frame */
     border: 5px solid #50321A; /* Inner dark wood */
     text-align: center;
     width: 100%;
-    max-width: 680px; /* Slightly wider for new elements */
+    max-width: 700px; /* Max width for the game container */
 }
 
 header h1 {
     font-family: 'Fredoka One', 'Patrick Hand', cursive;
-    color: #ffffff; /* Bright Chalk White */
-    font-size: 2.8em;
+    color: #ffffff;
+    font-size: 2.6em;
     margin-top: 0;
-    margin-bottom: 20px; /* Space before difficulty */
+    margin-bottom: 20px;
     text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
 }
 
-/* --- Difficulty Selection --- */
-#game-setup {
+/* --- Game Mode Selection --- */
+#game-mode-selection-section {
     margin-bottom: 25px;
 }
-
-#difficulty-selection-container p {
+#game-mode-selection-section p {
     font-size: 1.3em;
-    color: #e0e0e0; /* Lighter chalk for instruction */
+    color: #e0e0e0;
     margin-bottom: 10px;
 }
-
-#difficulty-selection-container {
+.tabs {
     display: flex;
     justify-content: center;
-    align-items: center; /* Vertically align items if p and buttons are direct children */
-    gap: 10px; /* Gap between buttons if p is separate */
-    flex-wrap: wrap; /* Allow buttons to wrap */
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #6a6e6a; /* Chalk line separator */
+    padding-bottom: 10px;
 }
-
-.difficulty-button {
+.tab-button {
     font-family: 'Fredoka One', 'Patrick Hand', cursive;
     background-color: transparent;
-    color: #d0d0d0; /* Dimmer chalk for inactive */
-    border: 2px solid #777; /* Dim chalk border */
-    border-radius: 8px;
-    padding: 8px 15px;
-    font-size: 1em;
+    color: #b0b0b0; /* Dim chalk for inactive tab */
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 10px 15px;
+    font-size: 1.1em;
     cursor: pointer;
     transition: all 0.2s ease;
     text-transform: uppercase;
 }
-
-.difficulty-button:hover {
-    color: #ffffff;
-    border-color: #f0f0f0; /* Bright chalk border on hover */
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
-.difficulty-button.active {
-    color: #fffacd; /* LemonChiffon (light yellow chalk) for active */
-    border-color: #fffacd;
-    background-color: rgba(255, 250, 205, 0.1); /* Subtle highlight */
-    box-shadow: 0 0 8px rgba(255, 250, 205, 0.3);
-}
-
-
-/* --- Main Game Area --- */
-#game-status {
-    margin-bottom: 15px;
-    font-size: 1.4em;
-    display: flex; /* For aligning stars and clue button */
-    justify-content: space-around; /* Space them out a bit */
-    align-items: center;
-    flex-wrap: wrap; /* Allow wrapping if space is tight */
-    gap: 15px; /* Gap between stars and clue button */
-}
-
-#stars-display-container {
+.tab-button:hover {
     color: #f0f0f0;
-    font-weight: normal;
-    margin-bottom: 0; /* Reset margin as flex handles spacing */
+}
+.tab-button.active {
+    color: #fffacd; /* LemonChiffon for active tab */
+    border-bottom-color: #fffacd;
 }
 
-#stars-display {
-    color: #fffacd;
-    font-size: 1.6em;
-    letter-spacing: 0.1em;
-    line-height: 1;
-}
-
-#clue-button {
-    font-family: 'Patrick Hand', 'Comic Neue', cursive;
-    background-color: rgba(255, 255, 255, 0.1); /* Slight chalk dust */
-    color: #a0c3d1; /* Light chalk blue */
-    border: 2px dashed #a0c3d1; /* Dashed border for clue button */
+/* --- Setup Sections --- */
+.game-setup-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px dashed #6a6e6a; /* Dashed chalk border for sections */
     border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 1em; /* Relative to game-status font size */
+}
+.game-setup-section h2 {
+    font-family: 'Fredoka One', 'Patrick Hand', cursive;
+    font-size: 1.5em;
+    color: #fffacd; /* LemonChiffon for section titles */
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #6a6e6a;
+    padding-bottom: 5px;
+}
+.game-setup-section label {
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-size: 1.1em;
+    color: #e0e0e0;
+    text-align: left;
+}
+.game-setup-section input[type="text"],
+.game-setup-section input[type="number"],
+.game-setup-section select {
+    font-family: 'Patrick Hand', cursive;
+    width: 100%;
+    padding: 8px 10px;
+    background-color: rgba(255,255,255,0.1); /* Slightly transparent */
+    border: 1px solid #777;
+    border-radius: 5px;
+    color: #f0f0f0;
+    font-size: 1.1em;
+    box-sizing: border-box;
+}
+.game-setup-section input::placeholder { color: #999; }
+.game-setup-section select option { background-color: #4a4e4a; color: #f0f0f0; }
+
+
+/* --- Action Buttons (Generic) --- */
+.action-button, .action-button-secondary, .action-button-danger, .action-button-confirm {
+    font-family: 'Fredoka One', 'Patrick Hand', cursive;
+    padding: 10px 20px;
+    border: 2px solid #f0f0f0; /* Chalk border */
+    border-radius: 8px;
+    color: #f0f0f0;
+    font-size: 1.1em;
     cursor: pointer;
     transition: all 0.2s ease;
+    text-transform: uppercase;
+    margin: 5px;
+    background-color: #5c605c; /* Darker button background */
 }
+.action-button:hover, .action-button-secondary:hover, .action-button-danger:hover, .action-button-confirm:hover {
+    background-color: #6c706c;
+    color: #ffffff;
+}
+.action-button-confirm {
+    background-color: #5a8c5a; /* Chalky green */
+    border-color: #a2d9a1;
+    color: #a2d9a1;
+}
+.action-button-confirm:hover { background-color: #6a9c6a; color: #c1e1c1;}
+.action-button-danger {
+    background-color: #8c5a5a; /* Chalky red */
+    border-color: #f4a09a;
+    color: #f4a09a;
+}
+.action-button-danger:hover { background-color: #9c6a6a; color: #ffb6b3;}
+.action-button-secondary {
+    background-color: #5a6a8c; /* Chalky blue */
+    border-color: #a0c3d1;
+    color: #a0c3d1;
+}
+.action-button-secondary:hover { background-color: #6a7a9c; color: #b0d3e1;}
 
-#clue-button:hover:not(:disabled) {
-    color: #b0d3e1;
-    border-color: #b0d3e1;
-    background-color: rgba(176, 211, 225, 0.2);
-}
-#clue-button:disabled {
-    opacity: 0.5;
-    cursor: default;
-    border-style: solid; /* Change border style when disabled */
-}
 
+/* --- Network Specific UI --- */
+#player-identity-setup { margin-bottom: 15px; }
+.network-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+
+#network-info-area {
+    margin: 20px auto;
+    padding: 15px;
+    border: 1px dashed #a0c3d1; /* Chalk blue dashed border */
+    border-radius: 8px;
+    background-color: rgba(0,0,0,0.1);
+}
+#network-info-area h3 { font-size: 1.3em; color: #fffacd; margin-bottom: 10px; }
+#qr-code-container { margin: 10px auto; background-color: #fff; padding: 10px; border-radius: 5px; width: 128px; height: 128px; } /* QRious generates canvas */
+#qr-code-container canvas { display: block; width: 100% !important; height: 100% !important; }
+#network-info-text { font-size: 1em; margin-bottom: 10px; word-break: break-all; }
+
+
+/* --- Lobby Area --- */
+#lobby-area {
+    margin: 20px auto;
+    padding: 15px;
+    border: 2px solid #6B4F34; /* Wooden border for lobby panel */
+    border-radius: 10px;
+    background-color: #555955; /* Slightly different shade for lobby */
+}
+#lobby-area h2 { font-size: 1.6em; color: #fffacd; margin-bottom: 10px; }
+#lobby-room-id-display, #lobby-game-settings-display { font-size: 0.9em; color: #c0c0c0; margin-bottom: 5px; }
+#lobby-room-id-display span, #lobby-game-settings-display span { font-weight: bold; color: #f0f0f0; }
+
+#lobby-player-list { margin-top: 15px; space-y-2; display: flex; flex-direction: column; gap: 8px; }
+.player-lobby-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgba(255,255,255,0.05);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border-left: 5px solid; /* Color will be set by JS */
+}
+.player-lobby-card .name { font-size: 1.1em; color: #f0f0f0; }
+.player-lobby-card .icon { margin-right: 8px; }
+.player-lobby-card .status { font-size: 0.9em; padding: 3px 8px; border-radius: 10px; }
+.player-lobby-card .status.ready { background-color: #a2d9a1; color: #3d403d; }
+.player-lobby-card .status.not-ready { background-color: #f4a09a; color: #3d403d; }
+.player-lobby-card .status.disconnected { background-color: #888; color: #ddd; }
+
+#lobby-message-area { margin-top: 10px; min-height: 1.2em; font-size: 1em; }
+.lobby-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+
+
+/* --- Main Game Area (Pizarra) - Existing and New --- */
+#game-area { /* Initially hidden by inline style, JS will show */
+    margin-top: 20px;
+}
+#game-status {
+    margin-bottom: 10px;
+    font-size: 1.2em; /* Adjusted from 1.4 for more space */
+    display: flex;
+    justify-content: space-between; /* Space out items */
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed #6a6e6a;
+}
+#current-player-turn-display { color: #fffacd; font-weight: bold; }
+#stars-display-container { color: #f0f0f0; margin-bottom: 0; }
+#stars-display { color: #fffacd; font-size: 1.4em; letter-spacing: 0.1em; }
+#clue-button { /* Style similar to difficulty buttons or other action buttons */
+    font-family: 'Patrick Hand', 'Comic Neue', cursive;
+    background-color: transparent;
+    color: #a0c3d1;
+    border: 2px dashed #a0c3d1;
+    padding: 6px 10px;
+    font-size: 0.9em; /* Relative to game-status font size */
+    border-radius: 8px;
+    cursor: pointer;
+}
+#clue-button:hover:not(:disabled) { color: #b0d3e1; border-color: #b0d3e1; background-color: rgba(176,211,225,0.1); }
+#clue-button:disabled { opacity: 0.5; cursor: default; border-style: solid; }
 
 #clue-display-area {
-    background-color: rgba(0,0,0,0.1); /* Slightly different background for the clue box */
-    border: 1px dashed #b0b0b0; /* Dashed chalk border */
+    background-color: rgba(0,0,0,0.1);
+    border: 1px dashed #b0b0b0;
     border-radius: 8px;
     padding: 10px 15px;
-    margin: 10px auto 20px auto; /* Centered with some margin */
+    margin: 5px auto 15px auto;
     max-width: 90%;
-    font-size: 1.1em;
-    color: #e0e0e0; /* Lighter chalk for clue text */
-    text-align: left; /* Clues might be longer */
+    font-size: 1.05em;
+    color: #e0e0e0;
+    text-align: left;
 }
-#clue-display-area strong {
-    color: #fffacd; /* Light yellow for "Pista:" */
-}
+#clue-display-area strong { color: #fffacd; }
 
-
-#message-area {
-    min-height: 1.6em;
-    margin-top: 0; /* Adjusted margin */
-    margin-bottom: 20px;
-    font-weight: bold;
-    font-size: 1.2em;
-}
-
+#message-area { min-height: 1.6em; margin-top: 0; margin-bottom: 15px; font-weight: bold; font-size: 1.2em; }
 .message.success { color: #a2d9a1; }
 .message.error { color: #f4a09a; }
 .message.info { color: #a0c3d1; }
 
-#word-display-section {
-    margin-bottom: 25px;
-}
+#word-display-section { margin-bottom: 20px; }
+#word-display-container { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:10px; min-height:60px; margin-bottom:20px;}
+.letter-box { font-family:'Patrick Hand',cursive; display:inline-flex; justify-content:center; align-items:center; width:45px; height:55px; border-bottom:3px solid #d3d3d3; font-size:2.5em; color:#fff; text-transform:uppercase; line-height:1; font-weight:normal; }
+.letter-box.empty { color:transparent; }
+.letter-box:not(.empty) { border-bottom:3px solid transparent; }
 
-#word-display-container {
-    display: flex;
+#alphabet-section { margin:25px auto; padding:10px; }
+#alphabet-keyboard-container { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; max-width:500px; margin:0 auto; }
+.alphabet-button { font-family:'Patrick Hand','Comic Neue',cursive; background-color:transparent; color:#f0f0f0; border:2px solid transparent; border-radius:8px; width:40px; height:40px; font-size:1.6em; cursor:pointer; transition:background-color .2s,color .2s,border-color .2s; display:flex; justify-content:center; align-items:center; padding:0; user-select:none; }
+.alphabet-button:hover:not(:disabled) { border-color:#b0b0b0; color:#fff; background-color:rgba(255,255,255,0.1); }
+.alphabet-button:active:not(:disabled) { background-color:rgba(255,255,255,0.2); }
+.alphabet-button:disabled { color:#777; cursor:default; opacity:.6; }
+
+#guessed-letters-section { margin-bottom:15px; font-size:1.1em; }
+#score-display-area { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 10px; }
+.player-score-card {
+    background-color: rgba(255,255,255,0.05);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    border-left: 4px solid; /* Player color here */
+}
+.player-score-card .name { color: #f0f0f0; }
+.player-score-card .score { font-weight: bold; color: #fffacd; margin-left: 5px; }
+
+#guessed-letters-section p { margin:5px 0; color:#d3d3d3; }
+.letters { font-weight:normal; letter-spacing:.1em; line-height:1.5; }
+.letters.correct { color:#c1e1c1; }
+.letters.incorrect { color:#ffb6b3; }
+
+#controls-section { margin-top:20px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;}
+/* Play Again and Main Menu buttons already covered by .action-button or specific styles */
+
+/* --- Modal Dialog --- */
+.modal {
+    /* display: none; /* JS handles this with inline style */
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6); /* Semi-transparent black overlay */
+    display: flex; /* For centering content */
     justify-content: center;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    min-height: 60px;
-    margin-bottom: 25px;
 }
-
-.letter-box {
-    font-family: 'Patrick Hand', cursive;
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    width: 45px;
-    height: 55px;
-    border-bottom: 3px solid #d3d3d3;
-    font-size: 2.5em;
-    color: #ffffff;
-    text-transform: uppercase;
-    line-height: 1;
-    font-weight: normal;
-}
-.letter-box.empty { color: transparent; }
-.letter-box:not(.empty) { border-bottom: 3px solid transparent; }
-
-#alphabet-section {
-    margin: 30px auto;
-    padding: 10px;
-}
-
-#alphabet-keyboard-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-    max-width: 500px;
-    margin: 0 auto;
-}
-
-.alphabet-button {
-    font-family: 'Patrick Hand', 'Comic Neue', cursive;
-    background-color: transparent;
-    color: #f0f0f0;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    width: 40px;
-    height: 40px;
-    font-size: 1.6em;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0;
-    user-select: none;
-}
-.alphabet-button:hover:not(:disabled) {
-    border-color: #b0b0b0;
-    color: #ffffff;
-    background-color: rgba(255,255,255,0.1);
-}
-.alphabet-button:active:not(:disabled) { background-color: rgba(255,255,255,0.2); }
-.alphabet-button:disabled {
-    color: #777;
-    cursor: default;
-    opacity: 0.6;
-}
-
-#guessed-letters-section {
-    margin-bottom: 20px;
-    font-size: 1.1em;
-}
-#guessed-letters-section p {
-    margin: 8px 0;
-    color: #d3d3d3;
-}
-.letters {
-    font-weight: normal;
-    letter-spacing: 0.1em;
-    line-height: 1.5;
-}
-.letters.correct { color: #c1e1c1; }
-.letters.incorrect { color: #ffb6b3; }
-
-#controls-section { margin-top: 25px; }
-
-button#play-again-button {
-    font-family: 'Fredoka One', 'Patrick Hand', cursive;
-    padding: 12px 25px;
-    border: 2px solid #f0f0f0;
+.modal-content {
+    background-color: #4a4e4a; /* Blackboard color */
+    color: #f0f0f0; /* Chalk text */
+    margin: auto;
+    padding: 25px;
+    border: 3px solid #6B4F34; /* Wooden frame */
     border-radius: 10px;
-    background-color: #5c605c;
-    color: #f0f0f0;
-    font-size: 1.2em;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
-    text-transform: uppercase;
-    box-shadow: none;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+    text-align: center;
 }
-button#play-again-button:hover {
-    background-color: #6c706c;
-    color: #ffffff;
-    transform: none;
-    box-shadow: none;
-}
-button#play-again-button:active {
-    transform: none;
-    box-shadow: none;
-    background-color: #4a4e4a;
-}
+.modal-content p { margin-bottom: 20px; font-size: 1.2em; line-height: 1.5; }
+.modal-buttons-container { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+/* Modal buttons use .action-button, .action-button-secondary etc. */
 
-footer {
-    margin-top: 30px;
-    font-size: 1em;
-    color: #b0b0b0;
-}
+
+footer { margin-top:30px; font-size:1em; color:#b0b0b0; }
 
 /* Responsive adjustments */
-@media (max-width: 680px) {
-    .container {
-        padding: 20px 15px;
-        box-shadow: 0 0 0 5px #6B4F34, 0 3px 10px 7px rgba(0,0,0,0.3);
-        border-width: 3px;
-    }
+@media (max-width: 700px) { /* Slightly adjusted breakpoint */
+    .container { padding: 15px 20px; box-shadow: 0 0 0 7px #6B4F34, 0 3px 10px 8px rgba(0,0,0,0.3); }
     header h1 { font-size: 2.2em; }
-    .letter-box { width: 35px; height: 45px; font-size: 2em; gap: 6px; }
-    .alphabet-button { width: 35px; height: 35px; font-size: 1.4em; gap: 5px; }
-    #alphabet-keyboard-container { max-width: 100%; gap: 6px; }
-    #game-status, #guessed-letters-section, #message-area { font-size: 1.1em; }
-    #stars-display { font-size: 1.4em; }
-    #difficulty-selection-container { flex-direction: column; gap: 8px; } /* Stack difficulty buttons on smaller screens */
-    .difficulty-button { font-size: 0.9em; padding: 6px 12px;}
-    #clue-button { font-size: 0.9em; padding: 6px 10px;}
+    .game-setup-section h2 { font-size: 1.3em; }
+    .tab-button { font-size: 1em; padding: 8px 10px; }
+    .action-button, .action-button-secondary, .action-button-danger, .action-button-confirm { font-size: 1em; padding: 8px 15px;}
+    .letter-box { width:35px; height:45px; font-size:2em; }
+    .alphabet-button { width:35px; height:35px; font-size:1.4em; }
+    #alphabet-keyboard-container { max-width:100%; gap:6px; }
+    #game-status { font-size:1.1em; flex-direction: column; gap: 8px; }
+    #clue-button {font-size: 0.9em; }
 }
 
 @media (max-width: 480px) {
-    header h1 { font-size: 1.8em; }
-    .letter-box { width: 30px; height: 40px; font-size: 1.6em; }
-    .alphabet-button { width: 30px; height: 30px; font-size: 1.2em; margin: 2px; gap: 4px;}
-    #alphabet-keyboard-container { gap: 4px; }
-    #guessed-letters-section { font-size: 1em; }
-    #difficulty-selection-container { margin-bottom: 15px; }
-    #clue-display-area { font-size: 1em; padding: 8px 10px;}
-
+    header h1 { font-size:1.8em; }
+    .letter-box { width:30px; height:40px; font-size:1.6em; }
+    .alphabet-button { width:30px; height:30px; font-size:1.2em; margin:2px; gap:4px; }
+    #alphabet-keyboard-container { gap:4px; }
+    .tabs { gap: 5px; }
+    .tab-button { font-size: 0.9em; padding: 6px 8px;}
+    .game-setup-section { padding: 10px; }
+    .game-setup-section h2 { font-size: 1.2em; }
+    .game-setup-section label, .game-setup-section input, .game-setup-section select { font-size: 1em;}
+    .action-button, .action-button-secondary, .action-button-danger, .action-button-confirm { font-size: 0.9em; padding: 8px 12px;}
+    #clue-display-area { font-size: 0.95em; padding: 8px 10px;}
+    .modal-content { padding: 20px; }
+    .modal-content p { font-size: 1.1em; }
 }
