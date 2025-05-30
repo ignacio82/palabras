@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const myTurn = state.getPvpRemoteActive() ?
-                       (state.getNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId()) :
+                       (state.getRawNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId()) : // Corrected
                        true; // In local game, if active, it's effectively "my turn" to interact
         // The user's RCA for main.js's updateAlphabetEnablement was:
         // updateAllAlphabetButtons(!myTurn);
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sound.triggerVibration(25);
 
         if (state.getPvpRemoteActive()) {
-            if (state.getNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId()) {
+            if (state.getRawNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId()) { // Corrected
                 if (buttonElement) buttonElement.disabled = true; // Temporarily disable, will be re-enabled by state sync if turn persists
                 peerConnection.sendGuessToHost(letter);
             } else {
@@ -154,8 +154,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleClueRequestUI() {
         if (!state.getGameActive() || state.getClueUsedThisGame() ||
-            (state.getPvpRemoteActive() && state.getNetworkRoomData().myPlayerIdInRoom !== state.getCurrentPlayerId())) {
-            if (state.getPvpRemoteActive() && state.getNetworkRoomData().myPlayerIdInRoom !== state.getCurrentPlayerId()) {
+            (state.getPvpRemoteActive() && state.getRawNetworkRoomData().myPlayerIdInRoom !== state.getCurrentPlayerId())) { // Corrected
+            if (state.getPvpRemoteActive() && state.getRawNetworkRoomData().myPlayerIdInRoom !== state.getCurrentPlayerId()) { // Corrected
                 ui.displayMessage("No es tu turno para pedir pista.", "error");
             } else if (state.getClueUsedThisGame()){
                 ui.displayMessage("Ya usaste la pista para esta palabra.", "error");
@@ -217,7 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("[Main] stopAnyActiveGameOrNetworkSession. Preserve UI:", preserveUIScreen);
         
         // --- PATCH: Guard against destroying fresh host peer ---
-        const rs = state.getNetworkRoomData().roomState;
+        // --- CORRECTED FUNCTION CALL ---
+        const currentNetworkData = state.getRawNetworkRoomData(); 
+        const rs = currentNetworkData.roomState;
+        // --- END CORRECTED FUNCTION CALL ---
         if (rs === 'creating_room' || rs === 'lobby' || rs === 'awaiting_join_approval' || rs === 'seeking_match') {
             console.log(`[Main] stopAnyActiveGameOrNetworkSession: Aborting due to roomState '${rs}'. Host peer preserved.`);
             return;
@@ -229,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (wasPvpActive) {
             peerConnection.closeAllConnectionsAndSession();
-            if (state.getNetworkRoomData().roomState === 'seeking_match' && state.getMyPeerId()) {
+            if (currentNetworkData.roomState === 'seeking_match' && state.getMyPeerId()) { // Use currentNetworkData here
                  if (matchmaking && typeof matchmaking.leaveQueue === 'function') { // Ensure matchmaking is loaded
                     matchmaking.leaveQueue(state.getMyPeerId());
                 }
@@ -278,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.hideModal();
             window.pizarraUiUpdateCallbacks.showLobby(true); 
             if (matchmaking?.updateHostedRoomStatus && hostPeerId) {
-                matchmaking.updateHostedRoomStatus(hostPeerId, state.getNetworkRoomData().gameSettings, state.getNetworkRoomData().maxPlayers, state.getNetworkRoomData().players.length, 'hosting_waiting_for_players');
+                matchmaking.updateHostedRoomStatus(hostPeerId, state.getRawNetworkRoomData().gameSettings, state.getRawNetworkRoomData().maxPlayers, state.getRawNetworkRoomData().players.length, 'hosting_waiting_for_players'); // Corrected
             }
         } catch (error) {
             ui.hideModal(); ui.showModal(`Error al crear la sala: ${error.message || 'Desconocido'}.`);
@@ -334,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.pizarraUiUpdateCallbacks = {
         showLobby: (isHost) => {
             ui.hideModal(); ui.showScreen('lobby'); ui.updateLobbyUI();
-            if (isHost) ui.displayRoomQRCodeAndLink(state.getNetworkRoomData().roomId, state.getNetworkRoomData().maxPlayers, PIZARRA_BASE_URL, state.PIZARRA_PEER_ID_PREFIX);
+            if (isHost) ui.displayRoomQRCodeAndLink(state.getRawNetworkRoomData().roomId, state.getRawNetworkRoomData().maxPlayers, PIZARRA_BASE_URL, state.PIZARRA_PEER_ID_PREFIX); // Corrected
             else ui.hideNetworkInfoArea();
         },
         updateLobby: ui.updateLobbyUI,
@@ -359,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.setGameActive(true);
             state.setGamePhase('playing'); // Make sure game phase is also set
 
-            const isMyTurn = state.getNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId();
+            const isMyTurn = state.getRawNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId(); // Corrected
             ui.renderFullGameBoard(isMyTurn, handleLetterClickUI); 
 
             ui.showScreen('game');
@@ -410,19 +413,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.getGamePhase() === 'lobby') {
                 ui.updateLobbyUI();
             } else if (state.getGamePhase() === 'playing' || state.getGamePhase() === 'ended' || state.getGamePhase() === 'game_over') {
-                const isMyTurn = state.getNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId();
+                const isMyTurn = state.getRawNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId(); // Corrected
                 ui.renderFullGameBoard(isMyTurn, handleLetterClickUI);
-                // More granular updates that renderFullGameBoard should cover:
-                // ui.updateWordDisplay();
-                // ui.updateStarsDisplay();
-                // ui.updateCurrentPlayerTurnUI();
-                // updateAlphabetEnablement(); // renderFullGameBoard calls createAlphabetKeyboard
-                // ui.updateGuessedLettersDisplay();
-                // ui.updateScoreDisplayUI();
 
                 if (!state.getGameActive()) {
-                    ui.updateAllAlphabetButtons(true); // Ensure alphabet is fully disabled
-                    ui.toggleClueButtonUI(false, false); // Disable and hide clue button
+                    ui.updateAllAlphabetButtons(true); 
+                    ui.toggleClueButtonUI(false, false); 
                 }
             }
         },
@@ -435,32 +431,30 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.toggleClueButtonUI(false, true); // Disable clicking, but keep visible
         },
         showNetworkGameOver: (gameOverData) => {
-            state.setGameActive(false); ui.updateAllAlphabetButtons(true); ui.toggleClueButtonUI(false, false); // Disable and hide clue button
+            state.setGameActive(false); ui.updateAllAlphabetButtons(true); ui.toggleClueButtonUI(false, false); 
             let message = gameOverData.reason ? `Juego terminado: ${gameOverData.reason}.` : "¡Juego Terminado!";
             let isWinForLocalPlayer = false;
             
-            if (gameOverData.winnerData?.winners?.length > 0) { // Check if winners array exists and is not empty
+            if (gameOverData.winnerData?.winners?.length > 0) { 
                  const winnerNames = gameOverData.winnerData.winners.map(w => `${w.icon || ''}${w.name}`).join(' y ');
-                 isWinForLocalPlayer = gameOverData.winnerData.winners.some(w => w.id === state.getNetworkRoomData().myPlayerIdInRoom);
+                 isWinForLocalPlayer = gameOverData.winnerData.winners.some(w => w.id === state.getRawNetworkRoomData().myPlayerIdInRoom); // Corrected
                  if(gameOverData.winnerData.isTie) { 
                      message += ` ¡Empate entre ${winnerNames}!`; 
-                     // In a tie, all involved players can be considered winners for confetti
-                     isWinForLocalPlayer = gameOverData.winnerData.winners.some(w => w.id === state.getNetworkRoomData().myPlayerIdInRoom);
+                     isWinForLocalPlayer = gameOverData.winnerData.winners.some(w => w.id === state.getRawNetworkRoomData().myPlayerIdInRoom); // Corrected
                  } else if (winnerNames) {
                      message += ` ¡Ganador(es): ${winnerNames}!`;
                  }
-            } else if (gameOverData.finalWord) { // If no explicit winner but word is revealed
+            } else if (gameOverData.finalWord) { 
                 message += ` La palabra era: ${gameOverData.finalWord}.`;
             }
 
             if(gameOverData.finalScores) {
-                // Update scores in the local state if they aren't already (e.g., from state_sync)
                 const currentPlayers = state.getPlayersData();
                 gameOverData.finalScores.forEach(ps => { 
                     const pLocal = currentPlayers.find(p => p.id === ps.id); 
                     if(pLocal) pLocal.score = ps.score; 
                 });
-                state.setPlayersData(currentPlayers); // This will also update networkRoomData.players scores if they are references
+                state.setPlayersData(currentPlayers); 
                 ui.updateScoreDisplayUI();
             }
             
@@ -474,9 +468,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeAppEventListeners() {
         gameModeTabs.forEach(tab => tab.addEventListener('click', () => {
             const newMode = tab.dataset.mode;
-            // Only stop session if mode actually changes to prevent killing host setup
             if ( (newMode === 'local' && state.getPvpRemoteActive()) || (newMode === 'network' && !state.getPvpRemoteActive()) ) {
-                 stopAnyActiveGameOrNetworkSession(true); // Preserve UI on mode switch attempt
+                 stopAnyActiveGameOrNetworkSession(true); 
             }
             ui.updateGameModeTabs(newMode); 
             ui.showScreen(newMode === 'local' ? 'localSetup' : 'networkSetup');
@@ -496,10 +489,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if(clueButtonEl) clueButtonEl.addEventListener('click', () => { handleClueRequestUI(); if(sound) sound.playUiClick();});
         if(playAgainButtonEl) playAgainButtonEl.addEventListener('click', () => {
             ui.stopConfetti();
-            if (state.getPvpRemoteActive()) { // For network, this should ideally be a signal to host for rematch
+            if (state.getPvpRemoteActive()) { 
                 ui.showModal("Jugar otra vez en red no está implementado para iniciar desde aquí. El líder puede empezar una nueva partida o puedes volver al menú.", [{text: "OK", action: returnToMainMenuUI}]);
             } else {
-                startLocalGameUI(); // Restart local game
+                startLocalGameUI(); 
             }
             if(sound) sound.playUiClick();
         });
@@ -512,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(sound) sound.playUiClick();
         });
         if(lobbyToggleReadyButtonEl) lobbyToggleReadyButtonEl.addEventListener('click', () => {
-            const myPlayer = state.getNetworkRoomData().players.find(p => p.peerId === state.getMyPeerId());
+            const myPlayer = state.getRawNetworkRoomData().players.find(p => p.peerId === state.getMyPeerId()); // Corrected
             if(myPlayer) peerConnection.sendPlayerReadyState(!myPlayer.isReady); sound.triggerVibration(25); if(sound) sound.playUiClick();
         });
         if(lobbyStartGameLeaderButtonEl) lobbyStartGameLeaderButtonEl.addEventListener('click', () => { peerConnection.leaderStartGameRequest(); sound.triggerVibration(50); });
@@ -528,10 +521,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (sound && typeof sound.initSounds === 'function' && !sound.soundsCurrentlyInitialized) { 
                 await sound.initSounds();
             }
-            bodyEl.removeEventListener('click', initAudio);
-            bodyEl.removeEventListener('touchend', initAudio);
+            // bodyEl.removeEventListener('click', initAudio); // Removed by {once: true}
+            // bodyEl.removeEventListener('touchend', initAudio); // Removed by {once: true}
         };
-        bodyEl.addEventListener('click', initAudio, { once: true }); // Use {once: true} for cleaner removal
+        bodyEl.addEventListener('click', initAudio, { once: true }); 
         bodyEl.addEventListener('touchend', initAudio, { once: true });
 
         console.log("App event listeners initialized.");
@@ -543,18 +536,18 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeAppEventListeners();
         if (typeof DICTIONARY_DATA !== 'undefined' && DICTIONARY_DATA.length > 0) {
             ui.populatePlayerIcons(networkPlayerIconSelect); 
-            state.setCurrentDifficulty('easy'); // Set initial difficulty state
-            ui.updateDifficultyButtonUI(); // Reflect initial state
-            returnToMainMenuUI(); // Start at main menu/local setup
+            state.setCurrentDifficulty('easy'); 
+            ui.updateDifficultyButtonUI(); 
+            returnToMainMenuUI(); 
         } else { ui.showModal("Error Crítico: Diccionario no cargado."); }
-        processUrlJoin(); // Check for room join from URL
+        processUrlJoin(); 
     }
 
     async function processUrlJoin() { 
         const urlParams = new URLSearchParams(window.location.search);
         const roomIdFromUrl = urlParams.get('room');
         if (roomIdFromUrl && roomIdFromUrl.trim()) {
-            window.history.replaceState({}, document.title, PIZARRA_BASE_URL); // Clear URL params
+            window.history.replaceState({}, document.title, PIZARRA_BASE_URL); 
             const modalPlayerNameId = 'modal-player-name-urljoin'; 
             const modalPlayerIconId = 'modal-player-icon-urljoin';
             const joinPromptHtml = `
@@ -572,7 +565,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const nameInputInModal = document.getElementById(modalPlayerNameId); 
                     const iconSelectInModal = document.getElementById(modalPlayerIconId);
                     const joinerPlayerData = getPlayerCustomizationDataFromUI(true, nameInputInModal, iconSelectInModal);
-                    state.setPvpRemoteActive(true); // Set mode before attempting join
+                    state.setPvpRemoteActive(true); 
                     try { 
                         await peerConnection.joinRoomById(roomIdFromUrl.trim(), joinerPlayerData); 
                     } catch (error) { 
@@ -581,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }},
                 { text: "❌ Cancelar", action: () => { ui.hideModal(); ui.showScreen('networkSetup'); }, className: 'action-button-secondary'}
-            ], true); // true for isHtmlContent
+            ], true); 
             const iconSelectInModal = document.getElementById(modalPlayerIconId);
             if (iconSelectInModal) { 
                 ui.populatePlayerIcons(iconSelectInModal); 
