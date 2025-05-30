@@ -8,56 +8,58 @@ document.addEventListener('DOMContentLoaded', () => {
         "PAZ", "REY", "FIN", "OLA", "DIA", "RIO", "PEZ", "LEO", "ANA", "MAS",
         "DOS", "TRES", "SEIS", "ROSA", "DADO", "NIDO", "SAPO", "RANA", "LAPIZ", "MESA",
         "PALA", "PISO", "PILA", "PIPA", "PERA", "PELO", "RATA", "SOPA", "TAZA", "TELA",
-        "VASO", "COCO", "MANI", "PINA", "BANCO", "BOTE", "FOCA", "HADA", "KIWI", "LATA"
+        "VASO", "COCO", "MANI", "PINA", "BANCO", "BOTE", "FOCA", "HADA", "KIWI", "LATA",
+        "NIÑO", "NIÑA", "AÑO" // Added words with Ñ
     ];
     const MAX_ATTEMPTS = 6;
     const STAR_SYMBOL = "🌟";
+    const ALPHABET = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split('');
 
     // --- DOM Elements ---
     const starsDisplayEl = document.getElementById('stars-display');
     const messageAreaEl = document.getElementById('message-area');
     const wordDisplayContainerEl = document.getElementById('word-display-container');
-    const letterInputEl = document.getElementById('letter-input');
-    const guessButtonEl = document.getElementById('guess-button');
+    const alphabetKeyboardContainerEl = document.getElementById('alphabet-keyboard-container');
     const incorrectLettersDisplayEl = document.getElementById('incorrect-letters-display');
     const correctLettersDisplayEl = document.getElementById('correct-letters-display');
     const playAgainButtonEl = document.getElementById('play-again-button');
 
     // --- Game State Variables ---
     let currentWord = '';
-    let guessedLetters = new Set(); // Using a Set for efficient storage and checking of guessed letters
+    let guessedLetters = new Set();
     let remainingAttempts = 0;
     let gameActive = false;
-    let messageTimeout = null; // To manage message clearing timeouts
+    let messageTimeout = null;
 
     // --- Core Game Functions ---
 
     function getRandomWord() {
-        return WORDS[Math.floor(Math.random() * WORDS.length)];
+        return WORDS[Math.floor(Math.random() * WORDS.length)].toUpperCase();
     }
 
     function displayMessage(text, type = 'info', persistent = false) {
         if (messageTimeout) {
-            clearTimeout(messageTimeout); // Clear any existing timeout
+            clearTimeout(messageTimeout);
             messageTimeout = null;
         }
         messageAreaEl.textContent = text;
-        messageAreaEl.className = `message ${type}`; // Apply new style
+        messageAreaEl.className = `message ${type}`;
+
+        const defaultInstruction = "Haz clic en una letra para adivinar...";
 
         if (!persistent && (type === 'error' || type === 'success')) {
             messageTimeout = setTimeout(() => {
-                if (gameActive) { // Only reset to default if game is still active
-                    displayMessage("Adivina la siguiente letra...", 'info');
-                } else if (messageAreaEl.textContent === text) { // Avoid clearing win/loss messages
-                    messageAreaEl.textContent = '\u00A0'; // Non-breaking space to maintain height
+                if (gameActive) {
+                    displayMessage(defaultInstruction, 'info');
+                } else if (messageAreaEl.textContent === text) {
+                    messageAreaEl.textContent = '\u00A0';
                     messageAreaEl.className = 'message';
                 }
-            }, 2500); // Message visible for 2.5 seconds
-        } else if (!persistent && type === 'info' && text !== "Adivina la siguiente letra...") {
-            // For short info messages that should also clear
+            }, 2500);
+        } else if (!persistent && type === 'info' && text !== defaultInstruction) {
              messageTimeout = setTimeout(() => {
                 if (gameActive) {
-                     displayMessage("Adivina la siguiente letra...", 'info');
+                     displayMessage(defaultInstruction, 'info');
                 }
             }, 2500);
         }
@@ -68,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateWordDisplay() {
-        wordDisplayContainerEl.innerHTML = ''; // Clear previous letter boxes
+        wordDisplayContainerEl.innerHTML = '';
         let allLettersGuessedCorrectly = true;
 
         for (const letter of currentWord) {
@@ -77,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (guessedLetters.has(letter)) {
                 letterBox.textContent = letter;
             } else {
-                letterBox.textContent = '_'; // Show underscore for unguessed letters
+                letterBox.textContent = ''; // Handled by CSS border-bottom for underscore look
                 letterBox.classList.add('empty');
                 allLettersGuessedCorrectly = false;
             }
@@ -89,7 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateGuessedLettersDisplay() {
         const correctArr = [];
         const incorrectArr = [];
-        const sortedGuessedLetters = Array.from(guessedLetters).sort();
+        const sortedGuessedLetters = Array.from(guessedLetters).sort((a, b) => a.localeCompare(b, 'es'));
+
 
         for (const letter of sortedGuessedLetters) {
             if (currentWord.includes(letter)) {
@@ -102,104 +105,86 @@ document.addEventListener('DOMContentLoaded', () => {
         incorrectLettersDisplayEl.textContent = incorrectArr.join(', ') || 'Ninguna';
     }
 
+    function createAlphabetKeyboard() {
+        alphabetKeyboardContainerEl.innerHTML = ''; // Clear existing buttons
+        ALPHABET.forEach(letter => {
+            const button = document.createElement('button');
+            button.classList.add('alphabet-button');
+            button.textContent = letter;
+            button.dataset.letter = letter; // Store letter in data attribute for easy access
+            button.addEventListener('click', () => {
+                if (gameActive && !button.disabled) {
+                    handleGuess(letter);
+                }
+            });
+            alphabetKeyboardContainerEl.appendChild(button);
+        });
+    }
+
     function startGame() {
         gameActive = true;
         currentWord = getRandomWord();
         guessedLetters.clear();
         remainingAttempts = MAX_ATTEMPTS;
 
-        displayMessage("¡Adivina la palabra secreta!", 'info', true); // Persistent initial message
+        createAlphabetKeyboard(); // Generate or reset the keyboard
+        displayMessage("Haz clic en una letra para adivinar...", 'info', true);
         updateStarsDisplay();
         updateWordDisplay();
         updateGuessedLettersDisplay();
 
-        letterInputEl.value = '';
-        letterInputEl.disabled = false;
-        letterInputEl.focus(); // Focus on the input field
-        guessButtonEl.disabled = false;
-        playAgainButtonEl.style.display = 'none'; // Hide play again button
+        playAgainButtonEl.style.display = 'none';
     }
 
     function endGame(isWin) {
         gameActive = false;
-        letterInputEl.disabled = true;
-        guessButtonEl.disabled = true;
-        playAgainButtonEl.style.display = 'inline-block'; // Show play again button
+        // Disable all alphabet buttons
+        document.querySelectorAll('.alphabet-button').forEach(button => button.disabled = true);
+        playAgainButtonEl.style.display = 'inline-block';
 
         if (isWin) {
             displayMessage(`¡GANASTE! 🎉 La palabra era: ${currentWord}`, 'success', true);
         } else {
-            // Reveal the word fully if lost
             for(const letter of currentWord) {
                 if (!guessedLetters.has(letter)) {
-                     guessedLetters.add(letter); // Add missing letters to show them
+                     guessedLetters.add(letter);
                 }
             }
-            updateWordDisplay(); // Update display to show full word
+            updateWordDisplay();
             displayMessage(`¡Oh no! 😢 La palabra era: ${currentWord}`, 'error', true);
         }
     }
 
-    function handleGuess() {
-        if (!gameActive) return;
+    function handleGuess(letter) {
+        if (!gameActive || guessedLetters.has(letter)) return;
 
-        const guess = letterInputEl.value.toUpperCase();
-        letterInputEl.value = ''; // Clear input field immediately
-        letterInputEl.focus();    // Keep focus on input field
-
-        if (!guess || guess.length !== 1 || !/^[A-ZÑ]$/.test(guess)) { // Includes Ñ for Spanish
-            displayMessage("Por favor, ingresa UNA sola letra (A-Z).", 'error');
-            return;
+        // Disable the clicked button on the on-screen keyboard
+        const button = alphabetKeyboardContainerEl.querySelector(`.alphabet-button[data-letter="${letter}"]`);
+        if (button) {
+            button.disabled = true;
         }
 
-        if (guessedLetters.has(guess)) {
-            displayMessage(`Ya intentaste con la letra '${guess}'. ¡Prueba otra!`, 'error');
-            return;
-        }
+        guessedLetters.add(letter);
 
-        guessedLetters.add(guess);
-
-        if (currentWord.includes(guess)) {
-            displayMessage(`¡Muy bien! '${guess}' está en la palabra. 👍`, 'success');
+        if (currentWord.includes(letter)) {
+            displayMessage(`¡Muy bien! '${letter}' está en la palabra. 👍`, 'success');
         } else {
             remainingAttempts--;
-            displayMessage(`'${guess}' no está. ¡Pierdes una ${STAR_SYMBOL}!`, 'error');
+            displayMessage(`'${letter}' no está. ¡Pierdes una ${STAR_SYMBOL}!`, 'error');
         }
 
         updateStarsDisplay();
-        const allGuessed = updateWordDisplay(); // This updates the word and checks if all letters are revealed
+        const allGuessed = updateWordDisplay();
         updateGuessedLettersDisplay();
 
         if (allGuessed) {
-            endGame(true); // Player wins
+            endGame(true);
         } else if (remainingAttempts <= 0) {
-            endGame(false); // Player loses
+            endGame(false);
         }
     }
 
     // --- Event Listeners ---
-    guessButtonEl.addEventListener('click', handleGuess);
-
-    letterInputEl.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') {
-            event.preventDefault(); // Prevent default Enter key action (like form submission)
-            handleGuess();
-        }
-    });
-
-    // Optional: Restrict input to single letters directly in the input field
-    letterInputEl.addEventListener('input', () => {
-        let value = letterInputEl.value.toUpperCase();
-        if (value.length > 1) {
-            value = value.charAt(value.length - 1); // Keep only the last entered character
-        }
-        if (value && !/^[A-ZÑ]$/.test(value)) { // Check if it's a valid letter
-             value = ''; // Clear if not a letter
-        }
-        letterInputEl.value = value;
-    });
-
-
     playAgainButtonEl.addEventListener('click', startGame);
 
     // --- Initialize Game ---

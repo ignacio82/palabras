@@ -1,73 +1,73 @@
 /* style.css */
 body {
-    font-family: 'Comic Neue', cursive;
-    background-color: #fff0f5; /* Light pastel pink background */
-    color: #4a4a4a; /* Dark grey for text */
+    font-family: 'Patrick Hand', 'Comic Neue', cursive; /* Chalk-like font first */
+    background-color: #3d403d; /* Dark blackboard grey */
+    color: #f0f0f0; /* Chalk white */
     display: flex;
     justify-content: center;
     align-items: flex-start;
     min-height: 100vh;
     margin: 0;
-    padding: 20px; /* Add padding around the body */
-    box-sizing: border-box; /* Makes padding and border inclusive in width/height */
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .container {
-    background-color: #ffffff; /* White card for content */
-    padding: 25px 35px;
-    border-radius: 25px; /* More rounded corners */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); /* Softer shadow */
+    background-color: #4a4e4a; /* Slightly lighter blackboard shade for the 'board' */
+    padding: 25px 30px;
+    border-radius: 15px; /* Less rounded for a board feel */
+    box-shadow: 0 0 0 10px #8B4513, 0 5px 15px 12px rgba(0,0,0,0.3); /* Wooden frame effect & shadow */
+    border: 5px solid #7a3e10; /* Inner dark wood */
     text-align: center;
     width: 100%;
-    max-width: 550px; /* Slightly narrower for a cozier feel */
+    max-width: 650px; /* Slightly wider for alphabet */
 }
 
 header h1 {
-    font-family: 'Fredoka One', cursive;
-    color: #ff69b4; /* Hot Pink */
-    font-size: 2.6em; /* Slightly adjusted */
+    font-family: 'Fredoka One', 'Patrick Hand', cursive;
+    color: #ffffff; /* Bright Chalk White */
+    font-size: 2.8em;
     margin-top: 0;
     margin-bottom: 25px;
-    text-shadow: 2px 2px 0px #ffd700; /* Gold shadow, no blur */
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.2); /* Subtle shadow */
 }
 
 #game-status {
     margin-bottom: 20px;
-    font-size: 1.3em; /* Adjusted size */
+    font-size: 1.4em;
 }
 
 #stars-display-container {
-    color: #6a0dad; /* Purple */
-    font-weight: bold;
+    color: #f0f0f0; /* Chalk white */
+    font-weight: normal;
     margin-bottom: 10px;
 }
 
 #stars-display {
-    color: #ffd700; /* Gold for stars */
-    font-size: 1.5em; /* Make stars bigger */
+    color: #fffacd; /* LemonChiffon (light yellow chalk for stars) */
+    font-size: 1.6em;
     letter-spacing: 0.1em;
-    display: inline-block; /* Helps with vertical alignment if needed */
     line-height: 1;
 }
 
 #message-area {
-    min-height: 1.6em; /* Reserve space for messages */
-    margin-top: 5px; /* Reduced margin */
+    min-height: 1.6em;
+    margin-top: 5px;
     margin-bottom: 15px;
     font-weight: bold;
-    font-size: 1.15em;
+    font-size: 1.2em;
 }
 
 .message.success {
-    color: #22bb33; /* Brighter Green */
+    color: #a2d9a1; /* Light chalk green */
 }
 
 .message.error {
-    color: #bb2124; /* Brighter Red */
+    color: #f4a09a; /* Light chalk red/pink */
 }
 
 .message.info {
-    color: #5bc0de; /* Lighter Info Blue */
+    color: #a0c3d1; /* Light chalk blue */
 }
 
 #word-display-section {
@@ -78,172 +78,199 @@ header h1 {
     display: flex;
     justify-content: center;
     align-items: center;
-    flex-wrap: wrap; /* Allow letters to wrap on smaller screens */
-    gap: 8px; /* Spacing between letters */
-    min-height: 50px;
-    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: 60px; /* Taller for bigger letters */
+    margin-bottom: 25px;
 }
 
 .letter-box {
-    font-family: 'Fredoka One', cursive;
+    font-family: 'Patrick Hand', cursive;
     display: inline-flex;
     justify-content: center;
     align-items: center;
-    width: 40px; /* Slightly smaller */
-    height: 40px;
-    border: 3px solid #ffb6c1; /* Light Pink border */
-    border-radius: 10px;
-    font-size: 1.8em;
-    color: #ff69b4; /* Hot Pink for letters */
-    background-color: #fffacd; /* Lemon Chiffon (pale yellow) */
+    width: 45px;
+    height: 55px; /* Slightly taller */
+    border-bottom: 3px solid #d3d3d3; /* Chalk line for underscore */
+    font-size: 2.5em; /* Bigger chalk letters */
+    color: #ffffff; /* White chalk */
     text-transform: uppercase;
-    font-weight: bold;
-    line-height: 1; /* Ensure text is centered vertically */
+    line-height: 1;
+    font-weight: normal; /* Chalk is not usually bold */
 }
 
-.letter-box.empty {
-    color: #cccccc; /* Lighter Grey for underscores */
-    background-color: #f8f8f8;
+.letter-box.empty { /* When it's an underscore */
+    color: transparent; /* Make the underscore character itself invisible if it was typed */
+}
+.letter-box:not(.empty) { /* When a letter is revealed */
+    border-bottom: 3px solid transparent; /* Remove underscore line if letter is present */
 }
 
-#input-section {
-    margin-bottom: 25px;
+
+#alphabet-section {
+    margin: 30px auto;
+    padding: 10px;
+}
+
+#alphabet-keyboard-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px; /* Gap between letter buttons */
+    max-width: 500px; /* Control width of keyboard */
+    margin: 0 auto;
+}
+
+.alphabet-button {
+    font-family: 'Patrick Hand', 'Comic Neue', cursive;
+    background-color: transparent;
+    color: #f0f0f0; /* Chalk white */
+    border: 2px solid transparent; /* Invisible border initially */
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    font-size: 1.6em;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 10px;
+    padding: 0;
+    user-select: none; /* Prevent text selection on click */
 }
 
-#letter-input {
-    font-family: 'Comic Neue', cursive;
-    padding: 10px 15px;
-    border: 2px solid #ffb6c1; /* Light Pink */
-    border-radius: 10px;
-    font-size: 1.1em; /* Adjusted size */
-    width: 60px; /* Width for a single character */
-    text-align: center;
-    text-transform: uppercase;
-    font-weight: bold;
+.alphabet-button:hover:not(:disabled) {
+    border-color: #b0b0b0; /* Light grey chalk border on hover */
+    color: #ffffff;
+    background-color: rgba(255,255,255,0.1); /* Slight chalk dust effect */
 }
 
-#letter-input::placeholder {
-    color: #bbbbbb;
-    text-transform: none;
-    font-weight: normal;
+.alphabet-button:active:not(:disabled) {
+    background-color: rgba(255,255,255,0.2);
 }
 
-button {
-    font-family: 'Fredoka One', cursive;
-    padding: 10px 20px; /* Adjusted padding */
-    border: none;
-    border-radius: 10px;
-    background-color: #ff69b4; /* Hot Pink */
-    color: white;
-    font-size: 1.1em; /* Adjusted size */
-    cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.1s ease;
-    box-shadow: 0 4px #e0559d; /* Darker pink for 3D effect */
-    text-transform: uppercase;
-}
-
-button:hover {
-    background-color: #ff85c1; /* Lighter Pink on hover */
-    transform: translateY(-2px);
-    box-shadow: 0 6px #e0559d;
-}
-
-button:active {
-    transform: translateY(1px);
-    box-shadow: 0 2px #e0559d;
+.alphabet-button:disabled {
+    color: #777; /* Dimmed chalk for disabled/guessed letters */
+    cursor: default;
+    opacity: 0.6;
+    /* text-decoration: line-through; Optional: strike-through */
 }
 
 #guessed-letters-section {
     margin-bottom: 20px;
-    font-size: 1.05em; /* Adjusted size */
+    font-size: 1.1em;
 }
 
 #guessed-letters-section p {
-    margin: 6px 0;
-    color: #6a0dad; /* Purple */
+    margin: 8px 0;
+    color: #d3d3d3; /* Light grey chalk */
 }
 
 .letters {
-    font-weight: bold;
-    word-wrap: break-word;
-    letter-spacing: 0.15em; /* Increased spacing for guessed letters */
-    line-height: 1.5; /* Improve readability if letters wrap */
+    font-weight: normal;
+    letter-spacing: 0.1em;
+    line-height: 1.5;
 }
 
 .letters.correct {
-    color: #22bb33; /* Brighter Green */
+    color: #c1e1c1; /* Pale Green Chalk */
 }
 
 .letters.incorrect {
-    color: #bb2124; /* Brighter Red */
+    color: #ffb6b3; /* Pale Red/Pink Chalk */
 }
 
 #controls-section {
     margin-top: 25px;
 }
 
-#play-again-button {
-    background-color: #ffd700; /* Gold */
-    color: #6a0dad; /* Purple text */
-    font-size: 1.2em; /* Adjusted size */
-    padding: 12px 25px; /* Adjusted padding */
-    box-shadow: 0 4px #c7a300; /* Darker gold for 3D effect */
+button#play-again-button { /* More specific selector */
+    font-family: 'Fredoka One', 'Patrick Hand', cursive;
+    padding: 12px 25px;
+    border: 2px solid #f0f0f0; /* Chalk border */
+    border-radius: 10px;
+    background-color: #5c605c; /* Darker button background */
+    color: #f0f0f0; /* Chalk white text */
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    text-transform: uppercase;
+    box-shadow: none; /* Remove previous 3D shadow */
 }
 
-#play-again-button:hover {
-    background-color: #ffe44d; /* Lighter Gold on hover */
-    box-shadow: 0 6px #c7a300;
+button#play-again-button:hover {
+    background-color: #6c706c;
+    color: #ffffff;
+    transform: none; /* Remove previous hover transform */
+    box-shadow: none;
+}
+button#play-again-button:active {
+    transform: none;
+    box-shadow: none;
+    background-color: #4a4e4a;
 }
 
-#play-again-button:active {
-    box-shadow: 0 2px #c7a300;
-}
 
 footer {
     margin-top: 30px;
-    font-size: 0.95em; /* Adjusted size */
-    color: #ff69b4; /* Hot Pink */
+    font-size: 1em;
+    color: #b0b0b0; /* Dimmer chalk for footer */
 }
 
-/* Responsive adjustments for smaller screens */
-@media (max-width: 480px) {
-    body {
-        padding: 10px;
-    }
+/* Responsive adjustments */
+@media (max-width: 680px) {
     .container {
         padding: 20px 15px;
+        box-shadow: 0 0 0 5px #8B4513, 0 3px 10px 7px rgba(0,0,0,0.3);
+        border-width: 3px;
     }
     header h1 {
+        font-size: 2.2em;
+    }
+    .letter-box {
+        width: 35px;
+        height: 45px;
         font-size: 2em;
+        gap: 6px;
+    }
+    .alphabet-button {
+        width: 35px;
+        height: 35px;
+        font-size: 1.4em;
+        gap: 5px;
+    }
+    #alphabet-keyboard-container {
+        max-width: 100%;
+        gap: 6px;
+    }
+    #game-status, #guessed-letters-section, #message-area {
+        font-size: 1.1em;
+    }
+    #stars-display {
+        font-size: 1.4em;
+    }
+}
+
+@media (max-width: 480px) {
+    header h1 {
+        font-size: 1.8em;
     }
     .letter-box {
         width: 30px;
+        height: 40px;
+        font-size: 1.6em;
+    }
+     .alphabet-button {
+        width: 30px; /* Even smaller for very small screens */
         height: 30px;
-        font-size: 1.3em; /* Smaller letters for word display */
-        gap: 5px;
-        border-width: 2px;
+        font-size: 1.2em;
+        margin: 2px; /* Ensure they don't stick too much */
+        gap: 4px;
     }
-    #letter-input {
-        padding: 8px 10px;
+    #alphabet-keyboard-container {
+        gap: 4px;
+    }
+    #guessed-letters-section {
         font-size: 1em;
-        width: 50px;
-    }
-    button {
-        padding: 8px 15px;
-        font-size: 1em;
-    }
-    #play-again-button {
-        font-size: 1em;
-        padding: 10px 20px;
-    }
-    #game-status, #guessed-letters-section, #message-area {
-        font-size: 1em;
-    }
-    #stars-display {
-        font-size: 1.3em;
     }
 }
