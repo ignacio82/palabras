@@ -1,446 +1,1042 @@
-/* style.css */
+/* style.css - Improved for 5-year-old girl */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Bubblegum+Sans&family=Comic+Neue:wght@400;700&display=swap');
+
 body {
-    font-family: 'Patrick Hand', 'Comic Neue', cursive; /* Chalk-like font first */
-    background-color: #3d403d; /* Dark blackboard grey */
-    color: #f0f0f0; /* Chalk white */
+    font-family: 'Fredoka', 'Bubblegum Sans', 'Comic Neue', cursive;
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 25%, #fecfef 75%, #ffc3f0 100%);
+    background-attachment: fixed;
+    color: #2d1b69;
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* Align to top for scrolling */
+    align-items: flex-start;
     min-height: 100vh;
     margin: 0;
     padding: 20px;
     box-sizing: border-box;
-    overflow-y: auto; /* Allow body to scroll if content overflows */
+    overflow-y: auto;
+}
+
+/* Add floating elements for whimsy */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.3) 2px, transparent 3px),
+        radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.2) 1px, transparent 2px),
+        radial-gradient(circle at 40% 40%, rgba(255, 192, 203, 0.4) 1px, transparent 2px);
+    background-size: 100px 100px, 50px 50px, 75px 75px;
+    pointer-events: none;
+    z-index: -1;
 }
 
 .container {
-    background-color: #4a4e4a; /* Blackboard surface */
-    padding: 20px 25px;
-    border-radius: 15px;
-    box-shadow: 0 0 0 10px #6B4F34, 0 5px 15px 12px rgba(0,0,0,0.3); /* Wooden frame */
-    border: 5px solid #50321A; /* Inner dark wood */
+    background: linear-gradient(145deg, #ffffff 0%, #fef7ff 100%);
+    padding: 25px 30px;
+    border-radius: 25px;
+    box-shadow: 
+        0 0 0 8px #ff69b4, 
+        0 0 0 16px #ffc0cb,
+        0 10px 30px rgba(255, 105, 180, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    border: 3px solid #ff1493;
     text-align: center;
     width: 100%;
-    max-width: 700px; /* Max width for the game container */
+    max-width: 750px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Decorative corners */
+.container::before {
+    content: '🌟✨🦄✨🌟';
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.2em;
+    z-index: 1;
+}
+
+.container::after {
+    content: '💖🌸🎀🌸💖';
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.2em;
+    z-index: 1;
 }
 
 header h1 {
-    font-family: 'Fredoka One', 'Patrick Hand', cursive;
-    color: #ffffff; /* Bright Chalk White */
-    font-size: 2.6em;
-    margin-top: 0;
-    margin-bottom: 20px; /* Space before difficulty */
-    text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
+    font-family: 'Fredoka', 'Bubblegum Sans', cursive;
+    background: linear-gradient(45deg, #ff1493, #ff69b4, #ffc0cb, #ff1493);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: #ff1493;
+    font-size: 3.2em;
+    font-weight: 700;
+    margin-top: 15px;
+    margin-bottom: 25px;
+    text-shadow: 2px 2px 4px rgba(255, 105, 180, 0.3);
+    animation: rainbow 3s ease-in-out infinite;
+    position: relative;
+}
+
+@keyframes rainbow {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* Add sparkle animation to title */
+header h1::before {
+    content: '✨';
+    position: absolute;
+    left: -40px;
+    top: 0;
+    animation: sparkle 2s infinite;
+}
+
+header h1::after {
+    content: '✨';
+    position: absolute;
+    right: -40px;
+    top: 0;
+    animation: sparkle 2s infinite 1s;
+}
+
+@keyframes sparkle {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    50% { transform: scale(1.3) rotate(180deg); opacity: 0.7; }
 }
 
 /* --- Game Mode Selection --- */
 #game-mode-selection-section {
     margin-bottom: 25px;
+    background: linear-gradient(135deg, #ffeef8 0%, #f0e6ff 100%);
+    padding: 20px;
+    border-radius: 20px;
+    border: 2px dashed #ff69b4;
+    position: relative;
 }
+
+#game-mode-selection-section::before {
+    content: '🎮';
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 1.5em;
+}
+
 #game-mode-selection-section p {
-    font-size: 1.3em;
-    color: #e0e0e0;
-    margin-bottom: 10px;
+    font-size: 1.4em;
+    color: #8b4cb8;
+    margin-bottom: 15px;
+    font-weight: 600;
 }
+
 .tabs {
     display: flex;
     justify-content: center;
-    gap: 10px;
+    gap: 15px;
     margin-bottom: 20px;
-    border-bottom: 2px solid #6a6e6a; /* Chalk line separator */
-    padding-bottom: 10px;
+    padding-bottom: 15px;
 }
+
 .tab-button {
-    font-family: 'Fredoka One', 'Patrick Hand', cursive;
-    background-color: transparent;
-    color: #b0b0b0; /* Dim chalk for inactive tab */
+    font-family: 'Fredoka', 'Bubblegum Sans', cursive;
+    background: linear-gradient(145deg, #ff69b4, #ff1493);
+    color: white;
     border: none;
-    border-bottom: 3px solid transparent;
-    padding: 10px 15px;
-    font-size: 1.1em;
+    border-radius: 25px;
+    padding: 12px 20px;
+    font-size: 1.2em;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    text-transform: uppercase;
+    transition: all 0.3s ease;
+    text-transform: none;
+    box-shadow: 0 4px 15px rgba(255, 105, 180, 0.4);
+    position: relative;
+    overflow: hidden;
 }
+
 .tab-button:hover {
-    color: #f0f0f0;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 105, 180, 0.6);
 }
+
 .tab-button.active {
-    color: #fffacd; /* LemonChiffon for active tab */
-    border-bottom-color: #fffacd;
+    background: linear-gradient(145deg, #ffd700, #ffb347);
+    color: #8b4cb8;
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+}
+
+.tab-button.active::after {
+    content: '👑';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 0.8em;
 }
 
 /* --- Setup Sections --- */
 .game-setup-section {
     margin-bottom: 20px;
-    padding: 15px;
-    border: 1px dashed #6a6e6a; /* Dashed chalk border for sections */
-    border-radius: 8px;
+    padding: 20px;
+    background: linear-gradient(135deg, #fff0f8 0%, #f8f0ff 100%);
+    border: 3px solid #ff69b4;
+    border-radius: 20px;
+    position: relative;
 }
+
 .game-setup-section h2 {
-    font-family: 'Fredoka One', 'Patrick Hand', cursive;
-    font-size: 1.5em;
-    color: #fffacd; /* LemonChiffon for section titles */
+    font-family: 'Fredoka', 'Bubblegum Sans', cursive;
+    font-size: 1.8em;
+    color: #8b4cb8;
     margin-top: 0;
-    margin-bottom: 15px;
-    border-bottom: 1px solid #6a6e6a;
-    padding-bottom: 5px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    position: relative;
 }
+
+.game-setup-section h2::after {
+    content: '🌈';
+    margin-left: 10px;
+}
+
 .game-setup-section label {
     display: block;
-    margin-top: 10px;
-    margin-bottom: 5px;
-    font-size: 1.1em;
-    color: #e0e0e0;
+    margin-top: 15px;
+    margin-bottom: 8px;
+    font-size: 1.2em;
+    color: #8b4cb8;
     text-align: left;
+    font-weight: 600;
 }
+
 .game-setup-section input[type="text"],
 .game-setup-section input[type="number"],
 .game-setup-section select {
-    font-family: 'Patrick Hand', cursive;
+    font-family: 'Fredoka', cursive;
     width: 100%;
-    padding: 8px 10px;
-    background-color: rgba(255,255,255,0.1); /* Slightly transparent */
-    border: 1px solid #777;
-    border-radius: 5px;
-    color: #f0f0f0;
+    padding: 12px 15px;
+    background: linear-gradient(135deg, #ffffff 0%, #fef7ff 100%);
+    border: 2px solid #ff69b4;
+    border-radius: 15px;
+    color: #8b4cb8;
     font-size: 1.1em;
     box-sizing: border-box;
+    font-weight: 500;
+    transition: all 0.3s ease;
 }
-.game-setup-section input::placeholder { color: #999; }
-.game-setup-section select option { background-color: #4a4e4a; color: #f0f0f0; }
 
+.game-setup-section input:focus,
+.game-setup-section select:focus {
+    outline: none;
+    border-color: #ff1493;
+    box-shadow: 0 0 10px rgba(255, 20, 147, 0.3);
+    transform: scale(1.02);
+}
 
-/* --- Action Buttons (Generic) --- */
-.action-button, .action-button-secondary, .action-button-danger, .action-button-confirm {
-    font-family: 'Fredoka One', 'Patrick Hand', cursive;
-    padding: 10px 20px;
-    border: 2px solid #f0f0f0; /* Chalk border */
-    border-radius: 8px;
-    color: #f0f0f0;
-    font-size: 1.1em;
+.game-setup-section input::placeholder { 
+    color: #c489d8; 
+    font-weight: 400;
+}
+
+.game-setup-section select option { 
+    background-color: #fef7ff; 
+    color: #8b4cb8; 
+}
+
+/* --- Difficulty Selection Special Styling --- */
+#difficulty-selection-container {
+    background: linear-gradient(135deg, #ffe0f0 0%, #f0e0ff 100%);
+    padding: 15px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+#difficulty-selection-container p {
+    font-size: 1.3em;
+    color: #8b4cb8;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.difficulty-button {
+    font-family: 'Fredoka', cursive;
+    background: linear-gradient(145deg, #ffffff, #f8f0ff);
+    color: #8b4cb8;
+    border: 3px solid #ff69b4;
+    border-radius: 20px;
+    padding: 12px 25px;
+    font-size: 1.3em;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    text-transform: uppercase;
+    transition: all 0.3s ease;
     margin: 5px;
-    background-color: #5c605c; /* Darker button background */
+    position: relative;
+    overflow: hidden;
 }
-.action-button:hover, .action-button-secondary:hover, .action-button-danger:hover, .action-button-confirm:hover {
-    background-color: #6c706c;
-    color: #ffffff;
+
+.difficulty-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(255, 105, 180, 0.4);
 }
-.action-button:disabled, .action-button-secondary:disabled, .action-button-danger:disabled, .action-button-confirm:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    background-color: #555;
-    border-color: #777;
-    color: #999;
+
+.difficulty-button.active {
+    background: linear-gradient(145deg, #ff69b4, #ff1493);
+    color: white;
+    border-color: #ffd700;
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(255, 105, 180, 0.8);
+}
+
+.difficulty-button.active::before {
+    content: '🌟 ';
+}
+
+.difficulty-button.active::after {
+    content: ' 🌟';
+}
+
+/* --- Action Buttons --- */
+.action-button, .action-button-secondary, .action-button-danger, .action-button-confirm {
+    font-family: 'Fredoka', cursive;
+    padding: 15px 30px;
+    border: none;
+    border-radius: 25px;
+    font-size: 1.3em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: none;
+    margin: 8px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.action-button {
+    background: linear-gradient(145deg, #ff69b4, #ff1493);
+    color: white;
+}
+
+.action-button:hover {
+    background: linear-gradient(145deg, #ff1493, #dc143c);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(255, 20, 147, 0.4);
 }
 
 .action-button-confirm {
-    background-color: #5a8c5a; /* Chalky green */
-    border-color: #a2d9a1;
-    color: #a2d9a1;
+    background: linear-gradient(145deg, #32cd32, #228b22);
+    color: white;
 }
-.action-button-confirm:hover:not(:disabled) { background-color: #6a9c6a; color: #c1e1c1;}
+
+.action-button-confirm:hover:not(:disabled) { 
+    background: linear-gradient(145deg, #228b22, #006400);
+    transform: translateY(-3px);
+}
+
 .action-button-danger {
-    background-color: #8c5a5a; /* Chalky red */
-    border-color: #f4a09a;
-    color: #f4a09a;
+    background: linear-gradient(145deg, #ff6347, #dc143c);
+    color: white;
 }
-.action-button-danger:hover:not(:disabled) { background-color: #9c6a6a; color: #ffb6b3;}
+
+.action-button-danger:hover:not(:disabled) { 
+    background: linear-gradient(145deg, #dc143c, #b22222);
+    transform: translateY(-3px);
+}
+
 .action-button-secondary {
-    background-color: #5a6a8c; /* Chalky blue */
-    border-color: #a0c3d1;
-    color: #a0c3d1;
+    background: linear-gradient(145deg, #9370db, #8a2be2);
+    color: white;
 }
-.action-button-secondary:hover:not(:disabled) { background-color: #6a7a9c; color: #b0d3e1;}
 
-
-/* --- Network Specific UI --- */
-#player-identity-setup { margin-bottom: 15px; }
-.network-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
-
-#network-info-area {
-    margin: 20px auto;
-    padding: 15px;
-    border: 1px dashed #a0c3d1; /* Chalk blue dashed border */
-    border-radius: 8px;
-    background-color: rgba(0,0,0,0.1);
+.action-button-secondary:hover:not(:disabled) { 
+    background: linear-gradient(145deg, #8a2be2, #7b68ee);
+    transform: translateY(-3px);
 }
-#network-info-area h3 { font-size: 1.3em; color: #fffacd; margin-bottom: 10px; }
-#qr-code-container { margin: 10px auto; background-color: #fff; padding: 10px; border-radius: 5px; width: 128px; height: 128px; display: flex; justify-content: center; align-items: center;}
-#qr-code-container canvas { display: block; width: 100% !important; height: 100% !important; }
-#network-info-text { font-size: 1em; margin-bottom: 10px; word-break: break-all; }
 
-
-/* --- Lobby Area --- */
-#lobby-area {
-    margin: 20px auto;
-    padding: 15px;
-    border: 2px solid #6B4F34; /* Wooden border for lobby panel */
-    border-radius: 10px;
-    background-color: #555955; /* Slightly different shade for lobby */
+.action-button:disabled, .action-button-secondary:disabled, .action-button-danger:disabled, .action-button-confirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #cccccc;
+    color: #666666;
+    transform: none;
 }
-#lobby-area h2 { font-size: 1.6em; color: #fffacd; margin-bottom: 10px; }
-#lobby-room-id-display, #lobby-game-settings-display { font-size: 0.9em; color: #c0c0c0; margin-bottom: 5px; }
-#lobby-room-id-display span, #lobby-game-settings-display span { font-weight: bold; color: #f0f0f0; }
 
-#lobby-player-list { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
-.player-lobby-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: rgba(255,255,255,0.05);
-    padding: 8px 12px;
-    border-radius: 6px;
-    border-left: 5px solid; /* Player color will be set by JS */
+/* Add fun button animations */
+.action-button:not(:disabled)::before {
+    content: '✨';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: twinkle 2s infinite;
 }
-.player-lobby-card .name { font-size: 1.1em; color: #f0f0f0; margin-left: 5px; }
-.player-lobby-card .icon { margin-right: 8px; font-size: 1.2em; }
-.player-lobby-card .status { font-size: 0.9em; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
-.player-lobby-card .status.ready { background-color: #a2d9a1; color: #3d403d; }
-.player-lobby-card .status.not-ready { background-color: #f4a09a; color: #3d403d; }
-.player-lobby-card .status.disconnected { background-color: #888; color: #ddd; }
 
-#lobby-message-area { margin-top: 10px; min-height: 1.2em; font-size: 1em; }
-.lobby-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+@keyframes twinkle {
+    0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
+    50% { opacity: 0.5; transform: translateY(-50%) scale(1.2); }
+}
 
-
-/* --- Main Game Area (Pizarra) - Existing and New --- */
-#game-area { /* Initially hidden by inline style, JS will show */
+/* --- Main Game Area --- */
+#game-area {
     margin-top: 20px;
+    background: linear-gradient(135deg, #fff8fc 0%, #f8f0ff 100%);
+    padding: 20px;
+    border-radius: 25px;
+    border: 3px solid #ff69b4;
+    position: relative;
 }
+
+#game-area::before {
+    content: '🎯';
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 1.5em;
+}
+
 #game-status {
-    margin-bottom: 10px;
-    font-size: 1.2em;
+    margin-bottom: 15px;
+    font-size: 1.3em;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px dashed #6a6e6a;
+    gap: 15px;
+    padding: 15px;
+    background: linear-gradient(135deg, #ffe0f0 0%, #f0e0ff 100%);
+    border-radius: 20px;
+    border: 2px dashed #ff69b4;
 }
-#current-player-turn-display { color: #fffacd; font-weight: bold; }
-#stars-display-container { color: #f0f0f0; margin-bottom: 0; }
-#stars-display { color: #fffacd; font-size: 1.4em; letter-spacing: 0.1em; }
+
+#current-player-turn-display { 
+    color: #8b4cb8; 
+    font-weight: 700;
+    font-size: 1.2em;
+}
+
+#stars-display-container { 
+    color: #8b4cb8; 
+    margin-bottom: 0; 
+    font-weight: 600;
+}
+
+#stars-display { 
+    color: #ffd700; 
+    font-size: 1.8em; 
+    letter-spacing: 0.2em;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    animation: starGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes starGlow {
+    from { text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+    to { text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.4); }
+}
+
 #clue-button {
-    font-family: 'Patrick Hand', 'Comic Neue', cursive;
-    background-color: transparent;
-    color: #a0c3d1;
-    border: 2px dashed #a0c3d1;
-    padding: 6px 10px;
-    font-size: 0.9em;
-    border-radius: 8px;
+    font-family: 'Fredoka', cursive;
+    background: linear-gradient(145deg, #9370db, #8a2be2);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.1em;
+    font-weight: 600;
+    border-radius: 20px;
     cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(147, 112, 219, 0.4);
 }
-#clue-button:hover:not(:disabled) { color: #b0d3e1; border-color: #b0d3e1; background-color: rgba(176,211,225,0.1); }
-#clue-button:disabled { opacity: 0.5; cursor: not-allowed; border-style: solid; }
+
+#clue-button:hover:not(:disabled) { 
+    background: linear-gradient(145deg, #8a2be2, #7b68ee);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(147, 112, 219, 0.6);
+}
+
+#clue-button:disabled { 
+    opacity: 0.5; 
+    cursor: not-allowed; 
+    background: #cccccc;
+    transform: none;
+}
 
 #clue-display-area {
-    background-color: rgba(0,0,0,0.1);
-    border: 1px dashed #b0b0b0;
-    border-radius: 8px;
-    padding: 10px 15px;
-    margin: 5px auto 15px auto;
+    background: linear-gradient(135deg, #fff0f8 0%, #f8f0ff 100%);
+    border: 2px solid #ff69b4;
+    border-radius: 20px;
+    padding: 15px 20px;
+    margin: 10px auto 20px auto;
     max-width: 90%;
-    font-size: 1.05em;
-    color: #e0e0e0;
-    text-align: left;
+    font-size: 1.2em;
+    color: #8b4cb8;
+    text-align: center;
+    font-weight: 500;
+    box-shadow: 0 4px 15px rgba(255, 105, 180, 0.2);
 }
-#clue-display-area strong { color: #fffacd; }
 
-#message-area { min-height: 1.6em; margin-top: 0; margin-bottom: 15px; font-weight: bold; font-size: 1.2em; }
-.message.success { color: #a2d9a1; }
-.message.error { color: #f4a09a; }
-.message.info { color: #a0c3d1; }
+#clue-display-area strong { 
+    color: #ff1493; 
+    font-weight: 700;
+}
 
-#word-display-section { margin-bottom: 20px; }
-#word-display-container { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:10px; min-height:60px; margin-bottom:20px;}
-.letter-box { font-family:'Patrick Hand',cursive; display:inline-flex; justify-content:center; align-items:center; width:45px; height:55px; border-bottom:3px solid #d3d3d3; font-size:2.5em; color:#fff; text-transform:uppercase; line-height:1; font-weight:normal; }
-.letter-box.empty { color:transparent; } /* Underscore is the border */
-.letter-box:not(.empty) { border-bottom:3px solid transparent; } /* Remove border when letter is present */
+#message-area { 
+    min-height: 2em; 
+    margin-top: 0; 
+    margin-bottom: 20px; 
+    font-weight: 700; 
+    font-size: 1.4em;
+    padding: 10px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.5);
+}
 
-#alphabet-section { margin:25px auto; padding:10px; }
-#alphabet-keyboard-container { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; max-width:500px; margin:0 auto; }
-.alphabet-button { font-family:'Patrick Hand','Comic Neue',cursive; background-color:transparent; color:#f0f0f0; border:2px solid transparent; border-radius:8px; width:40px; height:40px; font-size:1.6em; cursor:pointer; transition:background-color .2s,color .2s,border-color .2s; display:flex; justify-content:center; align-items:center; padding:0; user-select:none; }
-.alphabet-button:hover:not(:disabled) { border-color:#b0b0b0; color:#fff; background-color:rgba(255,255,255,0.1); }
-.alphabet-button:active:not(:disabled) { background-color:rgba(255,255,255,0.2); }
-.alphabet-button:disabled { color:#777; cursor:default; opacity:.6; }
+.message.success { 
+    color: #228b22; 
+    background: linear-gradient(135deg, #90ee90, #98fb98);
+}
 
-/* NEW: Style for guessed letters */
-.alphabet-button.guessed {
-    background-color: #555;
-    color: #999;
-    border-color: #777;
-    cursor: not-allowed;
+.message.error { 
+    color: #dc143c; 
+    background: linear-gradient(135deg, #ffb6c1, #ffc0cb);
+}
+
+.message.info { 
+    color: #8b4cb8; 
+    background: linear-gradient(135deg, #dda0dd, #e6e6fa);
+}
+
+/* --- Word Display --- */
+#word-display-section { 
+    margin-bottom: 25px; 
+}
+
+#word-display-container { 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    flex-wrap: wrap; 
+    gap: 12px; 
+    min-height: 70px; 
+    margin-bottom: 25px;
+    padding: 20px;
+    background: linear-gradient(135deg, #ffffff 0%, #fef7ff 100%);
+    border-radius: 20px;
+    border: 2px dashed #ff69b4;
+}
+
+.letter-box { 
+    font-family: 'Fredoka', cursive; 
+    display: inline-flex; 
+    justify-content: center; 
+    align-items: center; 
+    width: 50px; 
+    height: 60px; 
+    background: linear-gradient(145deg, #ff69b4, #ff1493);
+    border-radius: 15px;
+    font-size: 2.8em; 
+    color: white; 
+    text-transform: uppercase; 
+    line-height: 1; 
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(255, 105, 180, 0.4);
+    transition: all 0.3s ease;
+}
+
+.letter-box.empty { 
+    background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
+    color: transparent;
+    border: 3px dashed #ff69b4;
+}
+
+.letter-box:not(.empty) { 
+    animation: letterPop 0.5s ease-out;
+}
+
+@keyframes letterPop {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* --- Alphabet Section --- */
+#alphabet-section { 
+    margin: 30px auto; 
+    padding: 20px;
+    background: linear-gradient(135deg, #fff0f8 0%, #f8f0ff 100%);
+    border-radius: 20px;
+    border: 2px dashed #ff69b4;
+}
+
+#alphabet-keyboard-container { 
+    display: flex; 
+    flex-wrap: wrap; 
+    justify-content: center; 
+    gap: 10px; 
+    max-width: 600px; 
+    margin: 0 auto; 
+}
+
+.alphabet-button { 
+    font-family: 'Fredoka', cursive; 
+    background: linear-gradient(145deg, #ffffff, #fef7ff);
+    color: #8b4cb8; 
+    border: 3px solid #ff69b4;
+    border-radius: 15px; 
+    width: 45px; 
+    height: 45px; 
+    font-size: 1.8em; 
+    font-weight: 700;
+    cursor: pointer; 
+    transition: all 0.3s ease; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    padding: 0; 
+    user-select: none;
+    box-shadow: 0 3px 10px rgba(255, 105, 180, 0.3);
+}
+
+.alphabet-button:hover:not(:disabled) { 
+    background: linear-gradient(145deg, #ff69b4, #ff1493);
+    color: white;
+    transform: translateY(-3px) scale(1.1);
+    box-shadow: 0 6px 20px rgba(255, 105, 180, 0.6);
+}
+
+.alphabet-button:active:not(:disabled) { 
+    transform: translateY(-1px) scale(1.05);
+}
+
+.alphabet-button:disabled { 
+    color: #cccccc; 
+    cursor: not-allowed; 
     opacity: 0.5;
+    transform: none;
 }
+
+.alphabet-button.guessed {
+    background: linear-gradient(145deg, #e0e0e0, #d0d0d0);
+    color: #888888;
+    border-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 .alphabet-button.guessed:hover {
-    background-color: #555;
-    color: #999;
-    border-color: #777;
+    background: linear-gradient(145deg, #e0e0e0, #d0d0d0);
+    color: #888888;
+    transform: none;
 }
 
-#guessed-letters-section { margin-bottom:15px; font-size:1.1em; }
-#score-display-area { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 10px; }
+/* --- Guessed Letters Section --- */
+#guessed-letters-section { 
+    margin-bottom: 20px; 
+    font-size: 1.2em;
+    background: linear-gradient(135deg, #fff8fc 0%, #f8f0ff 100%);
+    padding: 15px;
+    border-radius: 20px;
+    border: 2px solid #ff69b4;
+}
+
+#score-display-area { 
+    display: flex; 
+    flex-wrap: wrap; 
+    justify-content: center; 
+    gap: 15px; 
+    margin-bottom: 15px; 
+}
+
 .player-score-card {
-    background-color: rgba(255,255,255,0.05);
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 0.9em;
-    border-left: 4px solid; /* Player color here */
+    background: linear-gradient(145deg, #ffffff, #fef7ff);
+    padding: 10px 15px;
+    border-radius: 15px;
+    font-size: 1.1em;
+    border-left: 6px solid;
+    box-shadow: 0 3px 10px rgba(255, 105, 180, 0.2);
+    font-weight: 600;
 }
-.player-score-card .name { color: #f0f0f0; }
-.player-score-card .score { font-weight: bold; color: #fffacd; margin-left: 5px; }
 
-#guessed-letters-section p { margin:5px 0; color:#d3d3d3; }
-.letters { font-weight:normal; letter-spacing:.1em; line-height:1.5; }
-.letters.correct { color:#c1e1c1; }
-.letters.incorrect { color:#ffb6b3; }
+.player-score-card .name { 
+    color: #8b4cb8; 
+}
 
-#controls-section { margin-top:20px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;}
+.player-score-card .score { 
+    font-weight: 700; 
+    color: #ff1493; 
+    margin-left: 8px;
+    font-size: 1.2em;
+}
+
+#guessed-letters-section p { 
+    margin: 8px 0; 
+    color: #8b4cb8;
+    font-weight: 600;
+}
+
+.letters { 
+    font-weight: 600; 
+    letter-spacing: 0.15em; 
+    line-height: 1.6;
+    font-size: 1.1em;
+}
+
+.letters.correct { 
+    color: #228b22; 
+    background: linear-gradient(135deg, #90ee90, #98fb98);
+    padding: 5px 10px;
+    border-radius: 10px;
+    display: inline-block;
+    margin: 2px;
+}
+
+.letters.incorrect { 
+    color: #dc143c; 
+    background: linear-gradient(135deg, #ffb6c1, #ffc0cb);
+    padding: 5px 10px;
+    border-radius: 10px;
+    display: inline-block;
+    margin: 2px;
+}
 
 /* --- Modal Dialog --- */
 .modal {
     position: fixed;
-    z-index: 1000; /* Below confetti container */
+    z-index: 1000;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.7); /* Darker overlay for modal */
+    background-color: rgba(139, 76, 184, 0.8);
     display: flex;
     justify-content: center;
     align-items: center;
 }
+
 .modal-content {
-    background-color: #4a4e4a; /* Blackboard color for modal background */
-    color: #f0f0f0; /* Chalk text */
+    background: linear-gradient(145deg, #ffffff, #fef7ff);
+    color: #8b4cb8;
     margin: auto;
-    padding: 25px;
-    border: 3px solid #6B4F34; /* Wooden frame */
-    border-radius: 10px;
+    padding: 30px;
+    border: 4px solid #ff69b4;
+    border-radius: 25px;
     width: 90%;
-    max-width: 450px;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(255, 105, 180, 0.6);
     text-align: center;
-    position: relative; /* For stacking context if needed */
-    z-index: 1001; /* Above its own overlay, but below confetti if desired, or above */
-}
-.modal-content p { margin-bottom: 20px; font-size: 1.2em; line-height: 1.5; }
-.modal-buttons-container { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
-/* Modal buttons use .action-button, .action-button-secondary etc. */
-
-
-footer { margin-top:30px; font-size:1em; color:#b0b0b0; }
-
-/* Responsive adjustments */
-@media (max-width: 700px) {
-    .container { padding: 15px 20px; box-shadow: 0 0 0 7px #6B4F34, 0 3px 10px 8px rgba(0,0,0,0.3); }
-    header h1 { font-size: 2.2em; }
-    .game-setup-section h2 { font-size: 1.3em; }
-    .tab-button { font-size: 1em; padding: 8px 10px; }
-    .action-button, .action-button-secondary, .action-button-danger, .action-button-confirm { font-size: 1em; padding: 8px 15px;}
-    .letter-box { width:35px; height:45px; font-size:2em; }
-    .alphabet-button { width:35px; height:35px; font-size:1.4em; }
-    #alphabet-keyboard-container { max-width:100%; gap:6px; }
-    #game-status { font-size:1.1em; flex-direction: column; gap: 8px; }
-    #clue-button {font-size: 0.9em; }
-    .player-lobby-card .name {font-size: 1em;}
-    .player-lobby-card .status {font-size: 0.8em;}
+    position: relative;
 }
 
-@media (max-width: 480px) {
-    header h1 { font-size:1.8em; }
-    .letter-box { width:30px; height:40px; font-size:1.6em; }
-    .alphabet-button { width:30px; height:30px; font-size:1.2em; margin:2px; gap:4px; }
-    #alphabet-keyboard-container { gap:4px; }
-    .tabs { gap: 5px; }
-    .tab-button { font-size: 0.9em; padding: 6px 8px;}
-    .game-setup-section { padding: 10px; }
-    .game-setup-section h2 { font-size: 1.2em; }
-    .game-setup-section label, .game-setup-section input, .game-setup-section select { font-size: 1em;}
-    .action-button, .action-button-secondary, .action-button-danger, .action-button-confirm { font-size: 0.9em; padding: 8px 12px;}
-    #clue-display-area { font-size: 0.95em; padding: 8px 10px;}
-    .modal-content { padding: 20px; }
-    .modal-content p { font-size: 1.1em; }
-    #network-info-text {font-size: 0.9em;}
-    .player-lobby-card { padding: 6px 10px;}
+.modal-content::before {
+    content: '🌟';
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    padding: 10px;
+    border-radius: 50%;
+    font-size: 1.5em;
+    border: 3px solid #ff69b4;
+}
+
+.modal-content p { 
+    margin-bottom: 25px; 
+    font-size: 1.3em; 
+    line-height: 1.6; 
+    font-weight: 500;
+}
+
+.modal-buttons-container { 
+    display: flex; 
+    justify-content: center; 
+    gap: 15px; 
+    flex-wrap: wrap; 
 }
 
 /* --- Confetti Styles --- */
 #confetti-container {
-    position: fixed; /* Cover the whole viewport */
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100vw; /* Use viewport width */
-    height: 100vh; /* Use viewport height */
-    pointer-events: none; /* Important: allows clicks to pass through to elements underneath */
-    overflow: hidden; /* Pieces that fly off screen won't cause scrollbars */
-    z-index: 2000; /* Make sure it's on top of game elements, but allow modals to be above if needed */
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 2000;
 }
 
 .confetti-piece {
     position: absolute;
-    width: 8px;  /* Small width */
-    height: 15px; /* Slightly taller for a rectangular feel */
-    opacity: 0.9;
-    /* background-color will be set by JavaScript */
-    animation: fall linear forwards; /* JS will set animation-duration per piece */
-    will-change: transform, opacity; /* Hint for browser performance */
+    width: 10px;
+    height: 18px;
+    opacity: 0.95;
+    animation: fall linear forwards;
+    will-change: transform, opacity;
 }
 
 @keyframes fall {
     0% {
-        transform: translateY(-60px) rotateZ(0deg) rotateX(0deg); /* Start above screen */
+        transform: translateY(-60px) rotateZ(0deg) rotateX(0deg);
         opacity: 1;
     }
-    25% { /* Add a bit of horizontal sway */
-        transform: translateX(calc(var(--drift) * 20px)) translateY(25vh) rotateZ(180deg) rotateX(180deg);
+    25% {
+        transform: translateX(calc(var(--drift) * 25px)) translateY(25vh) rotateZ(180deg) rotateX(180deg);
     }
     50% {
-        transform: translateX(calc(var(--drift) * -20px)) translateY(50vh) rotateZ(360deg) rotateX(360deg);
-        opacity: 0.8;
+        transform: translateX(calc(var(--drift) * -25px)) translateY(50vh) rotateZ(360deg) rotateX(360deg);
+        opacity: 0.9;
     }
     75% {
-        transform: translateX(calc(var(--drift) * 10px)) translateY(75vh) rotateZ(540deg) rotateX(540deg);
+        transform: translateX(calc(var(--drift) * 15px)) translateY(75vh) rotateZ(540deg) rotateX(540deg);
     }
     100% {
-        transform: translateY(105vh) rotateZ(720deg) rotateX(720deg); /* End below screen */
+        transform: translateY(105vh) rotateZ(720deg) rotateX(720deg);
         opacity: 0;
     }
 }
 
-/* style.css - Potentially add at the end or in a modal specific section */
+/* --- Network/Lobby Specific Styles --- */
+#network-info-area, #lobby-area {
+    background: linear-gradient(135deg, #fff8fc 0%, #f8f0ff 100%);
+    border: 3px solid #ff69b4;
+    border-radius: 25px;
+    padding: 20px;
+    margin: 20px auto;
+    box-shadow: 0 6px 20px rgba(255, 105, 180, 0.3);
+}
+
+#lobby-player-list { 
+    margin-top: 20px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 10px; 
+}
+
+.player-lobby-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #ffffff, #fef7ff);
+    padding: 12px 15px;
+    border-radius: 15px;
+    border-left: 6px solid;
+    box-shadow: 0 3px 10px rgba(255, 105, 180, 0.2);
+}
+
+.player-lobby-card .name { 
+    font-size: 1.2em; 
+    color: #8b4cb8; 
+    margin-left: 8px; 
+    font-weight: 600;
+}
+
+.player-lobby-card .icon { 
+    margin-right: 10px; 
+    font-size: 1.4em; 
+}
+
+.player-lobby-card .status { 
+    font-size: 1em; 
+    padding: 6px 12px; 
+    border-radius: 15px; 
+    font-weight: 700;
+}
+
+.player-lobby-card .status.ready { 
+    background: linear-gradient(135deg, #90ee90, #98fb98); 
+    color: #228b22; 
+}
+
+.player-lobby-card .status.not-ready { 
+    background: linear-gradient(135deg, #ffb6c1, #ffc0cb); 
+    color: #dc143c; 
+}
+
+.player-lobby-card .status.disconnected { 
+    background: linear-gradient(135deg, #e0e0e0, #d0d0d0); 
+    color: #888888; 
+}
+
+/* --- Responsive Design --- */
+@media (max-width: 700px) {
+    .container { 
+        padding: 20px 25px; 
+        border-radius: 20px;
+    }
+    
+    header h1 { 
+        font-size: 2.8em; 
+    }
+    
+    .game-setup-section h2 { 
+        font-size: 1.6em; 
+    }
+    
+    .tab-button { 
+        font-size: 1.1em; 
+        padding: 10px 15px; 
+    }
+    
+    .action-button, .action-button-secondary, .action-button-danger, .action-button-confirm { 
+        font-size: 1.2em; 
+        padding: 12px 20px;
+    }
+    
+    .letter-box { 
+        width: 40px; 
+        height: 50px; 
+        font-size: 2.2em; 
+    }
+    
+    .alphabet-button { 
+        width: 38px; 
+        height: 38px; 
+        font-size: 1.6em; 
+    }
+    
+    #alphabet-keyboard-container { 
+        max-width: 100%; 
+        gap: 8px; 
+    }
+    
+    #game-status { 
+        font-size: 1.2em; 
+        flex-direction: column; 
+        gap: 10px; 
+    }
+    
+    .difficulty-button {
+        font-size: 1.2em;
+        padding: 10px 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    header h1 { 
+        font-size: 2.2em; 
+    }
+    
+    .letter-box { 
+        width: 35px; 
+        height: 45px; 
+        font-size: 1.8em; 
+    }
+    
+    .alphabet-button { 
+        width: 32px; 
+        height: 32px; 
+        font-size: 1.4em; 
+        gap: 6px; 
+    }
+    
+    #alphabet-keyboard-container { 
+        gap: 6px; 
+    }
+    
+    .tabs { 
+        gap: 8px; 
+    }
+    
+    .tab-button { 
+        font-size: 1em; 
+        padding: 8px 12px;
+    }
+    
+    .game-setup-section { 
+        padding: 15px; 
+    }
+    
+    .game-setup-section h2 { 
+        font-size: 1.4em; 
+    }
+    
+    .action-button, .action-button-secondary, .action-button-danger, .action-button-confirm { 
+        font-size: 1.1em; 
+        padding: 10px 18px;
+    }
+    
+    .modal-content { 
+        padding: 25px; 
+    }
+    
+    .modal-content p { 
+        font-size: 1.2em; 
+    }
+    
+    .player-lobby-card { 
+        padding: 10px 12px;
+    }
+    
+    .difficulty-button {
+        font-size: 1.1em;
+        padding: 8px 16px;
+        margin: 3px;
+    }
+}
+
+footer { 
+    margin-top: 30px; 
+    font-size: 1.1em; 
+    color: #8b4cb8;
+    font-weight: 500;
+}
+
+/* Modal form inputs styling */
 .modal-content .modal-form-inputs {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 15px;
-    margin-bottom: 15px;
-    text-align: left; /* Align labels and inputs left */
+    gap: 15px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    text-align: left;
 }
 
 .modal-content .modal-form-inputs label {
-    font-size: 1em;
-    color: #e0e0e0; /* Chalky color for labels */
-    margin-bottom: 3px;
+    font-size: 1.1em;
+    color: #8b4cb8;
+    margin-bottom: 5px;
+    font-weight: 600;
 }
 
 .modal-content .modal-form-inputs input[type="text"],
 .modal-content .modal-form-inputs select {
-    font-family: 'Patrick Hand', cursive;
+    font-family: 'Fredoka', cursive;
     width: 100%;
-    padding: 8px 10px;
-    background-color: rgba(0,0,0,0.2); /* Darker input background inside modal */
-    border: 1px solid #777;
-    border-radius: 5px;
-    color: #f0f0f0; /* Chalk text for input */
-    font-size: 1em;
+    padding: 12px 15px;
+    background: linear-gradient(135deg, #ffffff 0%, #fef7ff 100%);
+    border: 2px solid #ff69b4;
+    border-radius: 15px;
+    color: #8b4cb8;
+    font-size: 1.1em;
     box-sizing: border-box;
+    font-weight: 500;
 }
-.modal-content .modal-form-inputs input::placeholder { color: #999; }
-.modal-content .modal-form-inputs select option { background-color: #3d403d; color: #f0f0f0; }
+
+.modal-content .modal-form-inputs input::placeholder { 
+    color: #c489d8; 
+}
+
+.modal-content .modal-form-inputs select option { 
+    background-color: #fef7ff; 
+    color: #8b4cb8; 
+}

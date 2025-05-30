@@ -4,6 +4,7 @@ import { normalizeLetter as normalizeGameLetter } from './util.js'; // Import an
 
 // --- DOM Element References (fetched once) ---
 let localGameSetupSection, networkGameSetupSection, gameAreaEl, lobbyAreaEl, networkInfoAreaEl;
+let gameModeSelectionSection; // NEW: Reference to game mode selection
 let starsDisplayEl, currentPlayerTurnDisplaySpan, clueButtonEl, clueDisplayAreaEl, clueTextEl;
 let messageAreaEl, wordDisplayContainerEl, alphabetKeyboardContainerEl;
 let incorrectLettersDisplayEl, correctLettersDisplayEl, scoreDisplayAreaEl;
@@ -29,6 +30,8 @@ let currentMessageTimeout = null; // Store timeout for the main message area
 export function initializeUiDOMReferences() {
     if (uiInitialized) return;
 
+    // NEW: Get reference to game mode selection section
+    gameModeSelectionSection = document.getElementById('game-mode-selection-section');
     localGameSetupSection = document.getElementById('local-game-setup-section');
     networkGameSetupSection = document.getElementById('network-game-setup-section');
     gameAreaEl = document.getElementById('game-area');
@@ -86,7 +89,7 @@ export function displayMessage(text, type = 'info', persistent = false, area = m
     if (currentMessageTimeout && area === messageAreaEl) clearTimeout(currentMessageTimeout);
     area.textContent = text;
     area.className = `message ${type}`;
-    const defaultInstruction = "Haz clic en una letra para adivinar...";
+    const defaultInstruction = "¡Haz clic en una letra para adivinar! 🌟";
     if (!persistent && area === messageAreaEl && gameAreaEl && gameAreaEl.style.display !== 'none') {
         currentMessageTimeout = setTimeout(() => {
             if (state.getGameActive() && area.textContent === text) displayMessage(defaultInstruction, 'info', false, area);
@@ -116,22 +119,56 @@ export function hideModal() { if (customModalEl) customModalEl.style.display = '
 
 export function showScreen(screenName) {
     if(!uiInitialized) initializeUiDOMReferences();
-    const screens = { localSetup: localGameSetupSection, networkSetup: networkGameSetupSection, game: gameAreaEl, lobby: lobbyAreaEl, networkInfo: networkInfoAreaEl };
+    const screens = { 
+        localSetup: localGameSetupSection, 
+        networkSetup: networkGameSetupSection, 
+        game: gameAreaEl, 
+        lobby: lobbyAreaEl, 
+        networkInfo: networkInfoAreaEl 
+    };
+    
+    // Hide all screens first
     for (const key in screens) if (screens[key]) screens[key].style.display = 'none';
+    
+    // Hide control buttons
     if(playAgainButtonEl) playAgainButtonEl.style.display = 'none';
     if(mainMenuButtonEl) mainMenuButtonEl.style.display = 'none';
     if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
-    if (screens[screenName]) screens[screenName].style.display = 'block';
-    else console.warn(`[pizarraUi] showScreen: Unknown screen name '${screenName}'`);
+    
+    // NEW: Show/hide game mode selection based on screen
+    if (gameModeSelectionSection) {
+        if (screenName === 'game') {
+            // Hide game mode selection when in game
+            gameModeSelectionSection.style.display = 'none';
+        } else {
+            // Show game mode selection for setup screens
+            gameModeSelectionSection.style.display = 'block';
+        }
+    }
+    
+    // Show the requested screen
+    if (screens[screenName]) {
+        screens[screenName].style.display = 'block';
+    } else {
+        console.warn(`[pizarraUi] showScreen: Unknown screen name '${screenName}'`);
+    }
 }
 
 export function populatePlayerIcons(targetSelectElement) {
     if (!targetSelectElement) { console.warn("[pizarraUi] populatePlayerIcons: No target select element provided."); return; }
     targetSelectElement.innerHTML = ''; 
-    state.AVAILABLE_ICONS.forEach(icon => {
-        const option = document.createElement('option'); option.value = icon; option.textContent = icon; targetSelectElement.appendChild(option);
+    
+    // Enhanced icon selection for a 5-year-old girl
+    const girlFriendlyIcons = ['🦄', '🌈', '⭐', '🌸', '🦋', '🎀', '💖', '🌺', '✨', '🌟', '🧚‍♀️', '👑', '🍭', '🎈', '🌙'];
+    
+    girlFriendlyIcons.forEach(icon => {
+        const option = document.createElement('option'); 
+        option.value = icon; 
+        option.textContent = icon; 
+        targetSelectElement.appendChild(option);
     });
-    if (state.AVAILABLE_ICONS.length > 0) targetSelectElement.value = state.AVAILABLE_ICONS[0];
+    
+    if (girlFriendlyIcons.length > 0) targetSelectElement.value = girlFriendlyIcons[0];
 }
 
 export function updateDifficultyButtonUI() {
@@ -143,7 +180,6 @@ export function updateGameModeTabs(activeMode = 'local') {
     if (!gameModeTabs) return;
     gameModeTabs.forEach(tab => tab.classList.toggle('active', tab.dataset.mode === activeMode));
 }
-
 
 // --- Game-Specific UI Functions ---
 export function updateStarsDisplay() {
@@ -350,7 +386,7 @@ export function toggleClueButtonUI(enabled, show = true) {
 }
 
 // --- Confetti UI Functions ---
-const confettiColors = ["#FF69B4", "#00BFFF", "#FFD700", "#32CD32", "#FF7F50", "#DA70D6", "#f0f0f0", "#fffacd"];
+const confettiColors = ["#ff69b4", "#ffc0cb", "#ff1493", "#da70d6", "#9370db", "#ffd700", "#ffb6c1", "#f0f8ff"];
 export function createConfettiPiece() {
     if (!confettiContainerEl) { if(uiInitialized) console.warn("Confetti container not found"); return;}
     const piece = document.createElement('div'); piece.classList.add('confetti-piece');
@@ -362,9 +398,9 @@ export function createConfettiPiece() {
     confettiContainerEl.appendChild(piece);
     setTimeout(() => piece.remove(), (fallDuration + 1.5) * 1000);
 }
-export function startConfetti(numberOfPieces = 120) {
+export function startConfetti(numberOfPieces = 150) {
     if (!confettiContainerEl) { if(uiInitialized) initializeUiDOMReferences(); if (!confettiContainerEl) return;}
-    stopConfetti(); for (let i = 0; i < numberOfPieces; i++) setTimeout(createConfettiPiece, i * 25);
+    stopConfetti(); for (let i = 0; i < numberOfPieces; i++) setTimeout(createConfettiPiece, i * 20);
 }
 export function stopConfetti() { if (confettiContainerEl) confettiContainerEl.innerHTML = ''; }
 
@@ -387,10 +423,10 @@ export function updateLobbyUI() {
             const iconSpan = document.createElement('span'); iconSpan.className = 'icon'; iconSpan.textContent = player.icon || '❓';
             const nameSpan = document.createElement('span'); nameSpan.className = 'name';
             nameSpan.textContent = (player.name || `Jugador ${player.id === undefined ? '?' : player.id +1}`) +
-                                 (player.peerId === state.getMyPeerId() ? " (Vos)" : "") +
+                                 (player.peerId === state.getMyPeerId() ? " (Tú)" : "") +
                                  (player.peerId === roomData.leaderPeerId ? " 👑" : "");
             const statusSpan = document.createElement('span'); statusSpan.className = 'status';
-            statusSpan.textContent = player.isConnected === false ? "Desconectado" : (player.isReady ? "Listo ✔️" : "Esperando...");
+            statusSpan.textContent = player.isConnected === false ? "Desconectado 😢" : (player.isReady ? "Lista ✨" : "Esperando... ⏳");
             statusSpan.classList.add(player.isConnected === false ? 'disconnected' : (player.isReady ? 'ready' : 'not-ready'));
             card.append(iconSpan, nameSpan, statusSpan); lobbyPlayerListEl.appendChild(card);
         });
@@ -399,7 +435,7 @@ export function updateLobbyUI() {
     if (lobbyToggleReadyButtonEl) {
         const myPlayer = roomData.players?.find(p => p.peerId === state.getMyPeerId());
         if (myPlayer) {
-            lobbyToggleReadyButtonEl.textContent = myPlayer.isReady ? "❌ No Listo" : "👍 Marcar Listo";
+            lobbyToggleReadyButtonEl.textContent = myPlayer.isReady ? "❌ No Lista" : "✨ ¡Estoy Lista!";
             lobbyToggleReadyButtonEl.classList.toggle('action-button-danger', myPlayer.isReady);
             lobbyToggleReadyButtonEl.classList.toggle('action-button-confirm', !myPlayer.isReady);
         }
@@ -411,9 +447,9 @@ export function updateLobbyUI() {
         lobbyStartGameLeaderButtonEl.disabled = !canStart;
     }
     if(lobbyMessageAreaEl && lobbyMessageAreaEl.textContent.includes("Esperando jugadores...") && roomData.players?.length >= roomData.maxPlayers) {
-        displayMessage("Sala llena. ¡Listos para empezar!", "info", true, lobbyMessageAreaEl);
+        displayMessage("¡Sala llena! ¡Listas para empezar! 🎉", "info", true, lobbyMessageAreaEl);
     } else if (lobbyMessageAreaEl && (!lobbyMessageAreaEl.textContent.includes("copiado") && !lobbyMessageAreaEl.textContent.includes("Sala llena"))) {
-         displayMessage("Esperando jugadores...", "info", true, lobbyMessageAreaEl);
+         displayMessage("Esperando amigas... 💕", "info", true, lobbyMessageAreaEl);
     }
 }
 
@@ -421,13 +457,13 @@ export function displayRoomQRCodeAndLink(roomId, maxPlayers, baseShareUrl = "htt
     if(!uiInitialized) initializeUiDOMReferences();
     if (!networkInfoAreaEl || !networkInfoTitleEl || !networkInfoTextEl || !qrCodeContainerEl || !copyRoomLinkButtonEl) return;
     const gameLink = `${baseShareUrl}?room=${roomId}`; 
-    networkInfoTitleEl.textContent = "¡Sala Lista! Invita Jugadores";
-    networkInfoTextEl.innerHTML = `ID de Sala: <strong>${peerIdPrefix}${roomId}</strong><br>Enlace: <a href="${gameLink}" target="_blank" class="underline hover:text-pink-400">${gameLink}</a>`;
+    networkInfoTitleEl.textContent = "¡Sala Lista! Invita a tus Amigas 💖";
+    networkInfoTextEl.innerHTML = `🆔 ID de Sala: <strong>${peerIdPrefix}${roomId}</strong><br>🔗 Enlace: <a href="${gameLink}" target="_blank" class="underline hover:text-pink-400">${gameLink}</a>`;
     qrCodeContainerEl.innerHTML = '';
     if (window.QRious) {
         const canvas = document.createElement('canvas');
         try {
-            new QRious({ element: canvas, value: gameLink, size: 128, padding: 5, level: 'M', foreground: '#f0f0f0', background: '#4a4e4a' });
+            new QRious({ element: canvas, value: gameLink, size: 128, padding: 5, level: 'M', foreground: '#8b4cb8', background: '#ffffff' });
             qrCodeContainerEl.appendChild(canvas);
         } catch (e) { console.error("QRious error:", e); qrCodeContainerEl.textContent = "Error QR"; }
     } else { qrCodeContainerEl.textContent = "QR no disponible."; }

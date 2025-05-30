@@ -3,89 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pizarra de Palabras - ¡Multijugador!</title>
+    <title>Palabras de Danielle - ¡Juego de Palabras Mágico!</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Fredoka+One&family=Patrick+Hand&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Bubblegum+Sans&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>✏️ Pizarra de Palabras 칠판</h1>
+            <h1>🌈 Palabras de Danielle 🦄</h1>
         </header>
 
         <section id="game-mode-selection-section" class="game-setup-section">
-            <p>Selecciona el modo de juego:</p>
+            <p>¿Cómo quieres jugar hoy? 🎮</p>
             <div class="tabs">
-                <button class="tab-button active" data-mode="local">🧑‍🏫 Jugar Local</button>
-                <button class="tab-button" data-mode="network">🌐 Jugar en Red</button>
+                <button class="tab-button active" data-mode="local">🏠 Jugar Solita</button>
+                <button class="tab-button" data-mode="network">👥 Jugar con Amigos</button>
             </div>
         </section>
 
         <section id="local-game-setup-section" class="game-setup-section">
-            <h2>Configuración Juego Local</h2>
+            <h2>¡Vamos a Jugar! 🌟</h2>
             <div id="difficulty-selection-container">
-                <p>Elige la dificultad:</p>
-                <button class="difficulty-button active" data-difficulty="easy">Fácil</button>
-                <button class="difficulty-button" data-difficulty="medium">Medio</button>
-                <button class="difficulty-button" data-difficulty="hard">Difícil</button>
+                <p>Elige qué tan difícil quieres que sea: 💪</p>
+                <button class="difficulty-button active" data-difficulty="easy">🌻 Fácil</button>
+                <button class="difficulty-button" data-difficulty="medium">🌸 Medio</button>
+                <button class="difficulty-button" data-difficulty="hard">🌺 Difícil</button>
             </div>
-            <button id="start-local-game-button" class="action-button">¡Empezar Juego Local!</button>
+            <button id="start-local-game-button" class="action-button">✨ ¡Empezar a Jugar! ✨</button>
         </section>
 
         <section id="network-game-setup-section" class="game-setup-section" style="display: none;">
-            <h2>Configuración Juego en Red</h2>
+            <h2>¡Jugar con Amigos! 👭</h2>
             <div id="player-identity-setup">
-                <label for="network-player-name">Tu Nombre:</label>
-                <input type="text" id="network-player-name" placeholder="Ingresa tu nombre" maxlength="15">
-                <label for="network-player-icon">Tu Ícono:</label>
+                <label for="network-player-name">🏷️ Tu Nombre:</label>
+                <input type="text" id="network-player-name" placeholder="Escribe tu nombre aquí" maxlength="15" value="Danielle">
+                <label for="network-player-icon">🎭 Tu Ícono Favorito:</label>
                 <select id="network-player-icon">
-                    </select>
+                    <!-- Will be populated by JavaScript -->
+                </select>
             </div>
             <div>
-                <label for="network-max-players">Máx. Jugadores en Sala (2-4):</label>
+                <label for="network-max-players">👥 ¿Cuántos amigos pueden jugar? (2-4):</label>
                 <select id="network-max-players">
-                    <option value="2">2 Jugadores</option>
-                    <option value="3">3 Jugadores</option>
-                    <option value="4" selected>4 Jugadores</option>
+                    <option value="2">2 Jugadores 👫</option>
+                    <option value="3">3 Jugadores 👭👤</option>
+                    <option value="4" selected>4 Jugadores 👭👫</option>
                 </select>
             </div>
             <div class="network-actions">
-                <button id="host-game-button" class="action-button">🏰 Hostear Sala</button>
-                <button id="join-random-button" class="action-button">🎲 Unirse al Azar</button>
-                </div>
+                <button id="host-game-button" class="action-button">🏰 Crear Mi Sala</button>
+                <button id="join-random-button" class="action-button">🎲 Buscar Sala</button>
+            </div>
         </section>
 
         <section id="network-info-area" style="display: none;">
-            <h3 id="network-info-title">Información de la Sala</h3>
+            <h3 id="network-info-title">Información de la Sala 📱</h3>
             <div id="qr-code-container"></div>
             <p id="network-info-text"></p>
-            <button id="copy-room-link-button" class="action-button-secondary">Copiar Enlace</button>
-            <button id="cancel-matchmaking-button" class="action-button-danger" style="display:none;">Cancelar Búsqueda</button>
+            <button id="copy-room-link-button" class="action-button-secondary">📋 Copiar Enlace</button>
+            <button id="cancel-matchmaking-button" class="action-button-danger" style="display:none;">❌ Cancelar</button>
         </section>
 
         <section id="lobby-area" style="display: none;">
-            <h2 id="lobby-title">Sala de Espera</h2>
-            <p id="lobby-room-id-display">ID de Sala: <span>Cargando...</span></p>
-            <p id="lobby-game-settings-display">Dificultad: <span id="lobby-difficulty-display"></span> | Jugadores: <span id="lobby-player-count-display"></span></p>
+            <h2 id="lobby-title">Sala de Espera 🏠</h2>
+            <p id="lobby-room-id-display">🆔 ID de Sala: <span>Cargando...</span></p>
+            <p id="lobby-game-settings-display">⚙️ Dificultad: <span id="lobby-difficulty-display"></span> | 👥 Jugadores: <span id="lobby-player-count-display"></span></p>
             <div id="lobby-player-list">
-                </div>
+                <!-- Players will be populated here -->
+            </div>
             <p id="lobby-message-area" class="message">&nbsp;</p>
             <div class="lobby-actions">
-                <button id="lobby-toggle-ready-button" class="action-button">👍 Marcar como Listo</button>
-                <button id="lobby-start-game-leader-button" class="action-button-confirm" style="display: none;">🚀 ¡Iniciar Juego!</button>
+                <button id="lobby-toggle-ready-button" class="action-button">👍 ¡Estoy Lista!</button>
+                <button id="lobby-start-game-leader-button" class="action-button-confirm" style="display: none;">🚀 ¡Empezar Juego!</button>
             </div>
             <button id="lobby-leave-room-button" class="action-button-danger">🚪 Salir de la Sala</button>
         </section>
 
-        <main id="game-area" style="display: none;"> <section id="game-status">
-                <p id="stars-display-container">Estrellitas: <span id="stars-display"></span></p>
-                <p id="current-player-turn-display">Turno de: <span></span></p> <button id="clue-button" style="display: none;">💡 Pedir Pista</button>
+        <main id="game-area" style="display: none;">
+            <section id="game-status">
+                <p id="stars-display-container">✨ Estrellitas: <span id="stars-display"></span></p>
+                <p id="current-player-turn-display">🎯 Turno de: <span></span></p>
+                <button id="clue-button" style="display: none;">💡 Pedir Pista Mágica</button>
             </section>
 
             <div id="clue-display-area" style="display: none;">
-                <p><strong>Pista:</strong> <span id="clue-text"></span></p>
+                <p><strong>🔮 Pista Mágica:</strong> <span id="clue-text"></span></p>
             </div>
 
             <p id="message-area" class="message">&nbsp;</p>
@@ -100,18 +104,22 @@
 
             <section id="guessed-letters-section">
                 <div id="score-display-area">
-                    </div>
-                <p>Letras incorrectas: <span id="incorrect-letters-display" class="letters incorrect"></span></p>
-                <p>Letras correctas: <span id="correct-letters-display" class="letters correct"></span></p>
+                    <!-- Score cards will be populated here -->
+                </div>
+                <p>❌ Letras incorrectas: <span id="incorrect-letters-display" class="letters incorrect">Ninguna</span></p>
+                <p>✅ Letras correctas: <span id="correct-letters-display" class="letters correct">Ninguna</span></p>
             </section>
 
             <section id="controls-section">
-                <button id="play-again-button" style="display:none;">Jugar Otra Vez</button>
-                 <button id="main-menu-button" style="display:none;">Volver al Menú</button> </section>
+                <button id="play-again-button" style="display:none;">🔄 Jugar Otra Vez</button>
+                <button id="main-menu-button" style="display:none;">🏠 Volver al Inicio</button>
+            </section>
         </main>
 
-        <div id="confetti-container"></div> <footer>
-            <p>¡Pizarra de Palabras!</p>
+        <div id="confetti-container"></div>
+        
+        <footer>
+            <p>💖 ¡Palabras de Danielle - Diversión Mágica! 💖</p>
         </footer>
     </div>
 
@@ -119,10 +127,12 @@
         <div class="modal-content">
             <p id="modal-message-text"></p>
             <div id="modal-dynamic-buttons" class="modal-buttons-container">
-                </div>
-            <button id="modal-close-button" class="action-button-secondary">Cerrar</button>
+                <!-- Dynamic buttons will be added here -->
+            </div>
+            <button id="modal-close-button" class="action-button-secondary">❌ Cerrar</button>
         </div>
     </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="peerjs-multiplayer.js"></script>
     <script src="dictionary.js"></script>
@@ -132,7 +142,5 @@
     <script type="module" src="pizarraMatchmaking.js"></script>
     <script type="module" src="main.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-</body>
-</html>    
 </body>
 </html>
