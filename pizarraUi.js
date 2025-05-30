@@ -165,12 +165,26 @@ export function updateStarsDisplay() {
 export function updateWordDisplay() {
     if (!wordDisplayContainerEl) return;
     wordDisplayContainerEl.innerHTML = '';
-    const currentWord = state.getCurrentWord(); if (!currentWord) return;
+    const currentWord = state.getCurrentWord(); 
+    if (!currentWord) return;
+    
     const guessed = state.getGuessedLetters();
+    console.log(`[pizarraUi] updateWordDisplay: Word "${currentWord}", Guessed letters: [${Array.from(guessed).join(', ')}]`);
+    
     for (const letter of currentWord) {
-        const letterBox = document.createElement('div'); letterBox.classList.add('letter-box');
-        if (guessed.has(letter)) letterBox.textContent = letter;
-        else { letterBox.textContent = ''; letterBox.classList.add('empty');}
+        const letterBox = document.createElement('div'); 
+        letterBox.classList.add('letter-box');
+        
+        // Normalize letter to lowercase for comparison with guessed letters
+        const normalizedLetter = letter.toLowerCase();
+        if (guessed.has(normalizedLetter)) {
+            letterBox.textContent = letter.toUpperCase(); // Display as uppercase
+            console.log(`[pizarraUi] updateWordDisplay: Showing letter "${letter}" (normalized: "${normalizedLetter}")`);
+        } else { 
+            letterBox.textContent = ''; 
+            letterBox.classList.add('empty');
+            console.log(`[pizarraUi] updateWordDisplay: Hiding letter "${letter}" (normalized: "${normalizedLetter}")`);
+        }
         wordDisplayContainerEl.appendChild(letterBox);
     }
 }
@@ -178,13 +192,25 @@ export function updateWordDisplay() {
 export function updateGuessedLettersDisplay() {
     if (!correctLettersDisplayEl || !incorrectLettersDisplayEl) return;
     const correctArr = [], incorrectArr = [];
-    const guessed = state.getGuessedLetters(); const currentWord = state.getCurrentWord();
+    const guessed = state.getGuessedLetters(); 
+    const currentWord = state.getCurrentWord();
     const sortedGuessedLetters = Array.from(guessed).sort((a,b)=>a.localeCompare(b,'es'));
+    
+    console.log(`[pizarraUi] updateGuessedLettersDisplay: Word "${currentWord}", Guessed: [${sortedGuessedLetters.join(', ')}]`);
+    
     for (const letter of sortedGuessedLetters) {
-        if (currentWord?.includes(letter)) correctArr.push(letter); else incorrectArr.push(letter);
+        // Check if the lowercase guessed letter exists in the lowercase word
+        if (currentWord?.toLowerCase().includes(letter.toLowerCase())) {
+            correctArr.push(letter.toUpperCase());
+        } else {
+            incorrectArr.push(letter.toUpperCase());
+        }
     }
+    
     correctLettersDisplayEl.textContent = correctArr.join(', ') || 'Ninguna';
     incorrectLettersDisplayEl.textContent = incorrectArr.join(', ') || 'Ninguna';
+    
+    console.log(`[pizarraUi] updateGuessedLettersDisplay: Correct: [${correctArr.join(', ')}], Incorrect: [${incorrectArr.join(', ')}]`);
 }
 
 export function createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback) {
