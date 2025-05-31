@@ -3,21 +3,19 @@
 
 import * as state from './pizarraState.js'; // For PIZARRA_PEER_ID_PREFIX
 
-// IMPORTANT: Supabase URL and Anon Key are assumed to be the same as your Cajitas game.
-// If Palabras uses a different Supabase project, update these.
 const SUPABASE_URL = "https://lunxhfsvlfyhqehpirdi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bnhoZnN2bGZ5aHFlaHBpcmRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzMDMzMzMsImV4cCI6MjA2Mzg3OTMzM30.iKEnrtSVjwTQhB8OLahTANJzvCamR60bjhC6qvTtwxU";
 
 let supabase = null;
-const MATCHMAKING_TABLE = 'matchmaking_queue_pizarra'; // Updated for Palabras
-const GAME_TYPE_IDENTIFIER = 'pizarra_de_palabras';   // Updated for Palabras
+const MATCHMAKING_TABLE = 'matchmaking_queue_pizarra'; 
+const GAME_TYPE_IDENTIFIER = 'pizarra_de_palabras';   
 const ROOM_EXPIRATION_MINUTES = 5;
-const ROOM_REFRESH_INTERVAL_MS = 30 * 1000; // 30 seconds
+const ROOM_REFRESH_INTERVAL_MS = 30 * 1000; 
 
-let localPlayerHostedRoomId_Supabase = null; // Stores the prefixed room_id (host's PeerJS ID)
+let localPlayerHostedRoomId_Supabase = null; 
 let hostRefreshIntervalId = null;
 let refreshFailures = 0;
-const MAX_REFRESH_FAILURES = 5; // Added constant for clarity
+const MAX_REFRESH_FAILURES = 5; 
 
 function initSupabase() {
     if (!supabase && window.supabase && typeof window.supabase.createClient === 'function') {
@@ -31,31 +29,29 @@ function initSupabase() {
             return false;
         }
     } else if (supabase) {
-        return true; // Already initialized
+        return true; 
     }
     console.error('[PizarraMatchmaking] Supabase library (supabase-js) not found on window object.');
     return false;
 }
 
 function cleanupMatchmakingState() {
-    // console.log('[PizarraMatchmaking] Cleaning up matchmaking state (interval).'); // Less verbose
     if (hostRefreshIntervalId) {
         clearInterval(hostRefreshIntervalId);
         hostRefreshIntervalId = null;
     }
     refreshFailures = 0;
-    // localPlayerHostedRoomId_Supabase is cleared by leaveQueue or when starting a new queue join/host
 }
 
 async function refreshRoomExpiration(roomIdToRefresh) {
-    if (!initSupabase() || !roomIdToRefresh) return; // Ensure Supabase is init
+    if (!initSupabase() || !roomIdToRefresh) return; 
     try {
         const newExpiration = new Date(Date.now() + ROOM_EXPIRATION_MINUTES * 60 * 1000).toISOString();
         const { error } = await supabase
             .from(MATCHMAKING_TABLE)
             .update({ expires_at: newExpiration, updated_at: new Date().toISOString() })
             .eq('room_id', roomIdToRefresh)
-            .eq('status', 'hosting_waiting_for_players'); // Only refresh active waiting rooms
+            .eq('status', 'hosting_waiting_for_players'); 
 
         if (error) {
             refreshFailures++;
@@ -66,8 +62,7 @@ async function refreshRoomExpiration(roomIdToRefresh) {
                 hostRefreshIntervalId = null;
             }
         } else {
-            refreshFailures = 0; // Reset on success
-            // console.log(`[PizarraMatchmaking] Room ${roomIdToRefresh} expiration refreshed.`); // Can be verbose
+            refreshFailures = 0; 
         }
     } catch (e) {
         console.error(`[PizarraMatchmaking] Exception during refreshRoomExpiration for ${roomIdToRefresh}:`, e);
@@ -81,7 +76,7 @@ async function cleanupStaleRooms() {
         const { data, error } = await supabase
             .from(MATCHMAKING_TABLE)
             .delete()
-            .lt('expires_at', nowISO); // Less than current time means expired
+            .lt('expires_at', nowISO); 
 
         if (error) {
             console.warn('[PizarraMatchmaking] Error during stale room cleanup:', error.message);
@@ -95,13 +90,13 @@ async function cleanupStaleRooms() {
 
 export async function removeDeadRoomByPeerId(deadRawPeerId) {
     if (!initSupabase() || !deadRawPeerId) return;
-    const deadRoomIdWithPrefix = `${state.PIZARRA_PEER_ID_PREFIX}${deadRawPeerId}`; // Updated prefix
+    const deadRoomIdWithPrefix = `${state.PIZARRA_PEER_ID_PREFIX}${deadRawPeerId}`; 
     console.log(`[PizarraMatchmaking] Attempting to remove dead room: ${deadRoomIdWithPrefix}`);
     try {
         const { data, error } = await supabase
             .from(MATCHMAKING_TABLE)
             .delete()
-            .eq('room_id', deadRoomIdWithPrefix); // room_id is the host's prefixed PeerJS ID
+            .eq('room_id', deadRoomIdWithPrefix); 
 
         if (error) console.warn(`[PizarraMatchmaking] Failed to clean up dead room ${deadRoomIdWithPrefix}:`, error.message);
         else if (data && data.length > 0) console.log(`[PizarraMatchmaking] Cleaned up dead room: ${deadRoomIdWithPrefix}`);
@@ -116,8 +111,8 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
         callbacks.onError?.('Servicio de matchmaking no disponible.');
         return;
     }
-    if (!localRawPeerId) {
-        callbacks.onError?.('ID de jugador local inválido para matchmaking.');
+    if (!localRawPeerId || typeof localRawPeerId !== 'string') { // Add type check for localRawPeerId
+        callbacks.onError?.(`ID de jugador local inválido ('${localRawPeerId}') para matchmaking.`);
         return;
     }
 
@@ -125,25 +120,24 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
     await cleanupStaleRooms();
 
     callbacks.onSearching?.();
-    const localPrefixedPeerId = `${state.PIZARRA_PEER_ID_PREFIX}${localRawPeerId}`; // Updated prefix
+    const localPrefixedPeerId = `${state.PIZARRA_PEER_ID_PREFIX}${localRawPeerId}`; 
 
-    await leaveQueue(localRawPeerId, false); // Remove any existing listing for this peer
+    // Ensure this peer isn't already listed as hosting a room.
+    // Pass the string localRawPeerId.
+    await leaveQueue(localRawPeerId, false); 
 
     try {
         const nowISO = new Date().toISOString();
-        // Client looks for rooms matching their preferred maxPlayers and game type
-        // and game settings (e.g. difficulty for Palabras)
         const { data: openRooms, error: fetchError } = await supabase
             .from(MATCHMAKING_TABLE)
             .select('*')
             .eq('status', 'hosting_waiting_for_players')
-            .eq('game_type', GAME_TYPE_IDENTIFIER) // Updated game type
-            .lt('current_players', preferences.maxPlayers) // Room has space for at least one more
-            .gte('max_players', preferences.maxPlayers) // Room's max capacity is at least what client prefers
-            // Palabras specific: filter by difficulty if 'preferences.gameSettings.difficulty' is provided
+            .eq('game_type', GAME_TYPE_IDENTIFIER) 
+            .lt('current_players', preferences.maxPlayers) 
+            .gte('max_players', preferences.maxPlayers) 
             .eq('game_settings->>difficulty', preferences.gameSettings.difficulty)
-            .gt('expires_at', nowISO) // Room is not expired
-            .neq('peer_id', localPrefixedPeerId) // Don't join own room listing
+            .gt('expires_at', nowISO) 
+            .neq('peer_id', localPrefixedPeerId) 
             .order('created_at', { ascending: true });
 
         if (fetchError) {
@@ -155,33 +149,32 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
         if (openRooms && openRooms.length > 0) {
             const suitableRoom = openRooms[0];
             console.log('[PizarraMatchmaking] Found suitable room to join:', suitableRoom);
-            const leaderRawPeerId = suitableRoom.room_id.startsWith(state.PIZARRA_PEER_ID_PREFIX) // Updated prefix
+            const leaderRawPeerId = suitableRoom.room_id.startsWith(state.PIZARRA_PEER_ID_PREFIX) 
                 ? suitableRoom.room_id.substring(state.PIZARRA_PEER_ID_PREFIX.length)
                 : suitableRoom.room_id;
 
             callbacks.onMatchFoundAndJoiningRoom?.(
-                leaderRawPeerId, // Pass the raw PeerJS ID for connection
-                { // Pass room data that might be useful for the client
+                leaderRawPeerId, 
+                { 
                     maxPlayers: suitableRoom.max_players,
-                    gameSettings: suitableRoom.game_settings, // e.g., { difficulty: "easy" }
+                    gameSettings: suitableRoom.game_settings, 
                     currentPlayers: suitableRoom.current_players
                 }
             );
             return;
         }
 
-        // No suitable room found, so this player becomes a host.
         console.log('[PizarraMatchmaking] No suitable rooms. Becoming a host.');
-        localPlayerHostedRoomId_Supabase = localPrefixedPeerId; // This client is hosting
+        localPlayerHostedRoomId_Supabase = localPrefixedPeerId; // This is a string
 
         const newRoomEntry = {
-            peer_id: localPrefixedPeerId, // Who created this entry (host's prefixed ID)
-            room_id: localPrefixedPeerId, // The connectable ID for this room (host's prefixed PeerJS ID)
+            peer_id: localPrefixedPeerId, 
+            room_id: localPrefixedPeerId, 
             status: 'hosting_waiting_for_players',
-            game_type: GAME_TYPE_IDENTIFIER, // Updated game type
+            game_type: GAME_TYPE_IDENTIFIER, 
             max_players: preferences.maxPlayers,
-            current_players: 1, // Host themselves
-            game_settings: preferences.gameSettings, // e.g., { difficulty: "easy" } for Palabras
+            current_players: 1, 
+            game_settings: preferences.gameSettings, 
             expires_at: new Date(Date.now() + ROOM_EXPIRATION_MINUTES * 60 * 1000).toISOString()
         };
 
@@ -199,8 +192,8 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
         }, ROOM_REFRESH_INTERVAL_MS);
 
         callbacks.onMatchFoundAndHostingRoom?.(
-            localRawPeerId, // Own raw PeerJS ID to use for hosting
-            { // Initial data for the host's room state
+            localRawPeerId, 
+            { 
                 maxPlayers: preferences.maxPlayers,
                 gameSettings: preferences.gameSettings,
             }
@@ -213,62 +206,78 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
 }
 
 export async function leaveQueue(localRawPeerIdToLeave = null, performFullCleanup = true) {
-    const peerIdToRemoveFromListing = localRawPeerIdToLeave
-        ? `${state.PIZARRA_PEER_ID_PREFIX}${localRawPeerIdToLeave}` // Updated prefix
-        : localPlayerHostedRoomId_Supabase;
+    // Add console log to see the exact type and value of localRawPeerIdToLeave
+    console.log(`[PizarraMatchmaking] leaveQueue called. PeerID (raw) to leave: '${localRawPeerIdToLeave}', Type: ${typeof localRawPeerIdToLeave}. Full cleanup: ${performFullCleanup}`);
+    
+    let peerIdToRemoveString;
+    if (localRawPeerIdToLeave && typeof localRawPeerIdToLeave === 'string') {
+        peerIdToRemoveString = `${state.PIZARRA_PEER_ID_PREFIX}${localRawPeerIdToLeave}`;
+    } else if (localPlayerHostedRoomId_Supabase && typeof localPlayerHostedRoomId_Supabase === 'string') {
+        peerIdToRemoveString = localPlayerHostedRoomId_Supabase;
+    } else {
+        // If localRawPeerIdToLeave is not a string (e.g. null, undefined, or an object)
+        // and localPlayerHostedRoomId_Supabase is also not set or not a string,
+        // then we don't have a valid string ID to remove.
+        console.warn(`[PizarraMatchmaking] leaveQueue: Cannot determine a valid string PeerID to remove. localRawPeerIdToLeave: '${localRawPeerIdToLeave}', localPlayerHostedRoomId_Supabase: '${localPlayerHostedRoomId_Supabase}'`);
+        if (performFullCleanup) cleanupMatchmakingState(); // Still perform interval cleanup if full.
+        return; // Exit if no valid string ID can be formed.
+    }
+
+    console.log(`[PizarraMatchmaking] Effective peerIdToRemoveString for Supabase: ${peerIdToRemoveString}`);
+
 
     if (performFullCleanup) {
         cleanupMatchmakingState();
-    } else if (hostRefreshIntervalId && peerIdToRemoveFromListing === localPlayerHostedRoomId_Supabase) {
+    } else if (hostRefreshIntervalId && peerIdToRemoveString === localPlayerHostedRoomId_Supabase) {
         clearInterval(hostRefreshIntervalId);
         hostRefreshIntervalId = null;
     }
 
-    if (peerIdToRemoveFromListing && initSupabase()) { // Ensure Supabase is init
-        console.log(`[PizarraMatchmaking] Removing listing for room/peer: ${peerIdToRemoveFromListing}`);
+    if (peerIdToRemoveString && initSupabase()) { 
+        console.log(`[PizarraMatchmaking] Removing Supabase entry for room/peer: ${peerIdToRemoveString}`);
         try {
             const { error } = await supabase
                 .from(MATCHMAKING_TABLE)
                 .delete()
-                .eq('room_id', peerIdToRemoveFromListing);
+                .eq('room_id', peerIdToRemoveString);
 
             if (error) console.warn('[PizarraMatchmaking] Error removing entry from Supabase:', error.message);
-            else console.log('[PizarraMatchmaking] Successfully removed listing from Supabase.');
+            else console.log('[PizarraMatchmaking] Successfully removed listing from Supabase or it was already gone.');
         } catch (dbError) {
             console.error('[PizarraMatchmaking] Exception during Supabase delete in leaveQueue:', dbError);
         }
     }
 
-    if (peerIdToRemoveFromListing === localPlayerHostedRoomId_Supabase) {
-        localPlayerHostedRoomId_Supabase = null;
+    if (peerIdToRemoveString === localPlayerHostedRoomId_Supabase) {
+        localPlayerHostedRoomId_Supabase = null; // Clear our hosted room ID if we just unlisted it.
     }
 }
 
 export async function updateHostedRoomStatus(hostRawPeerId, gameSettings, maxPlayers, currentPlayers, newStatus = null) {
-    if (!initSupabase() || !hostRawPeerId) return;
+    if (!initSupabase() || !hostRawPeerId || typeof hostRawPeerId !== 'string') { // Add type check
+        console.warn(`[PizarraMatchmaking] updateHostedRoomStatus: Invalid hostRawPeerId ('${hostRawPeerId}') or Supabase not init.`);
+        return;
+    }
 
-    const hostPrefixedPeerId = `${state.PIZARRA_PEER_ID_PREFIX}${hostRawPeerId}`; // Updated prefix
+    const hostPrefixedPeerId = `${state.PIZARRA_PEER_ID_PREFIX}${hostRawPeerId}`; 
 
     let statusToSet = newStatus;
     if (!statusToSet) {
-        // networkRoomData might not be available here directly if this module is generic.
-        // Rely on passed parameters or determine status based on them.
-        // For Palabras, roomState 'playing' would be 'in_game'.
-        // This function is usually called by host with explicit status or based on player count.
-        if (currentPlayers >= maxPlayers) {
+        if (state.getRawNetworkRoomData().roomState === 'playing') { // Check Palabras state
+             statusToSet = 'in_game';
+        } else if (currentPlayers >= maxPlayers) {
             statusToSet = 'full';
         } else {
             statusToSet = 'hosting_waiting_for_players';
         }
-        // If newStatus is 'in_game', it will be handled below.
     }
 
     const updatePayload = {
         current_players: currentPlayers,
         status: statusToSet,
-        game_settings: gameSettings, // For Palabras, this would be { difficulty: "..." }
+        game_settings: gameSettings, 
         max_players: maxPlayers,
-        updated_at: new Date().toISOString() // Good practice to add
+        updated_at: new Date().toISOString() 
     };
 
     if (statusToSet === 'hosting_waiting_for_players') {
@@ -281,7 +290,7 @@ export async function updateHostedRoomStatus(hostRawPeerId, gameSettings, maxPla
             clearInterval(hostRefreshIntervalId);
             hostRefreshIntervalId = null;
         }
-        updatePayload.expires_at = null; // Rooms in game or full don't expire from queue this way
+        updatePayload.expires_at = null; 
     }
 
     const { error } = await supabase
@@ -293,5 +302,4 @@ export async function updateHostedRoomStatus(hostRawPeerId, gameSettings, maxPla
     else console.log(`[PizarraMatchmaking] Room ${hostPrefixedPeerId} status updated to ${statusToSet}. Players: ${currentPlayers}/${maxPlayers}`);
 }
 
-// Initialize Supabase client when script loads
 initSupabase();
