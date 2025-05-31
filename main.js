@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(document.getElementById('app')) document.getElementById('app').style.display = 'flex';
         
         enterPlayMode();
-        ui.displayMessage("¡Adivina la palabra secreta! ✨", 'info', false);
+        ui.displayMessage("¡Adiviná la palabra secreta! ✨", 'info', false);
     }
 
     function handleLetterClickUI(letter, buttonElement) {
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 peerConnection.sendGuessToHost(letter);
             } else {
                 console.log("[Main] Not my turn. Displaying message.");
-                ui.displayMessage("No es tu turno. ¡Espera un poquito! ⏳", 'error');
+                ui.displayMessage("No es tu turno. ¡Esperá un poquito! ⏳", 'error');
             }
             return;
         }
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (result.error) {
             ui.displayMessage(result.error, 'error');
         } else if (result.alreadyGuessed) {
-             ui.displayMessage(`Ya intentaste la letra '${result.letter.toUpperCase()}'. ¡Prueba otra! 🤔`, 'info');
+             ui.displayMessage(`Ya intentaste la letra '${result.letter.toUpperCase()}'. ¡Probá otra! 🤔`, 'info');
         } else if (result.correct) {
             sound.playLetterSelectSound(true);
             ui.displayMessage(`¡Genial! '${result.letter.toUpperCase()}' está en la palabra. 👍`, 'success');
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             sound.playLetterSelectSound(false);
-            ui.displayMessage(`'${result.letter.toUpperCase()}' no está. ¡Pierdes una ${state.STAR_SYMBOL}! 😢`, 'error');
+            ui.displayMessage(`'${result.letter.toUpperCase()}' no está. ¡Perdés una ${state.STAR_SYMBOL}! 😢`, 'error');
             if (result.gameOver) {
                 console.log("[Main] Game over locally (player lost).");
                 endGameUI(false);
@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("[Main] Error hosting game:", error);
             ui.hideModal();
-            ui.showModal(`Error al crear la sala: ${error.message || 'Desconocido'}. Intenta de nuevo.`, [{text:"OK", action: ui.hideModal}]);
+            ui.showModal(`Error al crear la sala: ${error.message || 'Desconocido'}. Intentá de nuevo.`, [{text:"OK", action: ui.hideModal}]);
             stopAnyActiveGameOrNetworkSession(true);
             ui.showScreen('networkSetup');
         }
@@ -397,14 +397,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         } catch (joinError) {
                             console.error(`[Main] Error joining room ${leaderRawPeerIdToJoin}:`, joinError);
                             ui.hideModal();
-                            ui.showModal(`Error al unirse a la sala: ${joinError.message || 'Intenta de nuevo'}`);
+                            ui.showModal(`Error al unirse a la sala: ${joinError.message || 'Intentá de nuevo'}`);
                             stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup');
                         }
                     },
                     onMatchFoundAndHostingRoom: async (myNewRawPeerIdForHosting, initialHostData) => {
                         console.log(`[Main] Matchmaking Callback: onMatchFoundAndHostingRoom. My new Peer ID for hosting: ${myNewRawPeerIdForHosting}`, initialHostData);
                         ui.hideModal(); 
-                        ui.showModal("No hay salas disponibles, ¡creando una nueva para ti! 🚀");
+                        ui.showModal("No hay salas disponibles, ¡creando una nueva para vos! 🚀");
                         try {
                             console.log("[Main] Calling peerConnection.hostNewRoom from onMatchFoundAndHostingRoom.");
                             const actualHostPeerId = await peerConnection.hostNewRoom(joinerCustomization, initialHostData.gameSettings); 
@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.createJoinRoomModal(roomIdFromUrl, 
                 async (playerData) => {
                     console.log("[Main] URL Join: Player data from modal:", playerData);
-                    ui.showModal(`Conectando a ${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl}... Por favor espera. ⏳`);
+                    ui.showModal(`Conectando a ${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl}... Por favor esperá. ⏳`);
                     
                     // Update the network inputs with the selected data
                     if (networkPlayerNameInput) networkPlayerNameInput.value = playerData.name;
@@ -476,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } catch (error) {
                         console.error("[Main] URL Join: Error joining room:", error);
                         ui.hideModal(); 
-                        ui.showModal(`Error al unirse a la sala: ${error.message || 'Intenta de nuevo o verifica el ID.'}`);
+                        ui.showModal(`Error al unirse a la sala: ${error.message || 'Intentá de nuevo o verificá el ID.'}`);
                         stopAnyActiveGameOrNetworkSession(true); 
                         ui.showScreen('networkSetup'); 
                     }
@@ -550,7 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (letter) {
                 const messageText = correct ?
                     `'${letter.toUpperCase()}' es CORRECTA. ¡Bien hecho ${guesserName}! 🎉` :
-                    `'${letter.toUpperCase()}' es INCORRECTA. (${guesserName}) Oops! 😥`;
+                    `'${letter.toUpperCase()}' es INCORRECTA. (${guesserName}) ¡Ufa! 😥`; // Localization
                 ui.displayMessage(messageText, correct ? 'success' : 'error', false);
                 if (correct) sound.playLetterSelectSound(true); else sound.playLetterSelectSound(false);
             }
@@ -701,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sound.playUiClick(); ui.stopConfetti();
             if (state.getPvpRemoteActive()) {
                 exitPlayMode();
-                 ui.showModal("Para jugar otra vez en red, el líder de la sala debe iniciar una nueva partida. Puedes volver al menú.", 
+                 ui.showModal("Para jugar otra vez en red, el líder de la sala debe iniciar una nueva partida. Podés volver al menú.", 
                     [{text: "🏠 Volver al Menú", action: returnToMainMenuUI}, {text: "OK", action: ui.hideModal}]);
             } else {
                 startLocalGameUI();
@@ -754,7 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(lobbyLeaveRoomButtonEl) lobbyLeaveRoomButtonEl.addEventListener('click', () => {
             console.log("[Main] Lobby Leave Room button clicked.");
             sound.playUiClick(); sound.triggerVibration(30);
-             ui.showModal("¿Seguro que quieres salir de la sala? 🚪🥺", [
+             ui.showModal("¿Seguro que querés salir de la sala? 🚪🥺", [
                  {text: "Sí, Salir", action: returnToMainMenuUI, className: 'action-button-danger'},
                  {text: "No, Quedarme", action: ui.hideModal, className: 'action-button-secondary'}
                 ]);

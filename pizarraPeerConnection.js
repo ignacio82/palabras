@@ -146,14 +146,14 @@ async function onError(err, peerIdContext = null) {
                 if (matchmaking && matchmaking.removeDeadRoomByPeerId) {
                     await matchmaking.removeDeadRoomByPeerId(targetPeerForMsg);
                 }
-                displayMessage += " La sala podría no existir o haber sido cerrada. Intenta buscar de nuevo.";
+                displayMessage += " La sala podría no existir o haber sido cerrada. Intentá buscar de nuevo."; // Localization
             }
         } else if (err.type === 'network') {
-            displayMessage = "Error de red. Verifica tu conexión e inténtalo de nuevo.";
+            displayMessage = "Error de red. Verificá tu conexión e intentalo de nuevo."; // Localization
         } else if (err.type === 'webrtc') {
             displayMessage = "Error de WebRTC (posiblemente firewall o configuración de red).";
         } else if (err.type === 'disconnected' || err.type === 'socket-closed') {
-            displayMessage = "Desconectado del servidor de señalización PeerJS. Revisa tu conexión a internet.";
+            displayMessage = "Desconectado del servidor de señalización PeerJS. Revisá tu conexión a internet.";
         } else if (err.type === 'server-error') {
             displayMessage = `Error del servidor PeerJS: ${err.message || err.type}`;
         } else if (err.type === 'connection_error' || err.type === 'connection-error') {
@@ -845,7 +845,7 @@ function handleClueRequest(data, fromPeerId, playerGameId) {
         console.warn(`[PeerConn L] Clue request from ${fromPeerId} (Player ${playerGameId}) ignored. Conditions not met. Turn: ${state.getCurrentPlayerId()}, Active: ${state.getGameActive()}, ClueUsed: ${state.getClueUsedThisGame()}`);
          sendDataToClient(fromPeerId, {
             type: MSG_TYPE.ERROR_MESSAGE,
-            message: state.getClueUsedThisGame() ? "La pista ya fue usada." : "No puedes pedir pista ahora."
+            message: state.getClueUsedThisGame() ? "La pista ya fue usada." : "No podés pedir pista ahora." // Localization
         });
     }
 }
@@ -885,8 +885,8 @@ function handleClientDataReception(data, fromLeaderPeerId) {
             console.warn(`[PeerConn C RX] Received JOIN_REJECTED. Reason: ${data.reason}`, data.detail ? `Detail: ${data.detail}`: '');
             const setupErrorCbReject = state.getInternalSetupErrorCallback();
             let rejectMsg = `Unión rechazada: ${data.reason || 'Desconocido'}`;
-            if (data.reason === 'name_taken') rejectMsg = `El nombre '${data.detail}' ya está en uso. ¡Elige otro!`;
-            if (data.reason === 'icon_taken') rejectMsg = `El ícono '${data.detail}' ya está en uso. ¡Elige otro!`;
+            if (data.reason === 'name_taken') rejectMsg = `El nombre '${data.detail}' ya está en uso. ¡Elegí otro!`; // Localization
+            if (data.reason === 'icon_taken') rejectMsg = `El ícono '${data.detail}' ya está en uso. ¡Elegí otro!`; // Localization
 
             if (setupErrorCbReject) {
                 console.log("[PeerConn C RX] JOIN_REJECTED: Calling _setupErrorCallback (from joinRoomById).");

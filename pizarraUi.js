@@ -88,11 +88,22 @@ export function displayMessage(text, type = 'info', persistent = false, area = m
     if (currentMessageTimeout && area === messageAreaEl) clearTimeout(currentMessageTimeout);
     area.textContent = text;
     area.className = `message ${type}`;
-    const defaultInstruction = "¡Haz clic en una letra para adivinar! 🌟";
+    
+    // New logic: If not persistent and it's the main message area during an active game,
+    // clear it after timeout ONLY if it wasn't a success or error message.
+    // This prevents the "Haz clic..." message from reappearing.
     if (!persistent && area === messageAreaEl && gameAreaEl && gameAreaEl.style.display !== 'none') {
         currentMessageTimeout = setTimeout(() => {
-            if (state.getGameActive() && area.textContent === text) displayMessage(defaultInstruction, 'info', false, area);
-            else if (!state.getGameActive() && area.textContent === text && type !== 'success' && type !== 'error') { area.textContent = '\u00A0'; area.className = 'message';}
+            if (area.textContent === text) { // Check if message hasn't been changed by another call
+                if (state.getGameActive() && (type === 'info' || type === '')) { // Only clear non-critical messages during active game
+                    area.textContent = '\u00A0'; // Non-breaking space to maintain height
+                    area.className = 'message';
+                } else if (!state.getGameActive() && type !== 'success' && type !== 'error') { // Clear if game ended and not success/error
+                    area.textContent = '\u00A0';
+                    area.className = 'message';
+                }
+                // Success and error messages will persist a bit longer until the next action or message.
+            }
         }, 3000);
     }
 }
@@ -443,7 +454,7 @@ export function updateLobbyUI() {
             const iconSpan = document.createElement('span'); iconSpan.className = 'icon'; iconSpan.textContent = player.icon || '❓';
             const nameSpan = document.createElement('span'); nameSpan.className = 'name';
             nameSpan.textContent = (player.name || `Jugador ${player.id === undefined ? '?' : player.id +1}`) +
-                                 (player.peerId === state.getMyPeerId() ? " (Tú)" : "") +
+                                 (player.peerId === state.getMyPeerId() ? " (Vos)" : "") + // Localization: Tú -> Vos
                                  (player.peerId === roomData.leaderPeerId ? " 👑" : "");
             const statusSpan = document.createElement('span'); statusSpan.className = 'status';
             statusSpan.textContent = player.isConnected === false ? "Desconectado 😢" : (player.isReady ? "Lista ✨" : "Esperando... ⏳");
@@ -505,11 +516,11 @@ export function createJoinRoomModal(roomId, onJoin, onCancel) {
     
     const joinPromptHtml = `
         <div class="join-room-modal">
-            <h3>🎉 ¡Únete a la Sala!</h3>
+            <h3>🎉 ¡Unite a la Sala!</h3>
             <p class="room-info">Sala: <strong>${state.PIZARRA_PEER_ID_PREFIX}${roomId}</strong></p>
             <div class="modal-form-inputs">
                 <label for="${modalPlayerNameId}">✨ Tu Nombre:</label>
-                <input type="text" id="${modalPlayerNameId}" value="${networkPlayerNameInput?.value || `Pizarrín${Math.floor(Math.random()*1000)}`}" maxlength="15" placeholder="Escribe tu nombre aquí">
+                <input type="text" id="${modalPlayerNameId}" value="${networkPlayerNameInput?.value || `Pizarrín${Math.floor(Math.random()*1000)}`}" maxlength="15" placeholder="Escribí tu nombre aquí">
                 
                 <label for="${modalPlayerIconId}">🎭 Tu Ícono:</label>
                 <select id="${modalPlayerIconId}"></select>

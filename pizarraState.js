@@ -1,4 +1,4 @@
-// pizarraState.js - Fixed player customization
+// pizarraState.js - Fixed player customization & Ñ normalization
 /* =========================================================================
    Pizarra de Palabras – Reactive game-state container
    ========================================================================= */
@@ -77,7 +77,28 @@ function clone(value) {
 
 function normalizeStringInternal(str) {
     if (!str) return "";
-    return str.toUpperCase().normalize("NFD").replace(/[\u0300-\u0302\u0304-\u036f]/g, "");
+    // Convert to uppercase first. This correctly handles "ñ" -> "Ñ".
+    let s = str.toUpperCase();
+    // Normalize to NFD (Canonical Decomposition Form)
+    // e.g., "Á" becomes "A" + "´" (combining acute accent), "Ñ" becomes "N" + "~" (combining tilde)
+    s = s.normalize("NFD");
+    
+    let resultChars = [];
+    for (let i = 0; i < s.length; i++) {
+        const char = s[i];
+        // Check if it's an 'N' followed by a combining tilde (U+0303)
+        if (char === 'N' && i + 1 < s.length && s[i+1] === '\u0303') {
+            resultChars.push('Ñ');
+            i++; // Increment to skip the combining tilde, as it's now part of 'Ñ'
+        } 
+        // Check if it's a base uppercase letter A-Z (excluding Ñ, which is handled above)
+        else if (char.charCodeAt(0) >= 65 && char.charCodeAt(0) <= 90) {
+            resultChars.push(char);
+        }
+        // Other combining diacritics (like accents on other letters) are effectively removed
+        // because only base letters (and Ñ) are pushed.
+    }
+    return resultChars.join('');
 }
 
 /* ----------  PUBLIC SETTERS for Core Gameplay State ---------- */
