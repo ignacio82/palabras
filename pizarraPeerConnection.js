@@ -184,50 +184,66 @@ async function onError(err, peerIdContext = null) {
     }
 }
 
-// pizarraPeerConnection.js
-
 const peerJsCallbacks = {
     onPeerOpen: (id) => { // `id` is the raw PeerJS ID (string without prefix)
         console.log(`[PeerConn PeerJS] EVENT: peer.on('open'). My PeerJS ID: ${id}.`);
         const oldPeerId = state.getMyPeerId();
         state.setMyPeerId(id); // Store raw ID
-        const rawState = state.getRawNetworkRoomData(); // Get current state snapshot
+        
+        // Get the actual callback functions using new getters from state
+        const peerInitResolve = state.getInternalPeerInitResolve();
+        // const peerInitReject = state.getInternalPeerInitReject(); // Not directly used here, onError handles it
+        const setupCompleteCallback = state.getInternalSetupCompleteCallback();
+        // const setupErrorCallback = state.getInternalSetupErrorCallback(); // Not directly used here
 
-        // Log the critical state values checked below
-        console.log(`[PeerConn PeerJS] onPeerOpen: Current rawState check values: isRoomLeader=${rawState.isRoomLeader}, roomState='${rawState.roomState}', leaderPeerId='${rawState.leaderPeerId}', pvpRemoteActive=${state.getPvpRemoteActive()}, _setupCompleteCallback_exists=${!!rawState._setupCompleteCallback}`);
+        // Get cloned data state for other properties
+        const rawStateData = state.getRawNetworkRoomData(); 
 
-        if (rawState._peerInitResolve) {
-            console.log("[PeerConn PeerJS] Resolving _peerInitPromise with ID:", id);
-            rawState._peerInitResolve(id);
+        console.log(`[PeerConn PeerJS] onPeerOpen: Current DataState check values: isRoomLeader=${rawStateData.isRoomLeader}, roomState='${rawStateData.roomState}', leaderPeerId='${rawStateData.leaderPeerId}', pvpRemoteActive=${state.getPvpRemoteActive()}, setupCompleteCallback_exists=${!!setupCompleteCallback}`);
+
+        if (peerInitResolve) {
+            console.log("[PeerConn PeerJS] Resolving _peerInitPromise (via getInternalPeerInitResolve) with ID:", id);
+            peerInitResolve(id);
+            // Nullify in state directly via setNetworkRoomData if this specific call pattern is desired
             state.setNetworkRoomData({ _peerInitResolve: null, _peerInitReject: null });
         }
 
-        if (rawState._setupCompleteCallback) { 
-            console.log("[PeerConn PeerJS] _setupCompleteCallback is present. Determining host/client finalization path.");
-            if (rawState.isRoomLeader && 
-                (rawState.roomState === 'creating_room' || rawState.roomState === 'seeking_match')) {
+        if (setupCompleteCallback) { 
+            console.log("[PeerConn PeerJS] setupCompleteCallback (via getInternalSetupCompleteCallback) IS present. Determining host/client finalization path.");
+            if (rawStateData.isRoomLeader && 
+                (rawStateData.roomState === 'creating_room' || rawStateData.roomState === 'seeking_match')) {
                 console.log("[PeerConn PeerJS] Conditions met for HOST setup. Calling _finalizeHostSetup.");
                 _finalizeHostSetup(id); 
-            } else if (!rawState.isRoomLeader && rawState.leaderPeerId && state.getPvpRemoteActive()) {
+            } else if (!rawStateData.isRoomLeader && rawStateData.leaderPeerId && state.getPvpRemoteActive()) {
                 console.log("[PeerConn PeerJS] Conditions met for CLIENT join. Calling _finalizeClientJoinAttempt.");
-                _finalizeClientJoinAttempt(id, rawState.leaderPeerId); 
+                _finalizeClientJoinAttempt(id, rawStateData.leaderPeerId); 
             } else {
-                console.warn("[PeerConn PeerJS] _setupCompleteCallback present, BUT conditions for host/client finalization NOT MET. Dumping relevant state:", {
-                    isRoomLeader: rawState.isRoomLeader,
-                    roomState: rawState.roomState,
-                    leaderPeerId: rawState.leaderPeerId,
-                    isPvpRemoteActive: state.getPvpRemoteActive() // Check the live value from state module
+                console.warn("[PeerConn PeerJS] setupCompleteCallback present, BUT conditions for host/client finalization NOT MET. Dumping relevant data state:", {
+                    isRoomLeader: rawStateData.isRoomLeader,
+                    roomState: rawStateData.roomState,
+                    leaderPeerId: rawStateData.leaderPeerId,
+                    isPvpRemoteActive: state.getPvpRemoteActive() 
                 });
+                // If setupCompleteCallback exists but conditions aren't met, it might be an error or stale callback.
+                // Consider calling setupErrorCallback if this state is truly erroneous.
+                const setupErrorCb = state.getInternalSetupErrorCallback();
+                if (setupErrorCb) {
+                    console.warn("[PeerConn PeerJS] Calling setupErrorCallback due to unmet finalization conditions.");
+                    setupErrorCb(new Error("Error interno: Condiciones para finalizar la configuración de red no cumplidas después de abrir PeerJS."));
+                    state.setNetworkRoomData({_setupCompleteCallback: null, _setupErrorCallback: null}); // Clear them
+                }
             }
         } else if (!state.getPvpRemoteActive() && oldPeerId !== id) {
-            console.log('[PeerConn PeerJS] PeerJS initialized/reconnected outside of active PvP mode (no _setupCompleteCallback). New ID:', id);
-        } else if (state.getPvpRemoteActive() && !rawState._setupCompleteCallback) {
-            console.warn('[PeerConn PeerJS] PeerJS opened in PVP mode, but _setupCompleteCallback was NOT present. This might indicate an issue in hostNewRoom/joinRoomById not setting it before peer init, or it was cleared prematurely. Raw state:', rawState);
+            console.log('[PeerConn PeerJS] PeerJS initialized/reconnected outside of active PvP mode (no setupCompleteCallback). New ID:', id);
+        } else if (state.getPvpRemoteActive() && !setupCompleteCallback) {
+            console.warn('[PeerConn PeerJS] PeerJS opened in PVP mode, but setupCompleteCallback was NOT present (checked via getInternal). This might indicate an issue or that the operation (host/join) was cancelled or completed differently. Data state:', rawStateData);
         }
     },
 
-    // ... other callbacks (onNewConnection, onConnectionOpen, onDataReceived, onConnectionClose, onError)
+    // ... other callbacks in peerJsCallbacks ...
 };
+
+// ... (Rest of pizarraPeerConnection.js, ensuring all logging and previous fixes are retained)
 
 function _finalizeHostSetup(hostRawPeerId) { // hostRawPeerId is the host's own PeerJS ID
     console.log(`[PeerConn] _finalizeHostSetup called for Host PeerJS ID: ${hostRawPeerId}.`);
