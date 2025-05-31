@@ -1,4 +1,4 @@
-// pizarraState.js
+// pizarraState.js - Fixed player customization
 /* =========================================================================
    Pizarra de Palabras – Reactive game-state container
    ========================================================================= */
@@ -398,29 +398,60 @@ export function resetFullLocalStateForNewUIScreen() {
 
 export function normalizeString(str) { return normalizeStringInternal(str); }
 
+// FIXED: Better player customization function that properly handles network state
 export function getLocalPlayerCustomizationForNetwork() {
-    const nameEl = document.getElementById(`network-player-name`);
-    const iconEl = document.getElementById(`network-player-icon`);
-    const name = nameEl?.value.trim() || `Pizarrín${Math.floor(Math.random()*1000)}`;
+    console.log("[State] getLocalPlayerCustomizationForNetwork called");
+    
+    // Get UI elements
+    const nameEl = document.getElementById('network-player-name');
+    const iconEl = document.getElementById('network-player-icon');
+    
+    // Get values with fallbacks
+    const randomSuffix = Math.floor(Math.random() * 1000);
+    const name = nameEl?.value.trim() || `Pizarrín${randomSuffix}`;
     const icon = iconEl?.value || AVAILABLE_ICONS[0];
-
+    
+    console.log(`[State] Player customization - Name: "${name}", Icon: "${icon}"`);
+    
+    // Get current players in room to determine available color
+    const currentPlayersInRoom = _networkRoomData?.players || [];
+    console.log("[State] Current players in room:", currentPlayersInRoom);
+    
     let colorIndex = 0;
-    const currentPlayersInRoom = _networkRoomData?.players || []; 
-    if (currentPlayersInRoom.length > 0 && currentPlayersInRoom.length < DEFAULT_PLAYER_COLORS.length) {
-        const usedColors = new Set(currentPlayersInRoom.filter(p => p.isConnected || p.peerId === myPeerId).map(p => p.color)); 
+    
+    if (currentPlayersInRoom.length > 0) {
+        // Get colors already in use by connected players (excluding current player if reconnecting)
+        const usedColors = new Set();
+        currentPlayersInRoom.forEach(p => {
+            if (p.isConnected !== false && p.peerId !== myPeerId && p.color) {
+                usedColors.add(p.color);
+            }
+        });
+        
+        console.log("[State] Used colors:", Array.from(usedColors));
+        
+        // Find first available color
         for (let i = 0; i < DEFAULT_PLAYER_COLORS.length; i++) {
             if (!usedColors.has(DEFAULT_PLAYER_COLORS[i])) {
                 colorIndex = i;
                 break;
             }
-            if (i === DEFAULT_PLAYER_COLORS.length -1) {
-                colorIndex = currentPlayersInRoom.length % DEFAULT_PLAYER_COLORS.length;
-            }
         }
-    } else if (currentPlayersInRoom.length >= DEFAULT_PLAYER_COLORS.length) {
-         colorIndex = currentPlayersInRoom.length % DEFAULT_PLAYER_COLORS.length;
+        
+        // If all colors are taken, use modulo fallback
+        if (usedColors.size >= DEFAULT_PLAYER_COLORS.length) {
+            colorIndex = currentPlayersInRoom.length % DEFAULT_PLAYER_COLORS.length;
+        }
     }
-    return { name, icon, color: DEFAULT_PLAYER_COLORS[colorIndex] };
+    
+    const selectedColor = DEFAULT_PLAYER_COLORS[colorIndex];
+    console.log(`[State] Selected color index: ${colorIndex}, color: ${selectedColor}`);
+    
+    return { 
+        name, 
+        icon, 
+        color: selectedColor 
+    };
 }
 
 export function logCurrentState(context = "Generic") {

@@ -1,4 +1,4 @@
-// pizarraUi.js
+// pizarraUi.js - Fixed for mobile and network mode
 import * as state from './pizarraState.js';
 import { normalizeLetter as normalizeGameLetter } from './util.js'; // Import and alias normalizeLetter
 
@@ -162,20 +162,56 @@ export function showScreen(screenName) {
     }
 }
 
-export function populatePlayerIcons(targetSelectElement) {
-    if (!targetSelectElement) { console.warn("[pizarraUi] populatePlayerIcons: No target select element provided."); return; }
+// NEW: Helper to get available icons excluding those already in use
+function getAvailableIcons(excludeCurrentPlayer = false) {
+    const allIcons = state.AVAILABLE_ICONS;
+    const currentPlayers = state.getPvpRemoteActive() ? 
+        state.getRawNetworkRoomData().players : 
+        state.getPlayersData();
+    
+    const usedIcons = new Set();
+    if (currentPlayers && Array.isArray(currentPlayers)) {
+        currentPlayers.forEach(player => {
+            if (player.isConnected !== false && player.icon) {
+                // If excluding current player, skip their current icon
+                if (excludeCurrentPlayer && player.peerId === state.getMyPeerId()) {
+                    return;
+                }
+                usedIcons.add(player.icon);
+            }
+        });
+    }
+    
+    return allIcons.filter(icon => !usedIcons.has(icon));
+}
+
+export function populatePlayerIcons(targetSelectElement, excludeCurrentPlayer = false) {
+    if (!targetSelectElement) { 
+        console.warn("[pizarraUi] populatePlayerIcons: No target select element provided."); 
+        return; 
+    }
+    
+    const currentValue = targetSelectElement.value;
     targetSelectElement.innerHTML = ''; 
     
-    const girlFriendlyIcons = ['🦄', '🌈', '⭐', '🌸', '🦋', '🎀', '💖', '🌺', '✨', '🌟', '🧚‍♀️', '👑', '🍭', '🎈', '🌙'];
+    const availableIcons = getAvailableIcons(excludeCurrentPlayer);
     
-    girlFriendlyIcons.forEach(icon => {
+    // If no icons are available, fall back to all icons
+    const iconsToUse = availableIcons.length > 0 ? availableIcons : state.AVAILABLE_ICONS;
+    
+    iconsToUse.forEach(icon => {
         const option = document.createElement('option'); 
         option.value = icon; 
         option.textContent = icon; 
         targetSelectElement.appendChild(option);
     });
     
-    if (girlFriendlyIcons.length > 0) targetSelectElement.value = girlFriendlyIcons[0];
+    // Try to restore previous value if still available, otherwise use first available
+    if (iconsToUse.includes(currentValue)) {
+        targetSelectElement.value = currentValue;
+    } else if (iconsToUse.length > 0) {
+        targetSelectElement.value = iconsToUse[0];
+    }
 }
 
 export function updateDifficultyButtonUI() {
@@ -430,6 +466,12 @@ export function updateLobbyUI() {
         const canStart = roomData.players?.length >= state.MIN_PLAYERS_NETWORK && roomData.players.every(p => p.isReady && p.isConnected !== false);
         lobbyStartGameLeaderButtonEl.disabled = !canStart;
     }
+    
+    // Update icon selector in the lobby to exclude taken icons
+    if (networkPlayerIconSelect && roomData.isRoomLeader) {
+        populatePlayerIcons(networkPlayerIconSelect, true);
+    }
+    
     if(lobbyMessageAreaEl && lobbyMessageAreaEl.textContent.includes("Esperando jugadores...") && roomData.players?.length >= roomData.maxPlayers) {
         displayMessage("¡Sala llena! ¡Listas para empezar! 🎉", "info", true, lobbyMessageAreaEl);
     } else if (lobbyMessageAreaEl && (!lobbyMessageAreaEl.textContent.includes("copiado") && !lobbyMessageAreaEl.textContent.includes("Sala llena"))) {
@@ -455,3 +497,58 @@ export function displayRoomQRCodeAndLink(roomId, maxPlayers, baseShareUrl = "htt
 }
 
 export function hideNetworkInfoArea() { if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none'; }
+
+// NEW: Create a simplified join room modal
+export function createJoinRoomModal(roomId, onJoin, onCancel) {
+    const modalPlayerNameId = 'modal-player-name-join';
+    const modalPlayerIconId = 'modal-player-icon-join';
+    
+    const joinPromptHtml = `
+        <div class="join-room-modal">
+            <h3>🎉 ¡Únete a la Sala!</h3>
+            <p class="room-info">Sala: <strong>${state.PIZARRA_PEER_ID_PREFIX}${roomId}</strong></p>
+            <div class="modal-form-inputs">
+                <label for="${modalPlayerNameId}">✨ Tu Nombre:</label>
+                <input type="text" id="${modalPlayerNameId}" value="${networkPlayerNameInput?.value || `Pizarrín${Math.floor(Math.random()*1000)}`}" maxlength="15" placeholder="Escribe tu nombre aquí">
+                
+                <label for="${modalPlayerIconId}">🎭 Tu Ícono:</label>
+                <select id="${modalPlayerIconId}"></select>
+            </div>
+        </div>`;
+    
+    const buttonsConfig = [
+        { 
+            text: "✅ ¡Unirme!", 
+            className: 'action-button-confirm', 
+            action: () => {
+                const nameInput = document.getElementById(modalPlayerNameId);
+                const iconSelect = document.getElementById(modalPlayerIconId);
+                
+                const name = nameInput?.value.trim() || `Pizarrín${Math.floor(Math.random()*1000)}`;
+                const icon = iconSelect?.value || state.AVAILABLE_ICONS[0];
+                
+                hideModal();
+                onJoin({ name, icon });
+            }
+        },
+        { 
+            text: "❌ Cancelar", 
+            action: () => {
+                hideModal();
+                onCancel();
+            }, 
+            className: 'action-button-secondary'
+        }
+    ];
+    
+    showModal(joinPromptHtml, buttonsConfig, true);
+    
+    // Populate the icon select with available icons
+    const iconSelect = document.getElementById(modalPlayerIconId);
+    if (iconSelect) {
+        populatePlayerIcons(iconSelect, false);
+        if (networkPlayerIconSelect) {
+            iconSelect.value = networkPlayerIconSelect.value || state.AVAILABLE_ICONS[0];
+        }
+    }
+}

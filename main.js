@@ -1,4 +1,4 @@
-// main.js
+// main.js - Fixed for network mode and mobile UI
 import * as state from './pizarraState.js';
 import * as logic from './gameLogic.js';
 import * as peerConnection from './pizarraPeerConnection.js';
@@ -70,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.hideModal(); 
         if (cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
     }
-
 
     function refreshAlphabetKeyboard() {
         // console.log("[Main] refreshAlphabetKeyboard called.");
@@ -254,7 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log(`[Main] Before reset: PVP Active: ${wasPvpActive}, Room State: ${currentNetworkRoomState}, My Peer ID: ${myCurrentPeerId}`);
 
-
         if (state.getGameActive()) {
             console.log("[Main] Setting game inactive.");
             state.setGameActive(false);
@@ -275,7 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("[Main] Resetting full local state.");
         state.resetFullLocalStateForNewUIScreen();
         console.log("[Main] State after resetFullLocalStateForNewUIScreen:", state.getRawNetworkRoomData());
-
 
         if (!preserveUIScreen) {
             console.log("[Main] Not preserving UI screen. Resetting to local setup.");
@@ -335,10 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("[Main] Calling peerConnection.hostNewRoom...");
             const hostPeerId = await peerConnection.hostNewRoom(hostCustomization, gameSettings);
             console.log(`[Main] hostNewRoom successful. Host Peer ID (from hostNewRoom promise): ${hostPeerId}. Current state peerId: ${state.getMyPeerId()}`);
-            // Note: hostPeerId from hostNewRoom's promise is the one resolved by _setupCompleteCallback
-            // state.getMyPeerId() is updated by onPeerOpen directly. They should match.
             
-            if (matchmaking?.updateHostedRoomStatus && state.getMyPeerId()) { // Use the confirmed peer ID from state
+            if (matchmaking?.updateHostedRoomStatus && state.getMyPeerId()) { 
                  console.log(`[Main] Calling matchmaking.updateHostedRoomStatus for host: ${state.getMyPeerId()}`);
                  matchmaking.updateHostedRoomStatus(state.getMyPeerId(), gameSettings, gameSettings.maxPlayers, 1, 'hosting_waiting_for_players');
             } else {
@@ -376,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const localRawPeerId = await peerConnection.ensurePeerInitialized();
             console.log(`[Main] ensurePeerInitialized for joiner successful. Local Raw Peer ID: ${localRawPeerId}`);
 
-            if (!localRawPeerId || typeof localRawPeerId !== 'string') { // Added string check for robustness
+            if (!localRawPeerId || typeof localRawPeerId !== 'string') { 
                 console.error(`[Main] Invalid localRawPeerId after ensurePeerInitialized: ${localRawPeerId}, type: ${typeof localRawPeerId}`);
                 throw new Error("ID de jugador local inválido después de la inicialización de PeerJS.");
             }
@@ -412,7 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         ui.showModal("No hay salas disponibles, ¡creando una nueva para ti! 🚀");
                         try {
                             console.log("[Main] Calling peerConnection.hostNewRoom from onMatchFoundAndHostingRoom.");
-                            // hostNewRoom uses getLocalPlayerCustomizationForNetwork, so joinerCustomization is implicitly used.
                             const actualHostPeerId = await peerConnection.hostNewRoom(joinerCustomization, initialHostData.gameSettings); 
                             console.log(`[Main] hostNewRoom (from onMatchFoundAndHostingRoom) successful. Actual Host Peer ID: ${actualHostPeerId}. Current state peerId: ${state.getMyPeerId()}`);
                             
@@ -446,6 +440,56 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.showModal(`Error de Red: ${initError.message || 'No se pudo conectar.'}`, [{text: "OK", action: () => {
                 handleCancelMatchmaking(); 
             }}]);
+        }
+    }
+
+    // Updated processUrlJoin function to use the new modal
+    async function processUrlJoin() {
+        console.log("[Main] processUrlJoin called.");
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomIdFromUrl = urlParams.get('room');
+        if (roomIdFromUrl && roomIdFromUrl.trim()) {
+            console.log(`[Main] Room ID found in URL: ${roomIdFromUrl}. Processing join.`);
+            window.history.replaceState({}, document.title, window.location.pathname);
+            exitPlayMode();
+
+            // Use the new simplified join modal
+            ui.createJoinRoomModal(roomIdFromUrl, 
+                async (playerData) => {
+                    console.log("[Main] URL Join: Player data from modal:", playerData);
+                    ui.showModal(`Conectando a ${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl}... Por favor espera. ⏳`);
+                    
+                    // Update the network inputs with the selected data
+                    if (networkPlayerNameInput) networkPlayerNameInput.value = playerData.name;
+                    if (networkPlayerIconSelect) networkPlayerIconSelect.value = playerData.icon;
+
+                    state.setPvpRemoteActive(true);
+                    ui.updateGameModeTabs('network');
+                    if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
+                    if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
+                    ui.showScreen('networkSetup'); 
+
+                    try {
+                        console.log(`[Main] URL Join: Calling peerConnection.joinRoomById for room: ${roomIdFromUrl.trim()}`);
+                        await peerConnection.joinRoomById(roomIdFromUrl.trim(), playerData);
+                        console.log("[Main] URL Join: joinRoomById completed. Waiting for showLobby callback.");
+                    } catch (error) {
+                        console.error("[Main] URL Join: Error joining room:", error);
+                        ui.hideModal(); 
+                        ui.showModal(`Error al unirse a la sala: ${error.message || 'Intenta de nuevo o verifica el ID.'}`);
+                        stopAnyActiveGameOrNetworkSession(true); 
+                        ui.showScreen('networkSetup'); 
+                    }
+                },
+                () => {
+                    console.log("[Main] URL Join: Cancel button clicked."); 
+                    ui.showScreen('localSetup'); 
+                    ui.updateGameModeTabs('local'); 
+                    exitPlayMode();
+                }
+            );
+        } else {
+            console.log("[Main] No room ID found in URL parameters.");
         }
     }
 
@@ -646,7 +690,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (state.getPvpRemoteActive() && state.getRawNetworkRoomData().isRoomLeader) {
                     console.log("[Main] Host changed difficulty, updating network room data.");
                     state.setNetworkRoomData({ gameSettings: { ...state.getRawNetworkRoomData().gameSettings, difficulty: state.getCurrentDifficulty() } });
-                     // Consider broadcasting this change to lobby members if not already handled by full state syncs
                 }
             });
         });
@@ -771,69 +814,5 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("[Main] initializeApp completed.");
     }
 
-    async function processUrlJoin() {
-        console.log("[Main] processUrlJoin called.");
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomIdFromUrl = urlParams.get('room');
-        if (roomIdFromUrl && roomIdFromUrl.trim()) {
-            console.log(`[Main] Room ID found in URL: ${roomIdFromUrl}. Processing join.`);
-            window.history.replaceState({}, document.title, window.location.pathname);
-            exitPlayMode();
-
-            const modalPlayerNameId = 'modal-player-name-urljoin';
-            const modalPlayerIconId = 'modal-player-icon-urljoin';
-            const joinPromptHtml = `
-                <p>¡Te invitaron a una sala de Palabras (${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl})! 🎉</p>
-                <p>Elige tu nombre e ícono:</p>
-                <div class="modal-form-inputs">
-                    <label for="${modalPlayerNameId}">Tu Nombre:</label>
-                    <input type="text" id="${modalPlayerNameId}" value="${networkPlayerNameInput?.value || `Pizarrín${Math.floor(Math.random()*1000)}`}" maxlength="15">
-                    <label for="${modalPlayerIconId}">Tu Ícono:</label>
-                    <select id="${modalPlayerIconId}"></select>
-                </div>`;
-            const buttonsConfig = [
-                { text: "✅ Unirme a la Sala", className: 'action-button-confirm', action: async () => {
-                    console.log("[Main] URL Join: 'Unirme a la Sala' button clicked.");
-                    ui.hideModal();
-                    ui.showModal(`Conectando a ${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl}... Por favor espera. ⏳`);
-                    const nameInputInModal = document.getElementById(modalPlayerNameId);
-                    const iconSelectInModal = document.getElementById(modalPlayerIconId);
-                    
-                    if(nameInputInModal && networkPlayerNameInput) networkPlayerNameInput.value = nameInputInModal.value;
-                    if(iconSelectInModal && networkPlayerIconSelect) networkPlayerIconSelect.value = iconSelectInModal.value;
-
-                    const joinerCustomization = state.getLocalPlayerCustomizationForNetwork();
-                    console.log("[Main] URL Join: Joiner customization:", joinerCustomization);
-                    state.setPvpRemoteActive(true);
-                    ui.updateGameModeTabs('network');
-                    if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
-                    if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
-                    ui.showScreen('networkSetup'); 
-
-                    try {
-                        console.log(`[Main] URL Join: Calling peerConnection.joinRoomById for room: ${roomIdFromUrl.trim()}`);
-                        await peerConnection.joinRoomById(roomIdFromUrl.trim(), joinerCustomization);
-                        console.log("[Main] URL Join: joinRoomById completed. Waiting for showLobby callback.");
-                    } catch (error) {
-                        console.error("[Main] URL Join: Error joining room:", error);
-                        ui.hideModal(); 
-                        ui.showModal(`Error al unirse a la sala: ${error.message || 'Intenta de nuevo o verifica el ID.'}`);
-                        stopAnyActiveGameOrNetworkSession(true); 
-                        ui.showScreen('networkSetup'); 
-                    }
-                }},
-                { text: "❌ Cancelar", action: () => { console.log("[Main] URL Join: Cancel button clicked."); ui.hideModal(); ui.showScreen('localSetup'); ui.updateGameModeTabs('local'); exitPlayMode(); }, className: 'action-button-secondary'}
-            ];
-            ui.showModal(joinPromptHtml, buttonsConfig, true);
-
-            const iconSelectInModal = document.getElementById(modalPlayerIconId);
-            if (iconSelectInModal) {
-                ui.populatePlayerIcons(iconSelectInModal);
-                if(networkPlayerIconSelect) iconSelectInModal.value = networkPlayerIconSelect.value || state.AVAILABLE_ICONS[0];
-            }
-        } else {
-            console.log("[Main] No room ID found in URL parameters.");
-        }
-    }
     initializeApp();
 });
