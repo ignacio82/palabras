@@ -99,6 +99,7 @@ function onConnectionClose(peerId) {
                         finalWord: finalWord
                     });
                     console.log(`[PeerConn Event] Host: Broadcasted GAME_OVER due to insufficient players.`);
+                    // No automatic restart if game ends due to insufficient players during a match
                 }
             } else {
                 console.warn(`[PeerConn Event] Host: Connection closed for ${peerId}, but no matching player found in currentNetworkData.players. This might happen if player was already removed.`);
@@ -146,10 +147,10 @@ async function onError(err, peerIdContext = null) {
                 if (matchmaking && matchmaking.removeDeadRoomByPeerId) {
                     await matchmaking.removeDeadRoomByPeerId(targetPeerForMsg);
                 }
-                displayMessage += " La sala podría no existir o haber sido cerrada. Intentá buscar de nuevo."; // Localization
+                displayMessage += " La sala podría no existir o haber sido cerrada. Intentá buscar de nuevo."; 
             }
         } else if (err.type === 'network') {
-            displayMessage = "Error de red. Verificá tu conexión e intentalo de nuevo."; // Localization
+            displayMessage = "Error de red. Verificá tu conexión e intentalo de nuevo."; 
         } else if (err.type === 'webrtc') {
             displayMessage = "Error de WebRTC (posiblemente firewall o configuración de red).";
         } else if (err.type === 'disconnected' || err.type === 'socket-closed') {
@@ -770,6 +771,97 @@ function handlePlayerReadyChanged(data, fromPeerId) {
     }
 }
 
+function leaderHandleAutomaticRestart() {
+    const autoRestartDelay = 7000; // 7 seconds delay for host to restart
+    console.log(`[PeerConn L] Scheduling automatic game restart in ${autoRestartDelay}ms.`);
+    
+    setTimeout(() => {
+        const currentRoomData = state.getRawNetworkRoomData();
+        if (!currentRoomData.isRoomLeader || !currentRoomData.roomId) {
+            console.log("[PeerConn L] Auto-restart: Host no longer leader or room gone. Aborting.");
+            return;
+        }
+        if (currentRoomData.roomState !== 'game_over' && currentRoomData.roomState !== 'ended'){
+            console.log(`[PeerConn L] Auto-restart: Game not in game_over or ended state (is ${currentRoomData.roomState}). Aborting auto-restart.`);
+            return;
+        }
+
+        console.log("[PeerConn L] Automatically restarting game as host.");
+
+        const connectedPlayers = currentRoomData.players.filter(p => p.isConnected !== false);
+        if (connectedPlayers.length < state.MIN_PLAYERS_NETWORK) {
+            console.warn("[PeerConn L] Auto-restart: Not enough connected players. Aborting auto-restart.");
+            if (window.pizarraUiUpdateCallbacks?.showNetworkError) {
+                window.pizarraUiUpdateCallbacks.showNetworkError("No hay suficientes jugadores para reiniciar automáticamente. Volviendo al lobby.", false);
+            }
+            state.setNetworkRoomData({ roomState: 'lobby', gameActive: false });
+            broadcastFullGameStateToAll();
+            if (window.pizarraUiUpdateCallbacks?.updateLobby) {
+                window.pizarraUiUpdateCallbacks.updateLobby();
+            }
+            return;
+        }
+
+        console.log("[PeerConn L] Auto-restart: Proceeding with game initialization.");
+        const gameInitResult = logic.initializeGame(state, currentRoomData.gameSettings.difficulty);
+
+        if (!gameInitResult.success || !state.getCurrentWordObject()) {
+            console.error("[PeerConn L] Auto-restart: Failed to initialize game logic:", gameInitResult.message);
+            state.setNetworkRoomData({ roomState: 'lobby' });
+            broadcastFullGameStateToAll();
+            if (window.pizarraUiUpdateCallbacks?.showNetworkError) {
+                window.pizarraUiUpdateCallbacks.showNetworkError(
+                    `Error del Host al reiniciar: ${gameInitResult.message || "No se pudo seleccionar palabra."}`, false
+                );
+            }
+            return;
+        }
+        
+        // Scores are reset by initializeGame. Players array in state is also updated.
+        state.setNetworkRoomData({
+            roomState: 'playing',
+            currentWordObject: state.getCurrentWordObject(),
+            guessedLetters: Array.from(state.getGuessedLetters()),
+            remainingAttemptsPerPlayer: state.getRemainingAttemptsPerPlayer(),
+            currentPlayerId: state.getCurrentPlayerId(),
+            clueUsedThisGame: state.getClueUsedThisGame(),
+            gameActive: true,
+            turnCounter: 0,
+            players: state.getPlayersData().map(p => ({...p, isReady: true})) // Ensure players are marked ready for new game
+        });
+
+        const finalNetworkStateForStart = state.getRawNetworkRoomData();
+        const initialGameStatePayload = {
+            gameSettings: finalNetworkStateForStart.gameSettings,
+            currentWordObject: finalNetworkStateForStart.currentWordObject,
+            guessedLetters: finalNetworkStateForStart.guessedLetters,
+            remainingAttemptsPerPlayer: finalNetworkStateForStart.remainingAttemptsPerPlayer,
+            playersInGameOrder: finalNetworkStateForStart.players,
+            startingPlayerId: finalNetworkStateForStart.currentPlayerId,
+            clueUsedThisGame: finalNetworkStateForStart.clueUsedThisGame,
+        };
+
+        console.log("[PeerConn L] Auto-restart: Broadcasting GAME_STARTED with payload:", initialGameStatePayload);
+        broadcastToRoom({ type: MSG_TYPE.GAME_STARTED, initialGameState: initialGameStatePayload });
+
+        if (window.pizarraUiUpdateCallbacks?.startGameOnNetwork) {
+            console.log("[PeerConn L] Auto-restart: Triggering host's own startGameOnNetwork UI update.");
+            window.pizarraUiUpdateCallbacks.startGameOnNetwork(initialGameStatePayload);
+        }
+        
+        if (currentRoomData.roomId && matchmaking?.updateHostedRoomStatus) {
+            matchmaking.updateHostedRoomStatus(
+                currentRoomData.roomId,
+                finalNetworkStateForStart.gameSettings,
+                finalNetworkStateForStart.maxPlayers,
+                finalNetworkStateForStart.players.length,
+                'in_game'
+            );
+        }
+    }, autoRestartDelay);
+}
+
+
 function handleLetterGuess(data, fromPeerId, playerGameId) {
     console.log(`[PeerConn L] Processing LETTER_GUESS from client ${fromPeerId} (PlayerGameID ${playerGameId}). Letter: ${data.letter}`);
     if (playerGameId === state.getCurrentPlayerId() && state.getGameActive()) {
@@ -807,6 +899,8 @@ function handleLetterGuess(data, fromPeerId, playerGameId) {
                 console.log("[PeerConn L] Triggering host's own showNetworkGameOver (from client's guess).");
                 window.pizarraUiUpdateCallbacks.showNetworkGameOver(gameOverPayload);
             }
+            // Schedule automatic restart
+            leaderHandleAutomaticRestart();
         }
     } else {
         console.warn(`[PeerConn L] Letter guess from ${fromPeerId} (Player ${playerGameId}) ignored. Not their turn (current: ${state.getCurrentPlayerId()}) or game not active (${state.getGameActive()}).`);
@@ -845,7 +939,7 @@ function handleClueRequest(data, fromPeerId, playerGameId) {
         console.warn(`[PeerConn L] Clue request from ${fromPeerId} (Player ${playerGameId}) ignored. Conditions not met. Turn: ${state.getCurrentPlayerId()}, Active: ${state.getGameActive()}, ClueUsed: ${state.getClueUsedThisGame()}`);
          sendDataToClient(fromPeerId, {
             type: MSG_TYPE.ERROR_MESSAGE,
-            message: state.getClueUsedThisGame() ? "La pista ya fue usada." : "No podés pedir pista ahora." // Localization
+            message: state.getClueUsedThisGame() ? "La pista ya fue usada." : "No podés pedir pista ahora." 
         });
     }
 }
@@ -885,8 +979,8 @@ function handleClientDataReception(data, fromLeaderPeerId) {
             console.warn(`[PeerConn C RX] Received JOIN_REJECTED. Reason: ${data.reason}`, data.detail ? `Detail: ${data.detail}`: '');
             const setupErrorCbReject = state.getInternalSetupErrorCallback();
             let rejectMsg = `Unión rechazada: ${data.reason || 'Desconocido'}`;
-            if (data.reason === 'name_taken') rejectMsg = `El nombre '${data.detail}' ya está en uso. ¡Elegí otro!`; // Localization
-            if (data.reason === 'icon_taken') rejectMsg = `El ícono '${data.detail}' ya está en uso. ¡Elegí otro!`; // Localization
+            if (data.reason === 'name_taken') rejectMsg = `El nombre '${data.detail}' ya está en uso. ¡Elegí otro!`; 
+            if (data.reason === 'icon_taken') rejectMsg = `El ícono '${data.detail}' ya está en uso. ¡Elegí otro!`; 
 
             if (setupErrorCbReject) {
                 console.log("[PeerConn C RX] JOIN_REJECTED: Calling _setupErrorCallback (from joinRoomById).");
@@ -967,10 +1061,10 @@ function handleClientDataReception(data, fromLeaderPeerId) {
 
         case MSG_TYPE.GAME_OVER_ANNOUNCEMENT:
             console.log("[PeerConn C RX] Received GAME_OVER_ANNOUNCEMENT:", data);
-            state.setGameActive(false);
-            state.setNetworkRoomData({ roomState: 'game_over' });
+            state.setGameActive(false); // Important for client to stop interaction
+            state.setNetworkRoomData({ roomState: 'game_over' }); // Update local concept of room state
 
-            if (data.finalWord && !logic.checkWinCondition()) {
+            if (data.finalWord && !logic.checkWinCondition()) { // If game ended and word wasn't solved
                 state.setCurrentWordObject({
                     word: data.finalWord,
                     definition: "La palabra era esta.",
@@ -985,21 +1079,27 @@ function handleClientDataReception(data, fromLeaderPeerId) {
 
             if (data.finalScores) {
                 const currentPlayers = state.getPlayersData();
-                const networkPlayers = state.getRawNetworkRoomData().players;
-                data.finalScores.forEach(ps => {
-                    const pLocal = currentPlayers.find(p => p.id === ps.id);
-                    if (pLocal) pLocal.score = ps.score;
-
-                    const pNet = networkPlayers.find(pNetEntry => pNetEntry.id === ps.id);
-                    if (pNet) pNet.score = ps.score;
+                const networkPlayers = state.getRawNetworkRoomData().players; // Use for direct state update if needed
+                
+                const updatedLocalPlayers = currentPlayers.map(pLocal => {
+                    const pScoreUpdate = data.finalScores.find(ps => ps.id === pLocal.id);
+                    return pScoreUpdate ? { ...pLocal, score: pScoreUpdate.score } : pLocal;
                 });
-                state.setPlayersData(currentPlayers);
-                if(networkPlayers.length > 0) state.setNetworkRoomData({players: networkPlayers});
+                state.setPlayersData(updatedLocalPlayers); // Updates localPlayersData
+
+                // If this client needs to also update its copy of _networkRoomData.players
+                const updatedNetworkPlayers = networkPlayers.map(pNet => {
+                    const pScoreUpdate = data.finalScores.find(ps => ps.id === pNet.id);
+                    return pScoreUpdate ? { ...pNet, score: pScoreUpdate.score } : pNet;
+                });
+                if(networkPlayers.length > 0) state.setNetworkRoomData({players: updatedNetworkPlayers});
             }
+
 
             if (window.pizarraUiUpdateCallbacks?.showNetworkGameOver) {
                 window.pizarraUiUpdateCallbacks.showNetworkGameOver(data);
             }
+            // Client will wait for host to send GAME_STARTED for a new game.
             break;
 
         case MSG_TYPE.ERROR_MESSAGE:
@@ -1310,7 +1410,7 @@ export function leaderStartGameRequest() {
         clueUsedThisGame: state.getClueUsedThisGame(),
         gameActive: true,
         turnCounter: 0,
-        players: state.getPlayersData().map(p => ({...p, score:0}))
+        players: state.getPlayersData().map(p => ({...p, score:0, isReady: true})) // Ensure players are ready for new game
     });
 
     const finalNetworkStateForStart = state.getRawNetworkRoomData();
@@ -1405,6 +1505,8 @@ export function sendGuessToHost(letter) {
                 console.log("[PeerConn L] Triggering host's own showNetworkGameOver.");
                 window.pizarraUiUpdateCallbacks.showNetworkGameOver(gameOverPayload);
             }
+            // Schedule automatic restart
+            leaderHandleAutomaticRestart();
         }
     } else {
         console.warn(`[PeerConn L] Host attempting to guess but not their turn. Host ID: ${currentRoomData.myPlayerIdInRoom}, Current Turn: ${state.getCurrentPlayerId()}`);

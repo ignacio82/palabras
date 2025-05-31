@@ -85,20 +85,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startLocalGameUI() {
         console.log("[Main] startLocalGameUI called.");
-        ui.stopConfetti();
+        ui.stopConfetti(); // Stop any ongoing confetti
         const selectedDifficulty = state.getCurrentDifficulty();
         console.log(`[Main] Starting local game with difficulty: ${selectedDifficulty}`);
 
-        stopAnyActiveGameOrNetworkSession(true); 
+        // Do not call stopAnyActiveGameOrNetworkSession here if we are auto-restarting,
+        // as it resets too much. We only need to reset game flow state.
+        state.resetGameFlowState(); // Reset word, guessed letters, etc.
+        // Scores are reset within initializeGame
 
-        state.setPvpRemoteActive(false);
-        state.setPlayersData([{ 
-            id: 0, 
-            name: "Jugador", 
-            icon: "✏️", 
-            color: state.DEFAULT_PLAYER_COLORS[0], 
-            score: 0 
-        }]);
+        state.setPvpRemoteActive(false); // Ensure local mode
+        // Player data should persist or be re-initialized as needed for local play
+        if (!state.getPlayersData() || state.getPlayersData().length === 0) {
+            state.setPlayersData([{ 
+                id: 0, 
+                name: "Jugador", 
+                icon: "✏️", 
+                color: state.DEFAULT_PLAYER_COLORS[0], 
+                score: 0 // Score reset by initializeGame
+            }]);
+        }
         state.setCurrentPlayerId(0);
 
         const initState = logic.initializeGame(state, selectedDifficulty);
@@ -117,6 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         enterPlayMode();
         ui.displayMessage("¡Adiviná la palabra secreta! ✨", 'info', false);
+        if (playAgainButtonEl) playAgainButtonEl.style.display = 'none'; // Ensure play again is hidden
+        if (mainMenuButtonEl) mainMenuButtonEl.style.display = 'inline-block'; // Ensure main menu is visible
     }
 
     function handleLetterClickUI(letter, buttonElement) {
@@ -205,12 +213,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function endGameUI(isWin) {
         console.log(`[Main] endGameUI called. isWin: ${isWin}`);
-        state.setGameActive(false);
-        refreshAlphabetKeyboard();
-        ui.toggleClueButtonUI(false, false);
+        // Game active state is set by logic.processGuess or by network events for multiplayer
+        // For local, ensure it's false if it reaches here.
+        if (!state.getPvpRemoteActive()) {
+            state.setGameActive(false);
+        }
+        
+        refreshAlphabetKeyboard(); // Disable keyboard
+        ui.toggleClueButtonUI(false, false); // Hide clue button
 
-        if (playAgainButtonEl) playAgainButtonEl.style.display = 'inline-block';
         if (mainMenuButtonEl) mainMenuButtonEl.style.display = 'inline-block';
+        if (playAgainButtonEl) playAgainButtonEl.style.display = 'none'; // Hide manual play again for auto-restart
 
         const wordObject = state.getCurrentWordObject();
         let finalMessage = "";
@@ -236,11 +249,28 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.displayMessage(finalMessage, 'error', true);
             sound.triggerVibration([70, 50, 70]);
         }
+
+        // Automatic restart for local play after a delay
+        if (!state.getPvpRemoteActive()) {
+            const autoRestartDelay = 5000; // 5 seconds
+            console.log(`[Main] Scheduling automatic local game restart in ${autoRestartDelay}ms.`);
+            setTimeout(() => {
+                // Check if we are still in an ended local game state and not in a network session
+                if (!state.getPvpRemoteActive() && (state.getGamePhase() === 'ended' || state.getGamePhase() === 'game_over')) {
+                     console.log("[Main] Automatically restarting local game after delay.");
+                     ui.hideModal(); // Ensure any game over modal is hidden
+                     startLocalGameUI();
+                } else {
+                    console.log("[Main] Conditions for auto local restart not met. Phase:", state.getGamePhase(), "PVP:", state.getPvpRemoteActive());
+                }
+            }, autoRestartDelay);
+        }
     }
 
     function returnToMainMenuUI() {
         console.log("[Main] returnToMainMenuUI called.");
         ui.stopConfetti();
+        ui.hideModal();
         stopAnyActiveGameOrNetworkSession(); 
     }
 
@@ -249,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         exitPlayMode();
         const wasPvpActive = state.getPvpRemoteActive();
         const currentNetworkRoomState = state.getRawNetworkRoomData().roomState;
-        const myCurrentPeerId = state.getMyPeerId(); // Get peer ID before reset
+        const myCurrentPeerId = state.getMyPeerId(); 
 
         console.log(`[Main] Before reset: PVP Active: ${wasPvpActive}, Room State: ${currentNetworkRoomState}, My Peer ID: ${myCurrentPeerId}`);
 
@@ -261,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (wasPvpActive) {
             console.log("[Main] PVP was active, leaving room and closing peer session.");
             peerConnection.leaveRoom();
-            peerConnection.closePeerSession(); // This will eventually nullify state.myPeerId
+            peerConnection.closePeerSession(); 
             if (currentNetworkRoomState === 'seeking_match' && myCurrentPeerId) {
                  if (matchmaking && typeof matchmaking.leaveQueue === 'function') {
                     console.log(`[Main] Leaving matchmaking queue for peerId: ${myCurrentPeerId}`);
@@ -278,24 +308,26 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("[Main] Not preserving UI screen. Resetting to local setup.");
             if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
             if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
-            ui.updateGameModeTabs('local');
+            ui.updateGameModeTabs('local'); // Default to local tab
+            ui.showScreen('localSetup'); // Show local setup screen
         }
-        ui.updateDifficultyButtonUI();
+        ui.updateDifficultyButtonUI(); // Ensure difficulty buttons reflect current state (likely default)
 
         if (clueDisplayAreaEl) clueDisplayAreaEl.style.display = 'none';
-        if (messageAreaEl) ui.displayMessage('\u00A0', 'info', true);
+        if (messageAreaEl) ui.displayMessage('\u00A0', 'info', true); // Clear message area
         
         if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
 
         if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';
         ui.stopConfetti();
 
+        // Clear game board elements
         ui.updateScoreDisplayUI();
         ui.updateCurrentPlayerTurnUI();
         ui.updateWordDisplay();
         ui.updateGuessedLettersDisplay();
-        refreshAlphabetKeyboard();
-        ui.toggleClueButtonUI(false, false);
+        refreshAlphabetKeyboard(); // Re-render disabled keyboard
+        ui.toggleClueButtonUI(false, false); // Hide clue button
         if(playAgainButtonEl) playAgainButtonEl.style.display = 'none';
         if(mainMenuButtonEl) mainMenuButtonEl.style.display = 'none';
         console.log("[Main] stopAnyActiveGameOrNetworkSession completed.");
@@ -528,7 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[Main] UI Callback: startGameOnNetwork called with initialGameState:', initialGameState);
             ui.hideModal();
             if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';
-            ui.stopConfetti();
+            ui.stopConfetti(); // Stop confetti from previous round
             
             if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'none';
             if(document.getElementById('app')) document.getElementById('app').style.display = 'flex';
@@ -550,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (letter) {
                 const messageText = correct ?
                     `'${letter.toUpperCase()}' es CORRECTA. ¡Bien hecho ${guesserName}! 🎉` :
-                    `'${letter.toUpperCase()}' es INCORRECTA. (${guesserName}) ¡Ufa! 😥`; // Localization
+                    `'${letter.toUpperCase()}' es INCORRECTA. (${guesserName}) ¡Upa! 😥`; 
                 ui.displayMessage(messageText, correct ? 'success' : 'error', false);
                 if (correct) sound.playLetterSelectSound(true); else sound.playLetterSelectSound(false);
             }
@@ -586,7 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`[Main] syncUIFromNetworkState: Unhandled phase '${currentPhase}' for full UI sync, potentially showing setup.`);
                  if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
                 if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
-                ui.showScreen('networkSetup'); // Default to network setup if phase is unclear
+                ui.showScreen('networkSetup'); 
                 exitPlayMode();
             }
         },
@@ -595,18 +627,18 @@ document.addEventListener('DOMContentLoaded', () => {
             sound.playClueReveal();
             ui.displayClueOnUI(clueData.clue);
             ui.displayMessage("¡Pista mágica para todos! 🤫✨", 'info');
-            ui.toggleClueButtonUI(false, true);
+            ui.toggleClueButtonUI(false, true); // Show button but keep disabled
         },
         showNetworkGameOver: (gameOverData) => {
             console.log('[Main] UI Callback: showNetworkGameOver.', gameOverData);
-            state.setGameActive(false);
+            state.setGameActive(false); // Ensure game is marked inactive
             refreshAlphabetKeyboard();
             ui.toggleClueButtonUI(false, false);
             exitPlayMode();
-
+        
             let message = gameOverData.reason ? `Juego terminado: ${gameOverData.reason}.` : "¡Juego Terminado!";
             let isWinForLocalPlayer = false;
-
+        
             if (gameOverData.winnerData?.winners?.length > 0) {
                  const winnerNames = gameOverData.winnerData.winners.map(w => `${w.icon || ''}${w.name || 'Jugador Desconocido'}`).join(' y ');
                  isWinForLocalPlayer = gameOverData.winnerData.winners.some(w => w.id === state.getRawNetworkRoomData().myPlayerIdInRoom);
@@ -618,28 +650,54 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (gameOverData.finalWord) {
                 message += ` La palabra era: ${gameOverData.finalWord.toUpperCase()}.`;
             }
-
+        
             if (gameOverData.finalScores) {
-                const currentPlayers = state.getPlayersData();
-                const networkPlayers = state.getRawNetworkRoomData().players;
-                gameOverData.finalScores.forEach(ps => {
-                    const pLocal = currentPlayers.find(p => p.id === ps.id); if (pLocal) pLocal.score = ps.score;
-                    const pNet = networkPlayers.find(p => p.id === ps.id); if (pNet) pNet.score = ps.score;
+                const currentPlayers = state.getPlayersData(); // Use getPlayersData for a fresh clone
+                const networkPlayers = state.getRawNetworkRoomData().players; // Raw for direct comparison
+                
+                const updatedPlayers = currentPlayers.map(pLocal => {
+                    const pScoreUpdate = gameOverData.finalScores.find(ps => ps.id === pLocal.id);
+                    return pScoreUpdate ? { ...pLocal, score: pScoreUpdate.score } : pLocal;
                 });
-                state.setPlayersData([...currentPlayers]);
-                state.setNetworkRoomData({players: [...networkPlayers]});
+                state.setPlayersData([...updatedPlayers]); // Update local and potentially network state via setter
+                
+                // Also ensure _networkRoomData.players is synced if this is host
+                if(state.getRawNetworkRoomData().isRoomLeader){
+                    const updatedNetworkPlayers = networkPlayers.map(pNet => {
+                         const pScoreUpdate = gameOverData.finalScores.find(ps => ps.id === pNet.id);
+                         return pScoreUpdate ? { ...pNet, score: pScoreUpdate.score } : pNet;
+                    });
+                    state.setNetworkRoomData({players: [...updatedNetworkPlayers]});
+                }
                 ui.updateScoreDisplayUI();
             }
-            if (gameOverData.finalWord && !logic.checkWinCondition()) {
+
+            if (gameOverData.finalWord && !logic.checkWinCondition()) { // If word wasn't solved but is revealed
                 const finalGuessed = new Set();
-                for (const letter of gameOverData.finalWord) { finalGuessed.add(letter.toLowerCase()); }
+                for (const letter of gameOverData.finalWord.toUpperCase()) { 
+                    finalGuessed.add(state.normalizeString(letter).toLowerCase()); 
+                }
                 state.setGuessedLetters(finalGuessed);
                 ui.updateWordDisplay();
             }
-
-            ui.showModal(message, [{text: "🏠 Volver al Menú", action: () => { ui.stopConfetti(); returnToMainMenuUI();}, className: 'action-button'}]);
-            if (isWinForLocalPlayer) { sound.playWordSolvedSound(); sound.triggerVibration([100, 40, 100, 40, 200]); ui.startConfetti(200); }
-            else { sound.playGameOverSound(); sound.triggerVibration([70,50,70]); }
+        
+            // Modal changes based on whether client or host
+            if (state.getRawNetworkRoomData().isRoomLeader) {
+                ui.showModal(message + "\nReiniciando automáticamente en unos segundos...", [], true); // Host sees this, no buttons. Actual restart in PeerConnection.
+            } else {
+                ui.showModal(message + "\nEsperando que el anfitrión inicie una nueva partida... ✨", [
+                    {text: "🏠 Volver al Menú", action: () => { ui.stopConfetti(); returnToMainMenuUI();}, className: 'action-button-secondary'}
+                ]);
+            }
+        
+            if (isWinForLocalPlayer) { 
+                sound.playWordSolvedSound(); 
+                sound.triggerVibration([100, 40, 100, 40, 200]); 
+                ui.startConfetti(200); 
+            } else { 
+                sound.playGameOverSound(); 
+                sound.triggerVibration([70,50,70]); 
+            }
         },
         handleCriticalDisconnect: () => {
             console.error("[Main] UI Callback: handleCriticalDisconnect.");
@@ -690,23 +748,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (state.getPvpRemoteActive() && state.getRawNetworkRoomData().isRoomLeader) {
                     console.log("[Main] Host changed difficulty, updating network room data.");
                     state.setNetworkRoomData({ gameSettings: { ...state.getRawNetworkRoomData().gameSettings, difficulty: state.getCurrentDifficulty() } });
+                    // Host should broadcast this change if lobby UI depends on it for all players
+                    peerConnection.broadcastFullGameStateToAll(); // Simplest way to sync everyone
                 }
             });
         });
 
         if(startLocalGameButton) startLocalGameButton.addEventListener('click', () => { console.log("[Main] Start Local Game button clicked."); sound.playUiClick(); startLocalGameUI(); });
         if(clueButtonEl) clueButtonEl.addEventListener('click', () => { console.log("[Main] Clue button clicked."); sound.playUiClick(); handleClueRequestUI(); });
-        if(playAgainButtonEl) playAgainButtonEl.addEventListener('click', () => {
-            console.log("[Main] Play Again button clicked.");
-            sound.playUiClick(); ui.stopConfetti();
-            if (state.getPvpRemoteActive()) {
-                exitPlayMode();
-                 ui.showModal("Para jugar otra vez en red, el líder de la sala debe iniciar una nueva partida. Podés volver al menú.", 
-                    [{text: "🏠 Volver al Menú", action: returnToMainMenuUI}, {text: "OK", action: ui.hideModal}]);
-            } else {
-                startLocalGameUI();
-            }
-        });
+        
+        // Play Again button is now hidden for local play due to auto-restart
+        // if(playAgainButtonEl) playAgainButtonEl.addEventListener('click', () => { /* ... */ });
+
         if(mainMenuButtonEl) mainMenuButtonEl.addEventListener('click', () => { console.log("[Main] Main Menu button clicked."); sound.playUiClick(); ui.stopConfetti(); returnToMainMenuUI(); });
         if(hostGameButton) hostGameButton.addEventListener('click', () => { console.log("[Main] Host Game button clicked."); sound.playUiClick(); hostGameUI(); });
         if(joinRandomButton) joinRandomButton.addEventListener('click', () => { console.log("[Main] Join Random button clicked."); sound.playUiClick(); joinRandomGameUI(); });
@@ -804,7 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(networkPlayerIconSelect) ui.populatePlayerIcons(networkPlayerIconSelect);
             state.setCurrentDifficulty('easy');
             ui.updateDifficultyButtonUI();
-            returnToMainMenuUI(); 
+            stopAnyActiveGameOrNetworkSession(); // Ensures a clean start to the setup screen
         } else {
             console.error("[Main] CRITICAL ERROR: Dictionary not loaded.");
             ui.showModal("Error Crítico: El diccionario de palabras no está cargado. El juego no puede iniciar. 💔");
