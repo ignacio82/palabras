@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const hostGameButton = document.getElementById('host-game-button');
     const joinRandomButton = document.getElementById('join-random-button');
     const copyRoomLinkButtonEl = document.getElementById('copy-room-link-button');
-    const cancelMatchmakingButtonEl = document.getElementById('cancel-matchmaking-button');
+    const cancelMatchmakingButtonEl = document.getElementById('cancel-matchmaking-button'); // Keep this reference
 
     const lobbyToggleReadyButtonEl = document.getElementById('lobby-toggle-ready-button');
     const lobbyStartGameLeaderButtonEl = document.getElementById('lobby-start-game-leader-button');
@@ -54,6 +54,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const networkInfoTitleEl = document.getElementById('network-info-title');
     const networkInfoTextEl = document.getElementById('network-info-text');
     const qrCodeContainerEl = document.getElementById('qr-code-container');
+
+    function handleCancelMatchmaking() {
+        sound.playUiClick();
+        exitPlayMode();
+        if (state.getMyPeerId() && matchmaking?.leaveQueue) {
+            matchmaking.leaveQueue(state.getMyPeerId());
+        }
+        stopAnyActiveGameOrNetworkSession(true); // Preserve UI to stay on network setup
+        ui.showScreen('networkSetup');
+        ui.displayMessage("Búsqueda de partida cancelada. 🚫", "info");
+        ui.hideModal(); // Ensure modal is hidden
+        if (cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none'; // Hide separate button if it was shown
+    }
+
 
     function refreshAlphabetKeyboard() {
         if (!state.getGameActive()) {
@@ -240,7 +254,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (clueDisplayAreaEl) clueDisplayAreaEl.style.display = 'none';
         if (messageAreaEl) ui.displayMessage('\u00A0', 'info', true);
-        if (cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
+        
+        // Ensure cancel matchmaking button is hidden when stopping session generally
+        if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
+
         if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';
         ui.stopConfetti();
 
@@ -283,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (matchmaking?.updateHostedRoomStatus && hostPeerId) {
                  matchmaking.updateHostedRoomStatus(hostPeerId, gameSettings, gameSettings.maxPlayers, 1, 'hosting_waiting_for_players');
             }
+             // Do not hide modal here, showLobby callback will handle it or network error
         } catch (error) {
             console.error("[Main] Error hosting game:", error);
             ui.hideModal();
@@ -293,10 +311,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function joinRandomGameUI() {
-        stopAnyActiveGameOrNetworkSession(true);
-        ui.showModal("Buscando una sala de Palabras... 🎲🕵️‍♀️");
+        stopAnyActiveGameOrNetworkSession(true); // Reset state before starting a new attempt
         sound.triggerVibration(50);
         state.setPvpRemoteActive(true);
+
+        // Show a modal with a cancel button immediately
+        ui.showModal("Buscando una sala de Palabras... 🎲🕵️‍♀️", [
+            { text: "❌ Cancelar Búsqueda", action: handleCancelMatchmaking, className: 'action-button-danger' }
+        ]);
 
         const joinerCustomization = state.getLocalPlayerCustomizationForNetwork();
         const preferences = {
@@ -306,26 +328,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const localRawPeerId = await peerConnection.ensurePeerInitialized();
-            if (!localRawPeerId) throw new Error("No se pudo obtener ID de PeerJS para matchmaking.");
+            if (!localRawPeerId) {
+                throw new Error("No se pudo obtener ID de PeerJS para matchmaking.");
+            }
 
             if (matchmaking?.joinQueue) {
                 matchmaking.joinQueue(localRawPeerId, joinerCustomization, preferences, {
                     onSearching: () => {
-                        if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'inline-block';
-                        if(networkInfoTitleEl) networkInfoTitleEl.textContent = "Buscando una partida divertida... 🧐";
-                        if(networkInfoTextEl) networkInfoTextEl.textContent = "Conectando con amigas... ¡qué emoción! 💕";
-                        if(qrCodeContainerEl) qrCodeContainerEl.innerHTML = '';
-                        if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
+                        // Modal is already shown. We can update its text if desired, or do nothing here.
+                        console.log("[Main] Matchmaking: onSearching - Modal should be visible.");
+                        // No longer showing #network-info-area here, rely on modal.
+                        // Ensure other UI elements are hidden if necessary
+                        if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block'; // Keep setup visible in background
                         if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
-                        ui.showScreen('networkInfo');
+                        ui.showScreen('networkSetup'); // Or 'networkInfo' if you want a specific background screen for the modal
                         exitPlayMode();
                     },
                     onMatchFoundAndJoiningRoom: async (leaderRawPeerIdToJoin, roomDetails) => {
-                        ui.hideModal();
+                        // Modal will be updated by showLobby or error message
+                        ui.hideModal(); // Hide searching modal
                         ui.showModal(`¡Sala encontrada! (${state.PIZARRA_PEER_ID_PREFIX}${leaderRawPeerIdToJoin}). Uniendo... ⏳`);
-                        if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
+                        // The cancel button from the "searching" modal is gone now.
                         try {
                             await peerConnection.joinRoomById(leaderRawPeerIdToJoin, joinerCustomization);
+                            // ui.hideModal() will be called by showLobby if successful
                         } catch (joinError) {
                             ui.hideModal();
                             ui.showModal(`Error al unirse a la sala: ${joinError.message || 'Intenta de nuevo'}`);
@@ -333,38 +359,43 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     },
                     onMatchFoundAndHostingRoom: async (myNewRawPeerIdForHosting, initialHostData) => {
-                        ui.hideModal();
+                         // Modal will be updated by showLobby or error message
+                        ui.hideModal(); // Hide searching modal
                         ui.showModal("No hay salas disponibles, ¡creando una nueva para ti! 🚀");
                         try {
                             await peerConnection.hostNewRoom(joinerCustomization, initialHostData.gameSettings);
-                            if (matchmaking?.updateHostedRoomStatus && myNewRawPeerIdForHosting) {
+                            // ui.hideModal() will be called by showLobby if successful
+                            if (matchmaking?.updateHostedRoomStatus && myNewRawPeerIdForHosting) { // Should be hostPeerId from hostNewRoom
                                 matchmaking.updateHostedRoomStatus(myNewRawPeerIdForHosting, initialHostData.gameSettings, initialHostData.gameSettings.maxPlayers || preferences.maxPlayers, 1, 'hosting_waiting_for_players');
                             }
                         } catch (hostError) {
                             ui.hideModal(); ui.showModal(`Error al crear nueva sala: ${hostError.message}`);
                             stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup');
                         }
-                        if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
                     },
                     onError: (errMsg) => {
-                        ui.hideModal(); ui.showModal(`Error de Matchmaking: ${errMsg}`);
-                        if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
-                        stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup');
+                        ui.hideModal(); 
+                        ui.showModal(`Error de Matchmaking: ${errMsg}`, [{text: "OK", action: () => {
+                            handleCancelMatchmaking(); // Use the centralized cancel logic
+                        }}]);
+                        // stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup'); // Covered by handleCancelMatchmaking
                     }
                 });
             } else {
-                 ui.hideModal(); ui.showModal(`Error: Servicio de matchmaking no disponible.`);
-                 stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup');
+                 throw new Error("Servicio de matchmaking no disponible.");
             }
         } catch (initError) {
-            ui.hideModal(); ui.showModal(`Error de Red inicial: ${initError.message || 'No se pudo conectar.'}`);
-            stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup');
+            ui.hideModal(); 
+            ui.showModal(`Error de Red: ${initError.message || 'No se pudo conectar.'}`, [{text: "OK", action: () => {
+                handleCancelMatchmaking(); // Use the centralized cancel logic
+            }}]);
+            // stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup'); // Covered by handleCancelMatchmaking
         }
     }
 
     window.pizarraUiUpdateCallbacks = {
         showLobby: (isHost) => {
-            ui.hideModal();
+            ui.hideModal(); // Ensure any previous modal (like "searching" or "connecting") is hidden
             if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
             if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
             ui.showScreen('lobby');
@@ -381,7 +412,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.showModal(`Error de Red: ${message}`, [{ text: "OK", action: () => {
                 ui.hideModal();
                 if (shouldReturnToSetupIfCritical) {
-                    stopAnyActiveGameOrNetworkSession(); 
+                    // Use the centralized cancel/reset logic if appropriate
+                    handleCancelMatchmaking(); // This resets to networkSetup
                 }
             }}]);
             sound.playErrorSound();
@@ -428,12 +460,16 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[Main] syncUIFromNetworkState: Forcing UI sync from full network state.');
             const currentPhase = state.getGamePhase();
             if (currentPhase === 'lobby') {
+                // If moving to lobby, ensure modal is hidden (e.g. "connecting" modal)
+                ui.hideModal();
                 if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
                 if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
                 ui.showScreen('lobby');
                 ui.updateLobbyUI();
                 exitPlayMode();
             } else if (currentPhase === 'playing' || currentPhase === 'game_over' || currentPhase === 'ended') {
+                 // If moving to game, ensure modal is hidden
+                ui.hideModal();
                 if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'none';
                 if(document.getElementById('app')) document.getElementById('app').style.display = 'flex';
                 
@@ -496,7 +532,9 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         handleCriticalDisconnect: () => {
             exitPlayMode();
-            stopAnyActiveGameOrNetworkSession();
+            // Use the centralized cancel/reset logic
+            handleCancelMatchmaking(); // This resets to networkSetup and hides modal
+            // show a specific modal after the reset if needed
             ui.showModal("Desconectado de la partida. Volviendo al menú principal.", [{text: "OK", action: ui.hideModal}]);
         },
         showLobbyMessage: (messageText, isError = false) => {
@@ -567,14 +605,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.addEventListener('click', () => {
-            sound.playUiClick();
-            exitPlayMode();
-            if(state.getMyPeerId() && matchmaking?.leaveQueue) matchmaking.leaveQueue(state.getMyPeerId());
-            stopAnyActiveGameOrNetworkSession(true);
-            ui.showScreen('networkSetup');
-            ui.displayMessage("Búsqueda de partida cancelada. 🚫", "info");
-        });
+        // The cancelMatchmakingButtonEl is now primarily controlled by the modal logic in joinRandomGameUI
+        // This listener is a fallback or if it's shown elsewhere.
+        if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.addEventListener('click', handleCancelMatchmaking);
+
         if(lobbyToggleReadyButtonEl) lobbyToggleReadyButtonEl.addEventListener('click', () => {
             sound.playUiClick(); sound.triggerVibration(25);
             const myPlayer = state.getRawNetworkRoomData().players.find(p => p.peerId === state.getMyPeerId());
@@ -593,22 +627,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if(modalCloseButtonEl) modalCloseButtonEl.addEventListener('click', () => {sound.playUiClick(); ui.hideModal();});
         if(customModalEl) customModalEl.addEventListener('click', (e) => {
-            if (e.target === customModalEl && modalDynamicButtonsEl && modalDynamicButtonsEl.children.length === 0) {
-                sound.playUiClick(); ui.hideModal();
+            // Only close if clicking outside the modal-content AND no dynamic buttons are present
+            // (as dynamic buttons imply a choice needs to be made).
+            // Or, if dynamic buttons ARE present, this click-outside-to-close should be disabled.
+            // For now, let's stick to: if modal has dynamic buttons, only buttons close it.
+            // If it only has the 'X' (modalCloseButtonEl), then clicking outside is fine.
+            if (e.target === customModalEl) {
+                const hasDynamicButtons = modalDynamicButtonsEl && modalDynamicButtonsEl.children.length > 0;
+                if (!hasDynamicButtons) { // Only allow click-outside-to-close if no dynamic buttons
+                    sound.playUiClick(); 
+                    ui.hideModal();
+                }
             }
         });
 
         const bodyEl = document.querySelector('body');
-        // Deferred sound initialization
         const initAudioOnUserGesture = async () => {
             try {
                 if (typeof Tone !== 'undefined' && Tone.start && Tone.context && Tone.context.state !== 'running') {
                     await Tone.start();
                     console.log("[Main] Tone.js AudioContext started on user gesture.");
                 }
-                // Initialize our sounds if they depend on Tone.start() having been called
                 if (sound?.initSounds && !sound.soundsCurrentlyInitialized) {
-                    await sound.initSounds(); // sound.initSounds should also check Tone.context.state
+                    await sound.initSounds(); 
                 }
             } catch (e) {
                 console.warn("[Main] Error starting audio on user gesture:", e);
@@ -616,26 +657,23 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         bodyEl.addEventListener('click', initAudioOnUserGesture, { once: true });
         bodyEl.addEventListener('touchend', initAudioOnUserGesture, { once: true });
-        // Removed the previous immediate call to initAudio from here
 
         console.log("[Main] App event listeners initialized.");
     }
 
     function initializeApp() {
-        initializeAppEventListeners(); // Event listeners are set up first
+        initializeAppEventListeners(); 
         
-        // Defer sound system initialization until after first user click/touch (handled by body event listeners)
-
         if (typeof DICTIONARY_DATA !== 'undefined' && DICTIONARY_DATA.length > 0) {
             if(networkPlayerIconSelect) ui.populatePlayerIcons(networkPlayerIconSelect);
             state.setCurrentDifficulty('easy');
             ui.updateDifficultyButtonUI();
-            returnToMainMenuUI(); // This sets up the initial screen
+            returnToMainMenuUI(); 
         } else {
             ui.showModal("Error Crítico: El diccionario de palabras no está cargado. El juego no puede iniciar. 💔");
             exitPlayMode();
         }
-        processUrlJoin(); // Check for room joins via URL params
+        processUrlJoin(); 
     }
 
     async function processUrlJoin() {
@@ -671,15 +709,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     ui.updateGameModeTabs('network');
                     if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
                     if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
-                    ui.showScreen('networkSetup');
+                    ui.showScreen('networkSetup'); // Show the setup screen briefly before lobby/error
 
                     try {
                         await peerConnection.joinRoomById(roomIdFromUrl.trim(), joinerCustomization);
+                         // Success will lead to showLobby callback hiding the modal
                     } catch (error) {
-                        ui.hideModal();
+                        ui.hideModal(); // Hide "Connecting..." modal
                         ui.showModal(`Error al unirse a la sala: ${error.message || 'Intenta de nuevo o verifica el ID.'}`);
-                        stopAnyActiveGameOrNetworkSession(true);
-                        ui.showScreen('networkSetup');
+                        stopAnyActiveGameOrNetworkSession(true); // Reset state
+                        ui.showScreen('networkSetup'); // Back to setup
                     }
                 }},
                 { text: "❌ Cancelar", action: () => { ui.hideModal(); ui.showScreen('localSetup'); ui.updateGameModeTabs('local'); exitPlayMode(); }, className: 'action-button-secondary'}
