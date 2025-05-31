@@ -307,13 +307,13 @@ const peerJsCallbacks = {
             }
         } else { // Client logic
             if (peerId === currentNetworkData.leaderPeerId && leaderConnection && leaderConnection.open) {
-                // Get player data from the client's own state,
+                // MODIFIED: Get player data from the client's own state,
                 // which was initialized by joinRoomById with the data from the modal.
                 const clientSelfData = state.getRawNetworkRoomData().players[0];
                 const myPlayerDataForJoin = {
                     name: clientSelfData.name,
                     icon: clientSelfData.icon,
-                    color: clientSelfData.color
+                    color: clientSelfData.color // This assumes color was correctly set in clientSelfData
                 };
 
                 console.log(`[PeerConn PeerJS] Client: Player data for join request (from client's state):`, myPlayerDataForJoin);

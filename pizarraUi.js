@@ -19,7 +19,7 @@ let lobbyRoomIdDisplayEl, lobbyDifficultyDisplayEl, lobbyPlayerCountDisplayEl, l
 let lobbyToggleReadyButtonEl, lobbyStartGameLeaderButtonEl, lobbyLeaveRoomButtonEl;
 
 // Modal UI
-let customModalEl, modalMessageTextEl, modalCloseButtonEl, modalDynamicButtonsEl;
+let customModalEl, modalMainContentAreaEl, modalCloseButtonEl, modalDynamicButtonsEl; // MODIFIED HERE
 
 // Confetti
 let confettiContainerEl;
@@ -73,7 +73,7 @@ export function initializeUiDOMReferences() {
     lobbyLeaveRoomButtonEl = document.getElementById('lobby-leave-room-button');
 
     customModalEl = document.getElementById('custom-modal');
-    modalMessageTextEl = document.getElementById('modal-message-text');
+    modalMainContentAreaEl = document.getElementById('modal-main-content-area'); // MODIFIED HERE
     modalCloseButtonEl = document.getElementById('modal-close-button');
     modalDynamicButtonsEl = document.getElementById('modal-dynamic-buttons');
 
@@ -99,19 +99,35 @@ export function displayMessage(text, type = 'info', persistent = false, area = m
 }
 
 export function showModal(messageOrHtml, buttonsConfig = null, isHtmlContent = false) {
-    if (!customModalEl || !modalMessageTextEl || !modalCloseButtonEl || !modalDynamicButtonsEl) { console.error("Modal elements not found"); return; }
-    if (isHtmlContent) modalMessageTextEl.innerHTML = messageOrHtml; else modalMessageTextEl.textContent = messageOrHtml;
-    modalDynamicButtonsEl.innerHTML = '';
+    // MODIFIED HERE to use modalMainContentAreaEl
+    if (!customModalEl || !modalMainContentAreaEl || !modalCloseButtonEl || !modalDynamicButtonsEl) { 
+        console.error("Modal elements not found (customModalEl, modalMainContentAreaEl, modalCloseButtonEl, or modalDynamicButtonsEl)"); 
+        return; 
+    }
+    if (isHtmlContent) {
+        modalMainContentAreaEl.innerHTML = messageOrHtml;
+    } else {
+        modalMainContentAreaEl.textContent = messageOrHtml;
+    }
+    
+    modalDynamicButtonsEl.innerHTML = ''; // Clear previous dynamic buttons
     if (buttonsConfig?.length > 0) {
-        modalCloseButtonEl.style.display = 'none'; modalDynamicButtonsEl.style.display = 'flex';
+        modalCloseButtonEl.style.display = 'none'; 
+        modalDynamicButtonsEl.style.display = 'flex';
         buttonsConfig.forEach(btnConfig => {
-            const button = document.createElement('button'); button.textContent = btnConfig.text;
-            button.className = btnConfig.className || 'action-button-secondary';
-            button.addEventListener('click', btnConfig.action); 
+            const button = document.createElement('button'); 
+            button.textContent = btnConfig.text;
+            button.className = btnConfig.className || 'action-button-secondary'; // Default class
+            button.addEventListener('click', (event) => { // Pass event to action
+                if (typeof btnConfig.action === 'function') {
+                    btnConfig.action(event); // Execute the action
+                }
+            }); 
             modalDynamicButtonsEl.appendChild(button);
         });
     } else {
-        modalCloseButtonEl.style.display = 'inline-block'; modalDynamicButtonsEl.style.display = 'none';
+        modalCloseButtonEl.style.display = 'inline-block'; 
+        modalDynamicButtonsEl.style.display = 'none';
     }
     customModalEl.style.display = 'flex';
 }
