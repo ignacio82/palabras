@@ -148,7 +148,7 @@ export function setPlayersData(newPlayers) {
 
 export function setCurrentPlayerId(id) { 
     currentPlayerId = id; 
-    if (pvpRemoteActive) networkRoomData.currentPlayerId = currentPlayerId;
+    if (pvpRemoteActive) networkRoomData.currentPlayerId = id;
 }
 
 export function setGamePhase(phase) {
@@ -177,16 +177,31 @@ export function setMyPeerId(id) { myPeerId = id; }
 
 // This function updates the *single* networkRoomData object and syncs relevant parts to global state.
 export function setNetworkRoomData(data) {
-    const preservedCallbacks = {
-        _peerInitPromise: data.hasOwnProperty('_peerInitPromise') ? data._peerInitPromise : networkRoomData._peerInitPromise,
-        _peerInitResolve: data.hasOwnProperty('_peerInitResolve') ? data._peerInitResolve : networkRoomData._peerInitResolve,
-        _peerInitReject: data.hasOwnProperty('_peerInitReject') ? data._peerInitReject : networkRoomData._peerInitReject,
+    // Preserve only setupCompleteCallback and setupErrorCallback if they are explicitly passed in `data`
+    // or if they already exist and are not being overwritten by `data`.
+    // Other internal peer init states (_peerInitPromise, _peerInitResolve, _peerInitReject) should generally
+    // be managed by their own lifecycle and reset by resetNetworkRoomData.
+    const preservedSetupCallbacks = {
         _setupCompleteCallback: data.hasOwnProperty('_setupCompleteCallback') ? data._setupCompleteCallback : networkRoomData._setupCompleteCallback,
         _setupErrorCallback: data.hasOwnProperty('_setupErrorCallback') ? data._setupErrorCallback : networkRoomData._setupErrorCallback,
     };
+
+    // If data contains a peer promise, it's likely from an active initialization.
+    const peerPromiseHandling = {
+        _peerInitPromise: data.hasOwnProperty('_peerInitPromise') ? data._peerInitPromise : networkRoomData._peerInitPromise,
+        _peerInitResolve: data.hasOwnProperty('_peerInitResolve') ? data._peerInitResolve : networkRoomData._peerInitResolve,
+        _peerInitReject: data.hasOwnProperty('_peerInitReject') ? data._peerInitReject : networkRoomData._peerInitReject,
+    };
+
     const oldRoomState = networkRoomData.roomState;
 
-    networkRoomData = { ...networkRoomData, ...clone(data), ...preservedCallbacks };
+    networkRoomData = { 
+        ...networkRoomData, // Keep existing values
+        ...clone(data),       // Overwrite with new cloned data
+        ...peerPromiseHandling, // Ensure these are correctly managed
+        ...preservedSetupCallbacks // Ensure these are correctly managed
+    };
+
 
     // Update global state variables from the authoritative data received (e.g., from host via FULL_GAME_STATE)
     if (data.currentWordObject !== undefined) setCurrentWordObject(data.currentWordObject);
@@ -215,25 +230,32 @@ export function setNetworkRoomData(data) {
 }
 
 export function resetNetworkRoomData() {
-    const preservedCallbacks = {
-        _peerInitPromise: networkRoomData._peerInitPromise, _peerInitResolve: networkRoomData._peerInitResolve,
-        _peerInitReject: networkRoomData._peerInitReject, _setupCompleteCallback: networkRoomData._setupCompleteCallback,
+    // Preserve setupCompleteCallback and setupErrorCallback if they exist from a previous operation that hasn't finished.
+    // However, peer initialization related promises and their resolvers should be cleared to ensure a fresh start.
+    const preservedSetupCallbacks = {
+        _setupCompleteCallback: networkRoomData._setupCompleteCallback,
         _setupErrorCallback: networkRoomData._setupErrorCallback,
     };
-    // Initialize with all fields for clarity
+
     networkRoomData = {
         roomId: null, leaderPeerId: null, myPlayerIdInRoom: null, isRoomLeader: false,
         maxPlayers: MAX_PLAYERS_NETWORK, players: [],
-        gameSettings: { difficulty: currentDifficulty }, 
+        gameSettings: { difficulty: currentDifficulty }, // Keep current difficulty as a default
         roomState: 'idle', turnCounter: 0,
         currentWordObject: null, guessedLetters: [], remainingAttemptsPerPlayer: [],
         currentPlayerId: 0, clueUsedThisGame: false, gameActive: false,
-        ...preservedCallbacks
+        
+        _peerInitPromise: null, // Explicitly nullify
+        _peerInitResolve: null, // Explicitly nullify
+        _peerInitReject: null,  // Explicitly nullify
+        
+        ...preservedSetupCallbacks // Restore only these two if they were set
     };
     if (!pvpRemoteActive) { 
         setGamePhase('idle');
     }
 }
+
 
 export function addPlayerToNetworkRoom(player) { 
     const existingPlayerIndex = networkRoomData.players.findIndex(p => p.peerId === player.peerId || (p.id !== null && p.id === player.id));
@@ -355,7 +377,7 @@ export function resetFullLocalStateForNewUIScreen() {
     setGameActive(false); 
     remainingAttemptsPerPlayer = []; 
     
-    resetNetworkRoomData(); 
+    resetNetworkRoomData(); // This will now clear _peerInitPromise etc.
     setGamePhase('idle'); 
 }
 
