@@ -161,5 +161,3 @@ const DICTIONARY_DATA = [
     { word: "CASCABEL",    definition: "Pequeña campanita que suena al moverla.", difficulty: "hard" },
     { word: "AEROPUERTO",  definition: "Lugar donde despegan y aterrizan los aviones.", difficulty: "hard" }
 ];
-
-export default DICTIONARY_DATA;
