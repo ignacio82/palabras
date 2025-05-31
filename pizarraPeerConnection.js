@@ -1199,24 +1199,42 @@ export function leaveRoom() {
         window.pizarraUiUpdateCallbacks.hideNetworkInfo();
     }
     
-    const currentRoomData = state.getNetworkRoomData(); // Use getter for clone
+    const currentRoomData = state.getNetworkRoomData(); 
     const isCurrentlyLeader = currentRoomData.isRoomLeader;
-    const myCurrentPeerId = state.getMyPeerId(); // Raw ID
+    const myCurrentPeerId = state.getMyPeerId(); // Get current raw PeerJS ID
+
+    console.log(`[PeerConn] leaveRoom - Current State: isLeader=${isCurrentlyLeader}, myPeerId=${myCurrentPeerId}, roomData.roomId=${currentRoomData.roomId}, roomData.leaderPeerId=${currentRoomData.leaderPeerId}, roomData.roomState=${currentRoomData.roomState}`);
 
     if (isCurrentlyLeader) {
-        console.log(`[PeerConn] Leader (PeerID: ${myCurrentPeerId}, RoomID: ${currentRoomData.roomId}) is leaving. Broadcasting GAME_OVER.`);
+        // IMPORTANT FIX: Determine the actual room ID to use for cleanup.
+        // If roomState is still 'creating_room' or 'seeking_match', roomId might not have been set in networkRoomData yet by _finalizeHostSetup.
+        // In this case, the host's own myCurrentPeerId IS the intended roomId.
+        // If roomState is 'lobby' or 'playing', currentRoomData.roomId should be correct.
+        let roomIdForCleanup = currentRoomData.roomId;
+        if (!roomIdForCleanup && (currentRoomData.roomState === 'creating_room' || currentRoomData.roomState === 'seeking_match') && myCurrentPeerId) {
+            console.warn(`[PeerConn] leaveRoom (Leader): roomId is null but state is ${currentRoomData.roomState}. Using myCurrentPeerId ('${myCurrentPeerId}') for cleanup.`);
+            roomIdForCleanup = myCurrentPeerId;
+        } else if (!roomIdForCleanup && myCurrentPeerId) {
+            // Fallback if roomId is null for some other reason but we are leader and have a peerId
+            console.warn(`[PeerConn] leaveRoom (Leader): roomId is null (state: ${currentRoomData.roomState}). Using myCurrentPeerId ('${myCurrentPeerId}') as a fallback for cleanup.`);
+            roomIdForCleanup = myCurrentPeerId;
+        }
+
+
+        console.log(`[PeerConn] Leader (PeerID: ${myCurrentPeerId}, Determined RoomID for Cleanup: ${roomIdForCleanup}) is leaving. Broadcasting GAME_OVER.`);
         broadcastToRoom({
             type: MSG_TYPE.GAME_OVER_ANNOUNCEMENT,
             reason: 'leader_left_room',
-            finalWord: state.getCurrentWordObject()?.word // state getter for current word
+            finalWord: state.getCurrentWordObject()?.word 
         });
         
-        if (currentRoomData.roomId && matchmaking && matchmaking.leaveQueue) { // roomId is host's raw peerId
-            console.log(`[PeerConn] Leader leaving matchmaking queue for room/peerId: ${currentRoomData.roomId}`);
-            matchmaking.leaveQueue(currentRoomData.roomId); // Pass raw peerId which is the room id
+        if (roomIdForCleanup && matchmaking && matchmaking.leaveQueue) { 
+            console.log(`[PeerConn] Leader leaving matchmaking queue for room/peerId: ${roomIdForCleanup}`);
+            matchmaking.leaveQueue(roomIdForCleanup); // Pass the determined raw peerId (which is the room id for host)
+        } else {
+            console.warn(`[PeerConn] Leader leaveRoom: matchmaking.leaveQueue not called. roomIdForCleanup: ${roomIdForCleanup}, matchmaking: ${!!matchmaking}, leaveQueue: ${!!matchmaking?.leaveQueue}`);
         }
         
-        // Close connections after a short delay to allow messages to send
         setTimeout(() => {
             console.log("[PeerConn] Leader: Closing all client connections.");
             connections.forEach((connEntry, peerId) => {
@@ -1227,19 +1245,17 @@ export function leaveRoom() {
                 }
             });
             connections.clear();
-        }, 500); // Increased delay
-    } else if (leaderConnection) {
+        }, 500); 
+    } else if (leaderConnection) { // Client leaving
         console.log(`[PeerConn] Client (PeerID: ${myCurrentPeerId}) is leaving room. Closing connection to leader ${leaderConnection.peer}.`);
         if (leaderConnection.close && !leaderConnection.disconnected) {
             try { leaderConnection.close(); }
             catch (e) { console.warn(`[PeerConn] Error closing leader connection:`, e); }
         }
     }
-    leaderConnection = null; // Clear leader connection for clients
-    // The call to closePeerSession in stopAnyActiveGameOrNetworkSession will handle PeerJS object destruction.
+    leaderConnection = null; 
     console.log("[PeerConn] leaveRoom processing finished. PeerJS session closure will be handled by stopAnyActiveGameOrNetworkSession.");
 }
-
 
 function sendDataToLeader(data) {
     // console.log(`[PeerConn C TX] Client sending data to leader. Type: ${data.type}, Payload:`, data);
