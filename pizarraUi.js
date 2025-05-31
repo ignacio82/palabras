@@ -1,16 +1,16 @@
-// pizarraUi.js - Fixed for mobile and network mode
+// pizarraUi.js - Fixed for mobile, network mode, and easy mode clue display
 import * as state from './pizarraState.js';
-import { normalizeLetter as normalizeGameLetter } from './util.js'; // Import and alias normalizeLetter
+import { normalizeLetter as normalizeGameLetter } from './util.js'; 
 
 // --- DOM Element References (fetched once) ---
 let localGameSetupSection, networkGameSetupSection, gameAreaEl, lobbyAreaEl, networkInfoAreaEl;
-let gameModeSelectionSection; // NEW: Reference to game mode selection
+let gameModeSelectionSection;
 let starsDisplayEl, currentPlayerTurnDisplaySpan, clueButtonEl, clueDisplayAreaEl, clueTextEl;
 let messageAreaEl, wordDisplayContainerEl, alphabetKeyboardContainerEl;
 let incorrectLettersDisplayEl, correctLettersDisplayEl, scoreDisplayAreaEl;
 let playAgainButtonEl, mainMenuButtonEl, cancelMatchmakingButtonEl;
-let difficultyButtons; // NodeList
-let gameModeTabs; // NodeList
+let difficultyButtons; 
+let gameModeTabs; 
 
 // Network UI
 let networkPlayerNameInput, networkPlayerIconSelect, networkMaxPlayersSelect;
@@ -25,7 +25,7 @@ let customModalEl, modalMainContentAreaEl, modalCloseButtonEl, modalDynamicButto
 let confettiContainerEl;
 
 let uiInitialized = false;
-let currentMessageTimeout = null; // Store timeout for the main message area
+let currentMessageTimeout = null;
 
 export function initializeUiDOMReferences() {
     if (uiInitialized) return;
@@ -72,37 +72,33 @@ export function initializeUiDOMReferences() {
     lobbyLeaveRoomButtonEl = document.getElementById('lobby-leave-room-button');
 
     customModalEl = document.getElementById('custom-modal');
-    modalMainContentAreaEl = document.getElementById('modal-main-content-area'); // Updated reference
+    modalMainContentAreaEl = document.getElementById('modal-main-content-area');
     modalCloseButtonEl = document.getElementById('modal-close-button');
     modalDynamicButtonsEl = document.getElementById('modal-dynamic-buttons');
 
     confettiContainerEl = document.getElementById('confetti-container');
     
     uiInitialized = true;
-    console.log("[pizarraUi] DOM references initialized.");
+    // console.log("[pizarraUi] DOM references initialized."); // Kept for initial check
 }
 
 // --- General UI Functions ---
 export function displayMessage(text, type = 'info', persistent = false, area = messageAreaEl) {
-    if (!area) { console.warn("displayMessage: Target area not found."); return; }
+    if (!area) { return; }
     if (currentMessageTimeout && area === messageAreaEl) clearTimeout(currentMessageTimeout);
     area.textContent = text;
     area.className = `message ${type}`;
     
-    // New logic: If not persistent and it's the main message area during an active game,
-    // clear it after timeout ONLY if it wasn't a success or error message.
-    // This prevents the "Haz clic..." message from reappearing.
     if (!persistent && area === messageAreaEl && gameAreaEl && gameAreaEl.style.display !== 'none') {
         currentMessageTimeout = setTimeout(() => {
-            if (area.textContent === text) { // Check if message hasn't been changed by another call
-                if (state.getGameActive() && (type === 'info' || type === '')) { // Only clear non-critical messages during active game
-                    area.textContent = '\u00A0'; // Non-breaking space to maintain height
+            if (area.textContent === text) { 
+                if (state.getGameActive() && (type === 'info' || type === '')) { 
+                    area.textContent = '\u00A0'; 
                     area.className = 'message';
-                } else if (!state.getGameActive() && type !== 'success' && type !== 'error') { // Clear if game ended and not success/error
+                } else if (!state.getGameActive() && type !== 'success' && type !== 'error') { 
                     area.textContent = '\u00A0';
                     area.className = 'message';
                 }
-                // Success and error messages will persist a bit longer until the next action or message.
             }
         }, 3000);
     }
@@ -110,7 +106,7 @@ export function displayMessage(text, type = 'info', persistent = false, area = m
 
 export function showModal(messageOrHtml, buttonsConfig = null, isHtmlContent = false) {
     if (!customModalEl || !modalMainContentAreaEl || !modalCloseButtonEl || !modalDynamicButtonsEl) { 
-        console.error("Modal elements not found (customModalEl, modalMainContentAreaEl, modalCloseButtonEl, or modalDynamicButtonsEl)"); 
+        console.error("Modal elements not found."); 
         return; 
     }
     if (isHtmlContent) {
@@ -169,11 +165,10 @@ export function showScreen(screenName) {
     if (screens[screenName]) {
         screens[screenName].style.display = 'block';
     } else {
-        console.warn(`[pizarraUi] showScreen: Unknown screen name '${screenName}'`);
+        // console.warn(`[pizarraUi] showScreen: Unknown screen name '${screenName}'`);
     }
 }
 
-// NEW: Helper to get available icons excluding those already in use
 function getAvailableIcons(excludeCurrentPlayer = false) {
     const allIcons = state.AVAILABLE_ICONS;
     const currentPlayers = state.getPvpRemoteActive() ? 
@@ -184,7 +179,6 @@ function getAvailableIcons(excludeCurrentPlayer = false) {
     if (currentPlayers && Array.isArray(currentPlayers)) {
         currentPlayers.forEach(player => {
             if (player.isConnected !== false && player.icon) {
-                // If excluding current player, skip their current icon
                 if (excludeCurrentPlayer && player.peerId === state.getMyPeerId()) {
                     return;
                 }
@@ -198,7 +192,7 @@ function getAvailableIcons(excludeCurrentPlayer = false) {
 
 export function populatePlayerIcons(targetSelectElement, excludeCurrentPlayer = false) {
     if (!targetSelectElement) { 
-        console.warn("[pizarraUi] populatePlayerIcons: No target select element provided."); 
+        // console.warn("[pizarraUi] populatePlayerIcons: No target select element provided."); 
         return; 
     }
     
@@ -206,8 +200,6 @@ export function populatePlayerIcons(targetSelectElement, excludeCurrentPlayer = 
     targetSelectElement.innerHTML = ''; 
     
     const availableIcons = getAvailableIcons(excludeCurrentPlayer);
-    
-    // If no icons are available, fall back to all icons
     const iconsToUse = availableIcons.length > 0 ? availableIcons : state.AVAILABLE_ICONS;
     
     iconsToUse.forEach(icon => {
@@ -217,7 +209,6 @@ export function populatePlayerIcons(targetSelectElement, excludeCurrentPlayer = 
         targetSelectElement.appendChild(option);
     });
     
-    // Try to restore previous value if still available, otherwise use first available
     if (iconsToUse.includes(currentValue)) {
         targetSelectElement.value = currentValue;
     } else if (iconsToUse.length > 0) {
@@ -381,6 +372,7 @@ export function updateCurrentPlayerTurnUI() {
     if (currentPlayer) {
         let turnText = `${currentPlayer.icon || '❓'} ${currentPlayer.name || 'Jugador'}`;
         if (state.getPvpRemoteActive()) {
+             // Localization: Using "Tu Turno" as it's a direct status, not addressing the player.
             turnText = (currentPlayer.id === state.getNetworkRoomData().myPlayerIdInRoom) ? `✅ ${turnText} (Tu Turno)` : `⏳ ${turnText}`;
         }
         currentPlayerTurnDisplaySpan.textContent = turnText;
@@ -396,31 +388,54 @@ export function renderFullGameBoard(isMyTurnCurrently, onLetterClickCallback) {
     updateCurrentPlayerTurnUI();
     createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback); 
     
-    if(clueButtonEl) {
-        clueButtonEl.style.display = 'inline-block';
-        clueButtonEl.disabled = state.getClueUsedThisGame() || !state.getGameActive() || !isMyTurnCurrently;
+    const difficulty = state.getCurrentDifficulty();
+    const wordObject = state.getCurrentWordObject();
+    const clueIsUsed = state.getClueUsedThisGame(); // In easy mode, this will be true from the start.
+
+    if (difficulty === 'easy') {
+        if (wordObject?.definition) {
+            if(clueTextEl) clueTextEl.textContent = wordObject.definition;
+        }
+        if(clueDisplayAreaEl) clueDisplayAreaEl.style.display = 'block';
+        if(clueButtonEl) clueButtonEl.style.display = 'none';
+    } else {
+        if(clueButtonEl) {
+            clueButtonEl.style.display = 'inline-block';
+            clueButtonEl.disabled = clueIsUsed || !state.getGameActive() || !isMyTurnCurrently;
+        }
+        if(clueDisplayAreaEl) {
+            clueDisplayAreaEl.style.display = clueIsUsed ? 'block' : 'none';
+        }
+        if(clueTextEl && clueIsUsed && wordObject?.definition) {
+            clueTextEl.textContent = wordObject.definition;
+        } else if (clueTextEl && !clueIsUsed){
+            clueTextEl.textContent = ""; 
+        }
     }
-    if(clueDisplayAreaEl) clueDisplayAreaEl.style.display = state.getClueUsedThisGame() ? 'block' : 'none';
-    if(clueTextEl && state.getClueUsedThisGame()) clueTextEl.textContent = state.getCurrentWordObject()?.definition || "";
 }
 
 export function displayClueOnUI(clueDefinition) { 
     if(!uiInitialized) initializeUiDOMReferences();
     if(clueTextEl) clueTextEl.textContent = clueDefinition;
     if(clueDisplayAreaEl) clueDisplayAreaEl.style.display = 'block';
-    if(clueButtonEl) clueButtonEl.disabled = true;
+    // For non-easy modes, clueButton would be disabled by game logic setting clueUsedThisGame
+    // For easy mode, clueButton is hidden by renderFullGameBoard.
 }
 
 export function toggleClueButtonUI(enabled, show = true) {
-    if (clueButtonEl) {
+    // This function might be less relevant if renderFullGameBoard handles easy mode directly.
+    // However, it can still be used for explicit control in non-easy modes if needed.
+    if (clueButtonEl && state.getCurrentDifficulty() !== 'easy') {
         clueButtonEl.disabled = !enabled;
         clueButtonEl.style.display = show ? 'inline-block' : 'none';
+    } else if (clueButtonEl && state.getCurrentDifficulty() === 'easy') {
+        clueButtonEl.style.display = 'none'; // Ensure it's hidden in easy mode
     }
 }
 
 const confettiColors = ["#ff69b4", "#ffc0cb", "#ff1493", "#da70d6", "#9370db", "#ffd700", "#ffb6c1", "#f0f8ff"];
 export function createConfettiPiece() {
-    if (!confettiContainerEl) { if(uiInitialized) console.warn("Confetti container not found"); return;}
+    if (!confettiContainerEl) { if(uiInitialized) /* console.warn("Confetti container not found"); */ return;}
     const piece = document.createElement('div'); piece.classList.add('confetti-piece');
     piece.style.backgroundColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
     piece.style.left = Math.random() * window.innerWidth + 'px';
@@ -454,7 +469,7 @@ export function updateLobbyUI() {
             const iconSpan = document.createElement('span'); iconSpan.className = 'icon'; iconSpan.textContent = player.icon || '❓';
             const nameSpan = document.createElement('span'); nameSpan.className = 'name';
             nameSpan.textContent = (player.name || `Jugador ${player.id === undefined ? '?' : player.id +1}`) +
-                                 (player.peerId === state.getMyPeerId() ? " (Vos)" : "") + // Localization: Tú -> Vos
+                                 (player.peerId === state.getMyPeerId() ? " (Vos)" : "") + 
                                  (player.peerId === roomData.leaderPeerId ? " 👑" : "");
             const statusSpan = document.createElement('span'); statusSpan.className = 'status';
             statusSpan.textContent = player.isConnected === false ? "Desconectado 😢" : (player.isReady ? "Lista ✨" : "Esperando... ⏳");
@@ -478,7 +493,6 @@ export function updateLobbyUI() {
         lobbyStartGameLeaderButtonEl.disabled = !canStart;
     }
     
-    // Update icon selector in the lobby to exclude taken icons
     if (networkPlayerIconSelect && roomData.isRoomLeader) {
         populatePlayerIcons(networkPlayerIconSelect, true);
     }
@@ -502,14 +516,13 @@ export function displayRoomQRCodeAndLink(roomId, maxPlayers, baseShareUrl = "htt
         try {
             new QRious({ element: canvas, value: gameLink, size: 128, padding: 5, level: 'M', foreground: '#8b4cb8', background: '#ffffff' });
             qrCodeContainerEl.appendChild(canvas);
-        } catch (e) { console.error("QRious error:", e); qrCodeContainerEl.textContent = "Error QR"; }
+        } catch (e) { /* console.error("QRious error:", e); */ qrCodeContainerEl.textContent = "Error QR"; }
     } else { qrCodeContainerEl.textContent = "QR no disponible."; }
     if(networkInfoAreaEl && state.getNetworkRoomData()?.isRoomLeader) networkInfoAreaEl.style.display = 'block';
 }
 
 export function hideNetworkInfoArea() { if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none'; }
 
-// NEW: Create a simplified join room modal
 export function createJoinRoomModal(roomId, onJoin, onCancel) {
     const modalPlayerNameId = 'modal-player-name-join';
     const modalPlayerIconId = 'modal-player-icon-join';
@@ -554,7 +567,6 @@ export function createJoinRoomModal(roomId, onJoin, onCancel) {
     
     showModal(joinPromptHtml, buttonsConfig, true);
     
-    // Populate the icon select with available icons
     const iconSelect = document.getElementById(modalPlayerIconId);
     if (iconSelect) {
         populatePlayerIcons(iconSelect, false);
