@@ -50,7 +50,7 @@ async function refreshRoomExpiration(roomIdToRefresh) {
         const { error } = await supabase
             .from(MATCHMAKING_TABLE)
             .update({ expires_at: newExpiration, updated_at: new Date().toISOString() })
-            .eq('room_id', roomIdToRefresh)
+            .eq('room_id', roomIdToRefresh) // room_id is likely the primary key for the room entry
             .eq('status', 'hosting_waiting_for_players'); 
 
         if (error) {
@@ -93,13 +93,14 @@ export async function removeDeadRoomByPeerId(deadRawPeerId) {
         console.warn(`[PizarraMatchmaking] removeDeadRoomByPeerId: Invalid input. deadRawPeerId: '${deadRawPeerId}', Supabase initialized: ${!!supabase}`);
         return;
     }
+    // Assuming room_id stores the prefixed peer ID, which acts as the unique room identifier
     const deadRoomIdWithPrefix = `${state.PIZARRA_PEER_ID_PREFIX}${deadRawPeerId}`; 
-    console.log(`[PizarraMatchmaking] Attempting to remove dead room: ${deadRoomIdWithPrefix}`);
+    console.log(`[PizarraMatchmaking] Attempting to remove dead room (using room_id): ${deadRoomIdWithPrefix}`);
     try {
         const { data, error } = await supabase
             .from(MATCHMAKING_TABLE)
             .delete()
-            .eq('room_id', deadRoomIdWithPrefix); 
+            .eq('room_id', deadRoomIdWithPrefix); // Rooms are identified by room_id
 
         if (error) console.warn(`[PizarraMatchmaking] Failed to clean up dead room ${deadRoomIdWithPrefix}:`, error.message);
         else if (data && data.length > 0) console.log(`[PizarraMatchmaking] Cleaned up dead room: ${deadRoomIdWithPrefix}`);
@@ -110,7 +111,6 @@ export async function removeDeadRoomByPeerId(deadRawPeerId) {
 }
 
 export async function joinQueue(localRawPeerId, myPlayerData, preferences, callbacks) {
-    // FIX: Add comprehensive error checking
     if (!callbacks || typeof callbacks !== 'object') {
         console.error('[PizarraMatchmaking] joinQueue: callbacks object is required');
         return;
@@ -139,21 +139,21 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
     if (callbacks.onSearching) callbacks.onSearching();
     const localPrefixedPeerId = `${state.PIZARRA_PEER_ID_PREFIX}${localRawPeerId}`; 
 
-    // Ensure this peer isn't already listed as hosting a room.
     await leaveQueue(localRawPeerId, false); 
 
     try {
         const nowISO = new Date().toISOString();
         const { data: openRooms, error: fetchError } = await supabase
             .from(MATCHMAKING_TABLE)
-            .select('*')
+            .select('*') // Select all to get room_id and other details
             .eq('status', 'hosting_waiting_for_players')
             .eq('game_type', GAME_TYPE_IDENTIFIER) 
             .lt('current_players', preferences.maxPlayers) 
             .gte('max_players', preferences.maxPlayers) 
             .eq('game_settings->>difficulty', preferences.gameSettings.difficulty)
             .gt('expires_at', nowISO) 
-            .neq('peer_id', localPrefixedPeerId) 
+             // Ensure we don't try to join our own room if it somehow existed with a different host_peer_id
+            .neq('host_peer_id', localPrefixedPeerId) // Check against host_peer_id
             .order('created_at', { ascending: true });
 
         if (fetchError) {
@@ -165,9 +165,14 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
         if (openRooms && openRooms.length > 0) {
             const suitableRoom = openRooms[0];
             console.log('[PizarraMatchmaking] Found suitable room to join:', suitableRoom);
+            // The room_id is the identifier for joining.
+            // The actual host's PeerJS ID is stored in host_peer_id.
+            // We need to extract the raw peer ID from room_id (which is host_peer_id with prefix)
+            // or directly use suitableRoom.host_peer_id if it's the non-prefixed one.
+            // Assuming suitableRoom.room_id is the prefixed one.
             const leaderRawPeerId = suitableRoom.room_id.startsWith(state.PIZARRA_PEER_ID_PREFIX) 
                 ? suitableRoom.room_id.substring(state.PIZARRA_PEER_ID_PREFIX.length)
-                : suitableRoom.room_id;
+                : suitableRoom.room_id; // Fallback if room_id is not prefixed (should be consistent)
 
             if (callbacks.onMatchFoundAndJoiningRoom) {
                 callbacks.onMatchFoundAndJoiningRoom(
@@ -183,11 +188,12 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
         }
 
         console.log('[PizarraMatchmaking] No suitable rooms. Becoming a host.');
-        localPlayerHostedRoomId_Supabase = localPrefixedPeerId;
+        // When hosting, our localPrefixedPeerId is both the room_id and the host_peer_id
+        localPlayerHostedRoomId_Supabase = localPrefixedPeerId; // This is the room_id
 
         const newRoomEntry = {
-            peer_id: localPrefixedPeerId, 
-            room_id: localPrefixedPeerId, 
+            host_peer_id: localPrefixedPeerId, // Store the host's actual prefixed PeerJS ID
+            room_id: localPrefixedPeerId,      // The room is identified by the host's prefixed PeerJS ID
             status: 'hosting_waiting_for_players',
             game_type: GAME_TYPE_IDENTIFIER, 
             max_players: preferences.maxPlayers,
@@ -206,7 +212,7 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
         }
 
         hostRefreshIntervalId = setInterval(() => {
-            refreshRoomExpiration(localPlayerHostedRoomId_Supabase);
+            refreshRoomExpiration(localPlayerHostedRoomId_Supabase); // Refresh using room_id
         }, ROOM_REFRESH_INTERVAL_MS);
 
         if (callbacks.onMatchFoundAndHostingRoom) {
@@ -228,33 +234,34 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
 export async function leaveQueue(localRawPeerIdToLeave = null, performFullCleanup = true) {
     console.log(`[PizarraMatchmaking] leaveQueue called. PeerID (raw) to leave: '${localRawPeerIdToLeave}', Type: ${typeof localRawPeerIdToLeave}. Full cleanup: ${performFullCleanup}`);
     
-    let peerIdToRemoveString;
+    let roomIdToRemove; // This will be the prefixed ID, used as room_id
     if (localRawPeerIdToLeave && typeof localRawPeerIdToLeave === 'string') {
-        peerIdToRemoveString = `${state.PIZARRA_PEER_ID_PREFIX}${localRawPeerIdToLeave}`;
+        roomIdToRemove = `${state.PIZARRA_PEER_ID_PREFIX}${localRawPeerIdToLeave}`;
     } else if (localPlayerHostedRoomId_Supabase && typeof localPlayerHostedRoomId_Supabase === 'string') {
-        peerIdToRemoveString = localPlayerHostedRoomId_Supabase;
+        // localPlayerHostedRoomId_Supabase already stores the prefixed ID which is the room_id
+        roomIdToRemove = localPlayerHostedRoomId_Supabase;
     } else {
-        console.warn(`[PizarraMatchmaking] leaveQueue: Cannot determine a valid string PeerID to remove. localRawPeerIdToLeave: '${localRawPeerIdToLeave}', localPlayerHostedRoomId_Supabase: '${localPlayerHostedRoomId_Supabase}'`);
+        console.warn(`[PizarraMatchmaking] leaveQueue: Cannot determine a valid string RoomID to remove. localRawPeerIdToLeave: '${localRawPeerIdToLeave}', localPlayerHostedRoomId_Supabase: '${localPlayerHostedRoomId_Supabase}'`);
         if (performFullCleanup) cleanupMatchmakingState();
         return;
     }
 
-    console.log(`[PizarraMatchmaking] Effective peerIdToRemoveString for Supabase: ${peerIdToRemoveString}`);
+    console.log(`[PizarraMatchmaking] Effective room_id to remove from Supabase: ${roomIdToRemove}`);
 
     if (performFullCleanup) {
         cleanupMatchmakingState();
-    } else if (hostRefreshIntervalId && peerIdToRemoveString === localPlayerHostedRoomId_Supabase) {
+    } else if (hostRefreshIntervalId && roomIdToRemove === localPlayerHostedRoomId_Supabase) {
         clearInterval(hostRefreshIntervalId);
         hostRefreshIntervalId = null;
     }
 
-    if (peerIdToRemoveString && initSupabase()) { 
-        console.log(`[PizarraMatchmaking] Removing Supabase entry for room/peer: ${peerIdToRemoveString}`);
+    if (roomIdToRemove && initSupabase()) { 
+        console.log(`[PizarraMatchmaking] Removing Supabase entry for room_id: ${roomIdToRemove}`);
         try {
             const { error } = await supabase
                 .from(MATCHMAKING_TABLE)
                 .delete()
-                .eq('room_id', peerIdToRemoveString);
+                .eq('room_id', roomIdToRemove); // Delete based on room_id
 
             if (error) console.warn('[PizarraMatchmaking] Error removing entry from Supabase:', error.message);
             else console.log('[PizarraMatchmaking] Successfully removed listing from Supabase or it was already gone.');
@@ -263,7 +270,7 @@ export async function leaveQueue(localRawPeerIdToLeave = null, performFullCleanu
         }
     }
 
-    if (peerIdToRemoveString === localPlayerHostedRoomId_Supabase) {
+    if (roomIdToRemove === localPlayerHostedRoomId_Supabase) {
         localPlayerHostedRoomId_Supabase = null;
     }
 }
@@ -279,13 +286,13 @@ export async function updateHostedRoomStatus(hostRawPeerId, gameSettings, maxPla
         return;
     }
 
-    const hostPrefixedPeerId = `${state.PIZARRA_PEER_ID_PREFIX}${hostRawPeerId}`; 
+    const hostPrefixedPeerIdAsRoomId = `${state.PIZARRA_PEER_ID_PREFIX}${hostRawPeerId}`; 
 
     let statusToSet = newStatus;
     if (!statusToSet) {
-        // FIX: Add null check for state access
         try {
-            if (state.getRawNetworkRoomData && state.getRawNetworkRoomData().roomState === 'playing') {
+            const currentRoomState = state.getRawNetworkRoomData()?.roomState;
+            if (currentRoomState === 'playing') {
                 statusToSet = 'in_game';
             } else if (currentPlayers >= maxPlayers) {
                 statusToSet = 'full';
@@ -308,11 +315,12 @@ export async function updateHostedRoomStatus(hostRawPeerId, gameSettings, maxPla
 
     if (statusToSet === 'hosting_waiting_for_players') {
         updatePayload.expires_at = new Date(Date.now() + ROOM_EXPIRATION_MINUTES * 60 * 1000).toISOString();
-        if (hostPrefixedPeerId === localPlayerHostedRoomId_Supabase && !hostRefreshIntervalId) {
+        if (hostPrefixedPeerIdAsRoomId === localPlayerHostedRoomId_Supabase && !hostRefreshIntervalId) {
+            // Ensure localPlayerHostedRoomId_Supabase is the room_id
             hostRefreshIntervalId = setInterval(() => refreshRoomExpiration(localPlayerHostedRoomId_Supabase), ROOM_REFRESH_INTERVAL_MS);
         }
     } else if (statusToSet === 'full' || statusToSet === 'in_game') {
-        if (hostPrefixedPeerId === localPlayerHostedRoomId_Supabase && hostRefreshIntervalId) {
+        if (hostPrefixedPeerIdAsRoomId === localPlayerHostedRoomId_Supabase && hostRefreshIntervalId) {
             clearInterval(hostRefreshIntervalId);
             hostRefreshIntervalId = null;
         }
@@ -323,16 +331,15 @@ export async function updateHostedRoomStatus(hostRawPeerId, gameSettings, maxPla
         const { error } = await supabase
             .from(MATCHMAKING_TABLE)
             .update(updatePayload)
-            .eq('room_id', hostPrefixedPeerId);
+            .eq('room_id', hostPrefixedPeerIdAsRoomId); // Update based on room_id
 
-        if (error) console.error(`[PizarraMatchmaking] Error updating room ${hostPrefixedPeerId} to status ${statusToSet}:`, error);
-        else console.log(`[PizarraMatchmaking] Room ${hostPrefixedPeerId} status updated to ${statusToSet}. Players: ${currentPlayers}/${maxPlayers}`);
+        if (error) console.error(`[PizarraMatchmaking] Error updating room ${hostPrefixedPeerIdAsRoomId} to status ${statusToSet}:`, error);
+        else console.log(`[PizarraMatchmaking] Room ${hostPrefixedPeerIdAsRoomId} status updated to ${statusToSet}. Players: ${currentPlayers}/${maxPlayers}`);
     } catch (e) {
-        console.error(`[PizarraMatchmaking] Exception updating room status for ${hostPrefixedPeerId}:`, e);
+        console.error(`[PizarraMatchmaking] Exception updating room status for ${hostPrefixedPeerIdAsRoomId}:`, e);
     }
 }
 
-// FIX: Add initialization check and better error handling
 try {
     if (initSupabase()) {
         console.log('[PizarraMatchmaking] Module initialized successfully.');

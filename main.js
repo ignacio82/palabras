@@ -599,29 +599,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const bodyEl = document.querySelector('body');
-        const initAudio = async () => {
-            if (sound?.initSounds && !sound.soundsCurrentlyInitialized) {
-                await sound.initSounds();
+        // Deferred sound initialization
+        const initAudioOnUserGesture = async () => {
+            try {
+                if (typeof Tone !== 'undefined' && Tone.start && Tone.context && Tone.context.state !== 'running') {
+                    await Tone.start();
+                    console.log("[Main] Tone.js AudioContext started on user gesture.");
+                }
+                // Initialize our sounds if they depend on Tone.start() having been called
+                if (sound?.initSounds && !sound.soundsCurrentlyInitialized) {
+                    await sound.initSounds(); // sound.initSounds should also check Tone.context.state
+                }
+            } catch (e) {
+                console.warn("[Main] Error starting audio on user gesture:", e);
             }
         };
-        bodyEl.addEventListener('click', initAudio, { once: true });
-        bodyEl.addEventListener('touchend', initAudio, { once: true });
+        bodyEl.addEventListener('click', initAudioOnUserGesture, { once: true });
+        bodyEl.addEventListener('touchend', initAudioOnUserGesture, { once: true });
+        // Removed the previous immediate call to initAudio from here
 
         console.log("[Main] App event listeners initialized.");
     }
 
     function initializeApp() {
-        initializeAppEventListeners();
+        initializeAppEventListeners(); // Event listeners are set up first
+        
+        // Defer sound system initialization until after first user click/touch (handled by body event listeners)
+
         if (typeof DICTIONARY_DATA !== 'undefined' && DICTIONARY_DATA.length > 0) {
             if(networkPlayerIconSelect) ui.populatePlayerIcons(networkPlayerIconSelect);
             state.setCurrentDifficulty('easy');
             ui.updateDifficultyButtonUI();
-            returnToMainMenuUI();
+            returnToMainMenuUI(); // This sets up the initial screen
         } else {
             ui.showModal("Error Crítico: El diccionario de palabras no está cargado. El juego no puede iniciar. 💔");
             exitPlayMode();
         }
-        processUrlJoin();
+        processUrlJoin(); // Check for room joins via URL params
     }
 
     async function processUrlJoin() {
