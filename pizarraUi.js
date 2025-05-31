@@ -19,7 +19,7 @@ let lobbyRoomIdDisplayEl, lobbyDifficultyDisplayEl, lobbyPlayerCountDisplayEl, l
 let lobbyToggleReadyButtonEl, lobbyStartGameLeaderButtonEl, lobbyLeaveRoomButtonEl;
 
 // Modal UI
-let customModalEl, modalMainContentAreaEl, modalCloseButtonEl, modalDynamicButtonsEl; // MODIFIED HERE
+let customModalEl, modalMainContentAreaEl, modalCloseButtonEl, modalDynamicButtonsEl;
 
 // Confetti
 let confettiContainerEl;
@@ -30,11 +30,10 @@ let currentMessageTimeout = null; // Store timeout for the main message area
 export function initializeUiDOMReferences() {
     if (uiInitialized) return;
 
-    // NEW: Get reference to game mode selection section
     gameModeSelectionSection = document.getElementById('game-mode-selection-section');
     localGameSetupSection = document.getElementById('local-game-setup-section');
     networkGameSetupSection = document.getElementById('network-game-setup-section');
-    gameAreaEl = document.getElementById('game-area');
+    gameAreaEl = document.getElementById('app');
     lobbyAreaEl = document.getElementById('lobby-area');
     networkInfoAreaEl = document.getElementById('network-info-area');
     gameModeTabs = document.querySelectorAll('.tab-button');
@@ -73,7 +72,7 @@ export function initializeUiDOMReferences() {
     lobbyLeaveRoomButtonEl = document.getElementById('lobby-leave-room-button');
 
     customModalEl = document.getElementById('custom-modal');
-    modalMainContentAreaEl = document.getElementById('modal-main-content-area'); // MODIFIED HERE
+    modalMainContentAreaEl = document.getElementById('modal-main-content-area'); // Updated reference
     modalCloseButtonEl = document.getElementById('modal-close-button');
     modalDynamicButtonsEl = document.getElementById('modal-dynamic-buttons');
 
@@ -99,7 +98,6 @@ export function displayMessage(text, type = 'info', persistent = false, area = m
 }
 
 export function showModal(messageOrHtml, buttonsConfig = null, isHtmlContent = false) {
-    // MODIFIED HERE to use modalMainContentAreaEl
     if (!customModalEl || !modalMainContentAreaEl || !modalCloseButtonEl || !modalDynamicButtonsEl) { 
         console.error("Modal elements not found (customModalEl, modalMainContentAreaEl, modalCloseButtonEl, or modalDynamicButtonsEl)"); 
         return; 
@@ -110,17 +108,17 @@ export function showModal(messageOrHtml, buttonsConfig = null, isHtmlContent = f
         modalMainContentAreaEl.textContent = messageOrHtml;
     }
     
-    modalDynamicButtonsEl.innerHTML = ''; // Clear previous dynamic buttons
+    modalDynamicButtonsEl.innerHTML = '';
     if (buttonsConfig?.length > 0) {
         modalCloseButtonEl.style.display = 'none'; 
         modalDynamicButtonsEl.style.display = 'flex';
         buttonsConfig.forEach(btnConfig => {
             const button = document.createElement('button'); 
             button.textContent = btnConfig.text;
-            button.className = btnConfig.className || 'action-button-secondary'; // Default class
-            button.addEventListener('click', (event) => { // Pass event to action
+            button.className = btnConfig.className || 'action-button-secondary';
+            button.addEventListener('click', (event) => {
                 if (typeof btnConfig.action === 'function') {
-                    btnConfig.action(event); // Execute the action
+                    btnConfig.action(event);
                 }
             }); 
             modalDynamicButtonsEl.appendChild(button);
@@ -143,26 +141,20 @@ export function showScreen(screenName) {
         networkInfo: networkInfoAreaEl 
     };
     
-    // Hide all screens first
     for (const key in screens) if (screens[key]) screens[key].style.display = 'none';
     
-    // Hide control buttons
     if(playAgainButtonEl) playAgainButtonEl.style.display = 'none';
     if(mainMenuButtonEl) mainMenuButtonEl.style.display = 'none';
     if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
     
-    // NEW: Show/hide game mode selection based on screen
     if (gameModeSelectionSection) {
         if (screenName === 'game') {
-            // Hide game mode selection when in game
             gameModeSelectionSection.style.display = 'none';
         } else {
-            // Show game mode selection for setup screens
             gameModeSelectionSection.style.display = 'block';
         }
     }
     
-    // Show the requested screen
     if (screens[screenName]) {
         screens[screenName].style.display = 'block';
     } else {
@@ -174,7 +166,6 @@ export function populatePlayerIcons(targetSelectElement) {
     if (!targetSelectElement) { console.warn("[pizarraUi] populatePlayerIcons: No target select element provided."); return; }
     targetSelectElement.innerHTML = ''; 
     
-    // Enhanced icon selection for a 5-year-old girl
     const girlFriendlyIcons = ['🦄', '🌈', '⭐', '🌸', '🦋', '🎀', '💖', '🌺', '✨', '🌟', '🧚‍♀️', '👑', '🍭', '🎈', '🌙'];
     
     girlFriendlyIcons.forEach(icon => {
@@ -201,13 +192,13 @@ export function updateGameModeTabs(activeMode = 'local') {
 export function updateStarsDisplay() {
     if (!starsDisplayEl) return;
     let attemptsToShow = state.DEFAULT_ATTEMPTS_PER_PLAYER;
-    let pidToShowAttemptsFor = state.getCurrentPlayerId(); // Default to current player
+    let pidToShowAttemptsFor = state.getCurrentPlayerId();
 
     if (state.getPvpRemoteActive()) {
         const myPlayerId = state.getNetworkRoomData().myPlayerIdInRoom;
         if (myPlayerId !== null && myPlayerId !== undefined) {
-            pidToShowAttemptsFor = myPlayerId; // Show local player's stars in network game
-        } else { // Not yet assigned an ID in the room, show for player 0 or default
+            pidToShowAttemptsFor = myPlayerId;
+        } else { 
             pidToShowAttemptsFor = 0;
         }
     }
@@ -222,22 +213,16 @@ export function updateWordDisplay() {
     if (!currentWord) return;
     
     const guessed = state.getGuessedLetters();
-    // console.log(`[pizarraUi] updateWordDisplay: Word "${currentWord}", Guessed letters: [${Array.from(guessed).join(', ')}]`);
     
-    for (const letter of currentWord) { // currentWord is already normalized (uppercase, no accents except Ñ)
+    for (const letter of currentWord) { 
         const letterBox = document.createElement('div'); 
         letterBox.classList.add('letter-box');
-        
-        // letter from currentWord is e.g. 'M', 'A', 'Ñ', 'O'
-        // guessed letters are stored normalized (lowercase, e.g. 'm', 'a', 'ñ', 'o')
-        const normalizedLetterFromWord = normalizeGameLetter(letter); // Ensure this matches how guessed letters are stored
+        const normalizedLetterFromWord = normalizeGameLetter(letter); 
         if (guessed.has(normalizedLetterFromWord)) {
             letterBox.textContent = letter.toUpperCase(); 
-            // console.log(`[pizarraUi] updateWordDisplay: Showing letter "${letter}" (normalized: "${normalizedLetterFromWord}")`);
         } else { 
             letterBox.textContent = ''; 
             letterBox.classList.add('empty');
-            // console.log(`[pizarraUi] updateWordDisplay: Hiding letter "${letter}" (normalized: "${normalizedLetterFromWord}")`);
         }
         wordDisplayContainerEl.appendChild(letterBox);
     }
@@ -246,16 +231,11 @@ export function updateWordDisplay() {
 export function updateGuessedLettersDisplay() {
     if (!correctLettersDisplayEl || !incorrectLettersDisplayEl) return;
     const correctArr = [], incorrectArr = [];
-    const guessed = state.getGuessedLetters(); // Contains normalized, lowercase letters
-    const currentWord = state.getCurrentWord(); // Contains normalized, uppercase letters
+    const guessed = state.getGuessedLetters(); 
+    const currentWord = state.getCurrentWord(); 
     const sortedGuessedLetters = Array.from(guessed).sort((a,b)=>a.localeCompare(b,'es'));
     
-    // console.log(`[pizarraUi] updateGuessedLettersDisplay: Word "${currentWord}", Guessed: [${sortedGuessedLetters.join(', ')}]`);
-    
-    for (const guessedLetter of sortedGuessedLetters) { // guessedLetter is like 'a', 'm', 'ñ'
-        // currentWord is 'MANO'. We need to check if normalized guessedLetter is in normalized currentWord.
-        // Since currentWord is already normalized (uppercase), and guessedLetter is normalized (lowercase),
-        // we can convert currentWord to lowercase for includes check.
+    for (const guessedLetter of sortedGuessedLetters) { 
         if (currentWord?.toLowerCase().includes(guessedLetter)) {
             correctArr.push(guessedLetter.toUpperCase());
         } else {
@@ -265,40 +245,33 @@ export function updateGuessedLettersDisplay() {
     
     correctLettersDisplayEl.textContent = correctArr.join(', ') || 'Ninguna';
     incorrectLettersDisplayEl.textContent = incorrectArr.join(', ') || 'Ninguna';
-    
-    // console.log(`[pizarraUi] updateGuessedLettersDisplay: Correct: [${correctArr.join(', ')}], Incorrect: [${incorrectArr.join(', ')}]`);
 }
 
 export function createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback) {
     if (!alphabetKeyboardContainerEl) return;
     alphabetKeyboardContainerEl.innerHTML = '';
-    const guessed = state.getGuessedLetters(); // This is a Set of normalized (lowercase) letters
+    const guessed = state.getGuessedLetters(); 
     const gameIsActive = state.getGameActive();
     
-    // console.log("[pizarraUi] Creating alphabet keyboard. Game active:", gameIsActive, "My turn:", isMyTurnCurrently, "Guessed letters:", Array.from(guessed));
-    
-    state.ALPHABET.forEach(letter => { // letter here is uppercase, e.g., "A", "Ñ"
+    state.ALPHABET.forEach(letter => { 
         const button = document.createElement('button');
         button.classList.add('alphabet-button'); 
         button.textContent = letter; 
-        button.dataset.letter = letter; // Store the original uppercase letter for the callback
+        button.dataset.letter = letter; 
         
-        // Normalize the button's letter for checking against the (already normalized) guessed set
-        const normalizedButtonLetter = normalizeGameLetter(letter); // e.g., "m", "a", "ñ"
+        const normalizedButtonLetter = normalizeGameLetter(letter); 
         const isGuessed = guessed.has(normalizedButtonLetter);
-        
         const shouldDisable = !gameIsActive || !isMyTurnCurrently || isGuessed;
         
         button.disabled = shouldDisable;
         
         if (isGuessed) {
-            button.classList.add('guessed'); // CSS will gray it out
+            button.classList.add('guessed');
         }
         
         button.addEventListener('click', () => {
             if (!button.disabled && typeof onLetterClickCallback === 'function') {
-                // console.log("[pizarraUi] Letter clicked:", letter, "Button disabled:", button.disabled);
-                onLetterClickCallback(letter, button); // Pass the original uppercase letter
+                onLetterClickCallback(letter, button);
             }
         });
         alphabetKeyboardContainerEl.appendChild(button);
@@ -307,18 +280,16 @@ export function createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback)
 
 export function updateAllAlphabetButtons(disableCompletely) {
     if (!alphabetKeyboardContainerEl) return;
-    const guessed = state.getGuessedLetters(); // Set of normalized (lowercase) letters
+    const guessed = state.getGuessedLetters(); 
     const gameIsActive = state.getGameActive();
     alphabetKeyboardContainerEl.querySelectorAll('.alphabet-button').forEach(button => {
-        const letterFromButton = button.dataset.letter; // Original uppercase letter (e.g., "A", "Ñ")
-        const normalizedButtonLetter = normalizeGameLetter(letterFromButton); // Normalized (e.g., "a", "ñ")
+        const letterFromButton = button.dataset.letter; 
+        const normalizedButtonLetter = normalizeGameLetter(letterFromButton); 
         const isGuessed = guessed.has(normalizedButtonLetter);
 
         if (disableCompletely) {
             button.disabled = true;
         } else {
-            // Disable if the game is not active OR if the letter has been guessed.
-            // Turn logic is handled by createAlphabetKeyboard which is preferred.
             button.disabled = !gameIsActive || isGuessed;
         }
         
@@ -371,7 +342,6 @@ export function updateCurrentPlayerTurnUI() {
 
 export function renderFullGameBoard(isMyTurnCurrently, onLetterClickCallback) {
     if(!uiInitialized) initializeUiDOMReferences();
-    // console.log("[pizarraUi] renderFullGameBoard called. Is my turn:", isMyTurnCurrently);
     updateWordDisplay();
     updateStarsDisplay();
     updateGuessedLettersDisplay();
@@ -401,7 +371,6 @@ export function toggleClueButtonUI(enabled, show = true) {
     }
 }
 
-// --- Confetti UI Functions ---
 const confettiColors = ["#ff69b4", "#ffc0cb", "#ff1493", "#da70d6", "#9370db", "#ffd700", "#ffb6c1", "#f0f8ff"];
 export function createConfettiPiece() {
     if (!confettiContainerEl) { if(uiInitialized) console.warn("Confetti container not found"); return;}
@@ -420,7 +389,6 @@ export function startConfetti(numberOfPieces = 150) {
 }
 export function stopConfetti() { if (confettiContainerEl) confettiContainerEl.innerHTML = ''; }
 
-// --- Network/Lobby UI Functions ---
 export function updateLobbyUI() {
     if(!uiInitialized) initializeUiDOMReferences();
     if (!lobbyAreaEl || !state.getPvpRemoteActive()) return;
@@ -483,7 +451,6 @@ export function displayRoomQRCodeAndLink(roomId, maxPlayers, baseShareUrl = "htt
             qrCodeContainerEl.appendChild(canvas);
         } catch (e) { console.error("QRious error:", e); qrCodeContainerEl.textContent = "Error QR"; }
     } else { qrCodeContainerEl.textContent = "QR no disponible."; }
-    // copyRoomLinkButtonEl listener is set in main.js
     if(networkInfoAreaEl && state.getNetworkRoomData()?.isRoomLeader) networkInfoAreaEl.style.display = 'block';
 }
 
