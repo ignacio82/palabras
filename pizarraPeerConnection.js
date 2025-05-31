@@ -307,10 +307,16 @@ const peerJsCallbacks = {
             }
         } else { // Client logic
             if (peerId === currentNetworkData.leaderPeerId && leaderConnection && leaderConnection.open) {
-                // Player data for join request should be fresh (relying on state.getLocalPlayerCustomizationForNetwork)
-                const myPlayerDataForJoin = state.getLocalPlayerCustomizationForNetwork();
+                // Get player data from the client's own state,
+                // which was initialized by joinRoomById with the data from the modal.
+                const clientSelfData = state.getRawNetworkRoomData().players[0];
+                const myPlayerDataForJoin = {
+                    name: clientSelfData.name,
+                    icon: clientSelfData.icon,
+                    color: clientSelfData.color
+                };
 
-                console.log(`[PeerConn PeerJS] Client: Fresh player data for join request:`, myPlayerDataForJoin);
+                console.log(`[PeerConn PeerJS] Client: Player data for join request (from client's state):`, myPlayerDataForJoin);
 
                 if (currentNetworkData.roomState === 'connecting_to_lobby' ||
                     (currentNetworkData.roomState === 'awaiting_join_approval' &&
