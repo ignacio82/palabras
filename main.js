@@ -642,7 +642,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  stopAnyActiveGameOrNetworkSession(true);
             }
             ui.updateGameModeTabs(newMode);
-            if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
+            if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block'; // Should be 'flex' if you used that for centering
             if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
             ui.showScreen(newMode === 'local' ? 'localSetup' : 'networkSetup');
             state.setPvpRemoteActive(newMode === 'network');
@@ -751,4 +751,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initializeApp();
+
+    // --- remove splash screen ---
+    const splash = document.getElementById('splash-screen');
+    if (splash){
+      // Allow a single frame so the CSS transition can run
+      requestAnimationFrame(() => {
+        splash.classList.add('fade-out');
+        // Remove from DOM after the fade finishes (keeps the tree clean)
+        setTimeout(() => splash.remove(), 500); // 500ms matches CSS transition
+      });
+    }
 });
