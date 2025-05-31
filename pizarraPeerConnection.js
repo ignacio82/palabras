@@ -1,7 +1,7 @@
 // pizarraPeerConnection.js
 
 import * as state from './pizarraState.js';
-import * as ui from './pizarraUi.js'; 
+import * as ui from './pizarraUi.js';
 import * as logic from './gameLogic.js';
 import * as matchmaking from './pizarraMatchmaking.js';
 
@@ -35,7 +35,7 @@ function onDataReceived(data, fromPeerId) {
         console.warn(`[PeerConn RX] Received data with no type from ${fromPeerId}:`, data);
         return;
     }
-    if (state.getRawNetworkRoomData().isRoomLeader) { 
+    if (state.getRawNetworkRoomData().isRoomLeader) {
         handleLeaderDataReception(data, fromPeerId);
     } else {
         handleClientDataReception(data, fromPeerId);
@@ -44,7 +44,7 @@ function onDataReceived(data, fromPeerId) {
 
 function onConnectionClose(peerId) {
     console.log(`[PeerConn Event] Data connection with ${peerId} closed.`);
-    const currentNetworkData = state.getRawNetworkRoomData(); 
+    const currentNetworkData = state.getRawNetworkRoomData();
     if (currentNetworkData.isRoomLeader) {
         console.log(`[PeerConn Event] Host: Client ${peerId} connection closed.`);
         const connEntry = connections.get(peerId);
@@ -52,51 +52,52 @@ function onConnectionClose(peerId) {
             console.log(`[PeerConn Event] Host: Removing connection entry for ${peerId}.`);
             connections.delete(peerId);
             const leavingPlayer = currentNetworkData.players.find(p => p.peerId === peerId);
-            
+
             if (leavingPlayer) {
                 const leavingPlayerName = leavingPlayer.name || `Jugador ${leavingPlayer.id}`;
                 console.log(`[PeerConn Event] Host: Player ${leavingPlayerName} (PeerID: ${peerId}, GameID: ${leavingPlayer.id}) is considered leaving.`);
-                state.removePlayerFromNetworkRoom(peerId); 
-                
-                broadcastToRoom({ 
-                    type: MSG_TYPE.PLAYER_LEFT, 
-                    playerId: leavingPlayer.id, 
-                    peerId: peerId, 
-                    playerName: leavingPlayerName 
+                state.updatePlayerInNetworkRoom(peerId, { isConnected: false }); // Mark as disconnected first
+                // state.removePlayerFromNetworkRoom(peerId); // Consider if removal is immediate or after some timeout/logic
+
+                broadcastToRoom({
+                    type: MSG_TYPE.PLAYER_LEFT,
+                    playerId: leavingPlayer.id,
+                    peerId: peerId,
+                    playerName: leavingPlayerName
                 });
                 console.log(`[PeerConn Event] Host: Broadcasted PLAYER_LEFT for ${leavingPlayerName}.`);
 
-                reassignPlayerIdsAndBroadcastUpdate(); 
-                
+                reassignPlayerIdsAndBroadcastUpdate();
+
                 if (window.pizarraUiUpdateCallbacks?.updateLobby) {
                     window.pizarraUiUpdateCallbacks.updateLobby();
                 }
-                
+
                 const updatedNetworkData = state.getRawNetworkRoomData();
                 if (matchmaking && matchmaking.updateHostedRoomStatus) {
                     console.log(`[PeerConn Event] Host: Updating matchmaking status after player ${peerId} left.`);
                     matchmaking.updateHostedRoomStatus(
-                        updatedNetworkData.roomId, 
-                        updatedNetworkData.gameSettings, 
-                        updatedNetworkData.maxPlayers, 
+                        updatedNetworkData.roomId,
+                        updatedNetworkData.gameSettings,
+                        updatedNetworkData.maxPlayers,
                         updatedNetworkData.players.filter(p => p.isConnected !== false).length
                     );
                 }
 
                 const activePlayers = updatedNetworkData.players.filter(p => p.isConnected !== false);
-                if (updatedNetworkData.roomState === 'playing' && 
+                if (updatedNetworkData.roomState === 'playing' &&
                     activePlayers.length < state.MIN_PLAYERS_NETWORK) {
                     console.warn(`[PeerConn Event] Host: Game was active, but insufficient players (${activePlayers.length}) after ${leavingPlayerName} left. Ending game.`);
                     if (window.pizarraUiUpdateCallbacks?.showModal) {
                         window.pizarraUiUpdateCallbacks.showModal(`Jugador ${leavingPlayerName} se desconectó. No hay suficientes jugadores para continuar la partida.`);
                     }
-                    state.setGameActive(false); 
-                    state.setNetworkRoomData({ roomState: 'game_over' }); 
-                    const finalWord = state.getCurrentWordObject()?.word || "N/A"; 
-                    broadcastToRoom({ 
-                        type: MSG_TYPE.GAME_OVER_ANNOUNCEMENT, 
-                        reason: 'disconnect_insufficient_players', 
-                        finalWord: finalWord 
+                    state.setGameActive(false);
+                    state.setNetworkRoomData({ roomState: 'game_over' });
+                    const finalWord = state.getCurrentWordObject()?.word || "N/A";
+                    broadcastToRoom({
+                        type: MSG_TYPE.GAME_OVER_ANNOUNCEMENT,
+                        reason: 'disconnect_insufficient_players',
+                        finalWord: finalWord
                     });
                     console.log(`[PeerConn Event] Host: Broadcasted GAME_OVER due to insufficient players.`);
                 }
@@ -114,7 +115,7 @@ function onConnectionClose(peerId) {
         } else {
             console.warn(`[PeerConn Event] Host: Connection closed for ${peerId}, but no connection entry found.`);
         }
-    } else { 
+    } else {
         if (peerId === currentNetworkData.leaderPeerId) {
             console.error("[PeerConn Event] Client: Connection to LEADER lost!");
             if (window.pizarraUiUpdateCallbacks?.showNetworkError) {
@@ -139,12 +140,12 @@ async function onError(err, peerIdContext = null) {
             displayMessage = `No se pudo conectar a: ${targetPeerForMsg ? PIZARRA_PEER_ID_PREFIX + targetPeerForMsg : 'remoto'}.`;
             const currentRoomData = state.getRawNetworkRoomData();
             if (!currentRoomData.isRoomLeader && targetPeerForMsg &&
-                (currentRoomData.roomState === 'connecting_to_lobby' || 
+                (currentRoomData.roomState === 'connecting_to_lobby' ||
                  currentRoomData.roomState === 'awaiting_join_approval') &&
                 targetPeerForMsg === currentRoomData.leaderPeerId) {
                 console.warn(`[PeerConn onError] Peer ${targetPeerForMsg} is unavailable. Attempting cleanup if matchmaking active.`);
                 if (matchmaking && matchmaking.removeDeadRoomByPeerId) {
-                    await matchmaking.removeDeadRoomByPeerId(targetPeerForMsg); 
+                    await matchmaking.removeDeadRoomByPeerId(targetPeerForMsg);
                 }
                 displayMessage += " La sala podría no existir o haber sido cerrada. Intenta buscar de nuevo.";
             }
@@ -156,7 +157,7 @@ async function onError(err, peerIdContext = null) {
             displayMessage = "Desconectado del servidor de señalización PeerJS. Revisa tu conexión a internet.";
         } else if (err.type === 'server-error') {
             displayMessage = `Error del servidor PeerJS: ${err.message || err.type}`;
-        } else if (err.type === 'connection_error' || err.type === 'connection-error') { 
+        } else if (err.type === 'connection_error' || err.type === 'connection-error') {
              displayMessage = `Error en la conexión con ${targetPeerForMsg ? PIZARRA_PEER_ID_PREFIX + targetPeerForMsg : 'el otro jugador'}.`;
         } else {
             displayMessage = `${err.type}: ${displayMessage}`;
@@ -166,10 +167,10 @@ async function onError(err, peerIdContext = null) {
     const peerInitReject = state.getInternalPeerInitReject();
     if (peerInitReject) {
         console.log("[PeerConn onError] Rejecting _peerInitPromise via getInternalPeerInitReject.");
-        peerInitReject(new Error(displayMessage)); 
-        state.setNetworkRoomData({ _peerInitResolve: null, _peerInitReject: null, _peerInitPromise: null }); 
+        peerInitReject(new Error(displayMessage));
+        state.setNetworkRoomData({ _peerInitResolve: null, _peerInitReject: null, _peerInitPromise: null });
     }
-    
+
     const setupErrorCallback = state.getInternalSetupErrorCallback();
     if (setupErrorCallback) {
         console.log("[PeerConn onError] Calling _setupErrorCallback via getInternalSetupErrorCallback.");
@@ -180,50 +181,50 @@ async function onError(err, peerIdContext = null) {
         state.setNetworkRoomData({ _setupCompleteCallback: null, _setupErrorCallback: null });
     }
 
-    const stillHasPeerInitReject = !!state.getInternalPeerInitReject(); 
+    const stillHasPeerInitReject = !!state.getInternalPeerInitReject();
     const stillHasSetupErrorCallback = !!state.getInternalSetupErrorCallback();
 
     if (!stillHasPeerInitReject && !stillHasSetupErrorCallback && window.pizarraUiUpdateCallbacks?.showNetworkError) {
-        const isCriticalError = err.type === 'peer-unavailable' || err.type === 'server-error' || 
+        const isCriticalError = err.type === 'peer-unavailable' || err.type === 'server-error' ||
                                 err.type === 'disconnected' || err.type === 'socket-closed' ||
-                                (err.type === 'network' && !state.getRawNetworkRoomData().isRoomLeader); 
+                                (err.type === 'network' && !state.getRawNetworkRoomData().isRoomLeader);
         window.pizarraUiUpdateCallbacks.showNetworkError(displayMessage, isCriticalError);
     }
 }
 
 const peerJsCallbacks = {
-    onPeerOpen: (id) => { 
+    onPeerOpen: (id) => {
         console.log(`[PeerConn PeerJS] EVENT: peer.on('open'). My PeerJS ID: ${id}.`);
         const oldPeerId = state.getMyPeerId();
-        state.setMyPeerId(id); 
-        
+        state.setMyPeerId(id);
+
         const peerInitResolve = state.getInternalPeerInitResolve();
         const setupCompleteCallback = state.getInternalSetupCompleteCallback();
-        const rawStateData = state.getRawNetworkRoomData(); 
+        const rawStateData = state.getRawNetworkRoomData();
 
         console.log(`[PeerConn PeerJS] onPeerOpen: Current DataState check values: isRoomLeader=${rawStateData.isRoomLeader}, roomState='${rawStateData.roomState}', leaderPeerId='${rawStateData.leaderPeerId}', pvpRemoteActive=${state.getPvpRemoteActive()}, setupCompleteCallback_exists=${!!setupCompleteCallback}`);
 
         if (peerInitResolve) {
             console.log("[PeerConn PeerJS] Resolving _peerInitPromise (via getInternalPeerInitResolve) with ID:", id);
             peerInitResolve(id);
-            state.setNetworkRoomData({ _peerInitResolve: null, _peerInitReject: null }); 
+            state.setNetworkRoomData({ _peerInitResolve: null, _peerInitReject: null });
         }
 
-        if (setupCompleteCallback) { 
+        if (setupCompleteCallback) {
             console.log("[PeerConn PeerJS] setupCompleteCallback (via getInternalSetupCompleteCallback) IS present. Determining host/client finalization path.");
-            if (rawStateData.isRoomLeader && 
+            if (rawStateData.isRoomLeader &&
                 (rawStateData.roomState === 'creating_room' || rawStateData.roomState === 'seeking_match')) {
                 console.log("[PeerConn PeerJS] Conditions met for HOST setup. Calling _finalizeHostSetup.");
-                _finalizeHostSetup(id); 
+                _finalizeHostSetup(id);
             } else if (!rawStateData.isRoomLeader && rawStateData.leaderPeerId && state.getPvpRemoteActive()) {
                 console.log("[PeerConn PeerJS] Conditions met for CLIENT join. Calling _finalizeClientJoinAttempt.");
-                _finalizeClientJoinAttempt(id, rawStateData.leaderPeerId); 
+                _finalizeClientJoinAttempt(id, rawStateData.leaderPeerId);
             } else {
                 console.warn("[PeerConn PeerJS] setupCompleteCallback present, BUT conditions for host/client finalization NOT MET. Dumping relevant data state:", {
                     isRoomLeader: rawStateData.isRoomLeader,
                     roomState: rawStateData.roomState,
                     leaderPeerId: rawStateData.leaderPeerId,
-                    isPvpRemoteActive: state.getPvpRemoteActive() 
+                    isPvpRemoteActive: state.getPvpRemoteActive()
                 });
                 const setupErrorCb = state.getInternalSetupErrorCallback();
                 if (setupErrorCb) {
@@ -239,7 +240,7 @@ const peerJsCallbacks = {
         }
     },
 
-    onNewConnection: (conn) => { 
+    onNewConnection: (conn) => {
         console.log(`[PeerConn PeerJS] EVENT: peer.on('connection'). Incoming connection from PeerJS ID: ${conn.peer}. Metadata:`, conn.metadata);
         const currentNetworkData = state.getRawNetworkRoomData();
         if (!currentNetworkData.isRoomLeader) {
@@ -250,10 +251,10 @@ const peerJsCallbacks = {
             });
             return;
         }
-        
+
         const connectedPlayers = currentNetworkData.players.filter(p => p.isConnected !== false);
         const isExistingPlayerReconnecting = connectedPlayers.some(p => p.peerId === conn.peer);
-        
+
         if (connectedPlayers.length >= currentNetworkData.maxPlayers && !isExistingPlayerReconnecting) {
             console.warn(`[PeerConn PeerJS] Room full (${connectedPlayers.length}/${currentNetworkData.maxPlayers}). Rejecting new connection from ${conn.peer}.`);
             conn.on('open', () => {
@@ -263,21 +264,21 @@ const peerJsCallbacks = {
             });
             return;
         }
-        
+
         console.log(`[PeerConn PeerJS] Leader: Accepted incoming connection from ${conn.peer}. Setting up handlers.`);
-        connections.set(conn.peer, { 
-            connObject: conn, 
-            status: 'pending_join_request', 
-            player: null, 
-            playerGameId: -1 
+        connections.set(conn.peer, {
+            connObject: conn,
+            status: 'pending_join_request',
+            player: null,
+            playerGameId: -1
         });
         setupConnectionEventHandlers(conn);
     },
 
-    onConnectionOpen: (peerId) => { 
+    onConnectionOpen: (peerId) => {
         console.log(`[PeerConn PeerJS] EVENT: conn.on('open'). Data connection open with PeerJS ID: ${peerId}.`);
         const currentNetworkData = state.getRawNetworkRoomData();
-        
+
         if (currentNetworkData.isRoomLeader) {
             const connEntry = connections.get(peerId);
             if (connEntry && connEntry.status === 'pending_join_request') {
@@ -285,12 +286,12 @@ const peerJsCallbacks = {
                 console.log(`[PeerConn PeerJS] Host: Connection with client ${peerId} fully open. Awaiting MSG_TYPE.REQUEST_JOIN_ROOM from them.`);
             } else if (connEntry && connEntry.status === 'active') {
                 console.log(`[PeerConn PeerJS] Host: Re-established or already active connection opened with ${peerId}. Sending full game state.`);
-                sendFullGameStateToClient(peerId); 
+                sendFullGameStateToClient(peerId);
             } else if (!connEntry) {
                  console.warn(`[PeerConn PeerJS] Host: Connection opened with ${peerId}, but no prior connEntry. This might be a late/reconnect. Setting up new entry.`);
                 const existingPlayer = currentNetworkData.players.find(p => p.peerId === peerId);
                 const newConnObj = window.peerJsMultiplayer.getConnection(peerId);
-                if (newConnObj) { 
+                if (newConnObj) {
                     connections.set(peerId, {
                         connObject: newConnObj,
                         status: existingPlayer ? 'active' : 'awaiting_join_request',
@@ -306,17 +307,14 @@ const peerJsCallbacks = {
             }
         } else { // Client logic
             if (peerId === currentNetworkData.leaderPeerId && leaderConnection && leaderConnection.open) {
-                // Player data for join request should be fresh from UI
-                const myPlayerDataForJoin = ui.getPlayerCustomizationDataFromUI(true, 
-                    document.getElementById('modal-player-name-urljoin'), // Assuming these IDs are used in URL join modal
-                    document.getElementById('modal-player-icon-urljoin')
-                ) || state.getLocalPlayerCustomizationForNetwork(); // Fallback to general network setup inputs
+                // Player data for join request should be fresh (relying on state.getLocalPlayerCustomizationForNetwork)
+                const myPlayerDataForJoin = state.getLocalPlayerCustomizationForNetwork();
 
                 console.log(`[PeerConn PeerJS] Client: Fresh player data for join request:`, myPlayerDataForJoin);
 
                 if (currentNetworkData.roomState === 'connecting_to_lobby' ||
-                    (currentNetworkData.roomState === 'awaiting_join_approval' && 
-                     state.getRawNetworkRoomData().myPlayerIdInRoom === null)) { 
+                    (currentNetworkData.roomState === 'awaiting_join_approval' &&
+                     state.getRawNetworkRoomData().myPlayerIdInRoom === null)) {
                     console.log("[PeerConn PeerJS] Client: Connection to leader open. Sending MSG_TYPE.REQUEST_JOIN_ROOM.");
                     sendDataToLeader({
                         type: MSG_TYPE.REQUEST_JOIN_ROOM,
@@ -339,40 +337,40 @@ const peerJsCallbacks = {
 function _finalizeHostSetup(myHostRawPeerId) {
   console.log(`[PeerConn] _finalizeHostSetup called for Host PeerJS ID: ${myHostRawPeerId}.`);
   const setupDone = state.getInternalSetupCompleteCallback();
-  const setupError = state.getInternalSetupErrorCallback(); 
+  const setupError = state.getInternalSetupErrorCallback();
 
   if (!setupDone && !setupError) {
       console.warn(`[PeerConn] _finalizeHostSetup: Both setupDone and setupError callbacks are null. Setup might have already been finalized, aborted, or this is an unexpected call. Current state:`, state.getRawNetworkRoomData());
-      return; 
+      return;
   }
 
-  const currentPlayers = state.getRawNetworkRoomData().players; 
-  let updatedPlayersArray = currentPlayers ? [...currentPlayers] : []; 
-  
-  if (updatedPlayersArray.length > 0 && updatedPlayersArray[0]?.id === 0) { 
+  const currentPlayers = state.getRawNetworkRoomData().players;
+  let updatedPlayersArray = currentPlayers ? [...currentPlayers] : [];
+
+  if (updatedPlayersArray.length > 0 && updatedPlayersArray[0]?.id === 0) {
       updatedPlayersArray[0] = { ...updatedPlayersArray[0], peerId: myHostRawPeerId, isConnected: true };
-  } else { 
+  } else {
       console.warn("[PeerConn] _finalizeHostSetup: Host player (ID 0) not found as first in players array or array empty. Creating/prepending host entry.", currentPlayers);
-      const hostDataForPlayerArray = state.getLocalPlayerCustomizationForNetwork(); 
+      const hostDataForPlayerArray = state.getLocalPlayerCustomizationForNetwork();
       const hostPlayerEntry = { ...hostDataForPlayerArray, peerId: myHostRawPeerId, id: 0, isConnected: true, isReady: true, score: 0 };
       const existingHostIndex = updatedPlayersArray.findIndex(p => p.id === 0);
       if (existingHostIndex !== -1) updatedPlayersArray[existingHostIndex] = hostPlayerEntry;
       else updatedPlayersArray.unshift(hostPlayerEntry);
   }
-  
+
   state.setNetworkRoomData({
     roomId:       myHostRawPeerId,
     leaderPeerId: myHostRawPeerId,
     roomState:    'lobby',
-    players:      updatedPlayersArray, 
-    myPlayerIdInRoom: 0 
+    players:      updatedPlayersArray,
+    myPlayerIdInRoom: 0
   });
   console.log(`[PeerConn] _finalizeHostSetup: Host state updated. Room ID: ${myHostRawPeerId}, State set to lobby. Players updated with host peerId.`);
 
-  const currentLobbyState = state.getRawNetworkRoomData(); 
+  const currentLobbyState = state.getRawNetworkRoomData();
   if (window.pizarraUiUpdateCallbacks?.showLobby) {
       console.log("[PeerConn] _finalizeHostSetup: Calling window.pizarraUiUpdateCallbacks.showLobby(true).");
-      window.pizarraUiUpdateCallbacks.showLobby(true, currentLobbyState); 
+      window.pizarraUiUpdateCallbacks.showLobby(true, currentLobbyState);
   } else {
       console.warn("[PeerConn] _finalizeHostSetup: window.pizarraUiUpdateCallbacks.showLobby not found!");
   }
@@ -395,30 +393,30 @@ function _finalizeClientJoinAttempt(myRawPeerId, leaderRawPeerIdToJoin) {
       console.warn(`[PeerConn] _finalizeClientJoinAttempt: Both setupDone and setupError callbacks are null. Setup might have already been finalized or aborted.`);
   }
 
-  const clientPlayersArray = state.getRawNetworkRoomData().players; 
+  const clientPlayersArray = state.getRawNetworkRoomData().players;
   if (clientPlayersArray && clientPlayersArray.length > 0 && clientPlayersArray[0]) {
-    if (clientPlayersArray[0].peerId !== myRawPeerId) { 
+    if (clientPlayersArray[0].peerId !== myRawPeerId) {
         const updatedPlayers = [...clientPlayersArray];
-        updatedPlayers[0] = { ...updatedPlayers[0], peerId: myRawPeerId }; 
+        updatedPlayers[0] = { ...updatedPlayers[0], peerId: myRawPeerId };
         state.setNetworkRoomData({ players: updatedPlayers });
         console.log("[PeerConn] _finalizeClientJoinAttempt: Client's own player data in state updated with their peerId:", myRawPeerId);
     }
   } else {
      console.warn("[PeerConn] _finalizeClientJoinAttempt: Client players array empty or invalid. Cannot set peerId for self.");
   }
-  
-  state.setPvpRemoteActive(true); 
-  state.setNetworkRoomData({ leaderPeerId: leaderRawPeerIdToJoin, roomId: leaderRawPeerIdToJoin}); 
+
+  state.setPvpRemoteActive(true);
+  state.setNetworkRoomData({ leaderPeerId: leaderRawPeerIdToJoin, roomId: leaderRawPeerIdToJoin});
 
   console.log(`[PeerConn] _finalizeClientJoinAttempt: Attempting to connect to leader PeerJS ID: ${leaderRawPeerIdToJoin}`);
   const connToLeader = window.peerJsMultiplayer.connect(leaderRawPeerIdToJoin);
 
   if (connToLeader) {
-      leaderConnection = connToLeader; 
+      leaderConnection = connToLeader;
       console.log(`[PeerConn] _finalizeClientJoinAttempt: peer.connect call successful for ${leaderRawPeerIdToJoin}. Waiting for connection 'open' event on this new connection.`);
       if (typeof setupDone === 'function') {
           console.log(`[PeerConn] _finalizeClientJoinAttempt: Calling setupDone callback with my PeerID: ${myRawPeerId}.`);
-          setupDone(myRawPeerId); 
+          setupDone(myRawPeerId);
       }
       state.setNetworkRoomData({ _setupCompleteCallback: null, _setupErrorCallback: null });
   } else {
@@ -426,16 +424,16 @@ function _finalizeClientJoinAttempt(myRawPeerId, leaderRawPeerIdToJoin) {
       console.error(`[PeerConn] _finalizeClientJoinAttempt: peer.connect() returned null for ${leaderRawPeerIdToJoin}.`);
       if (typeof setupError === 'function') {
           setupError(new Error(errorMsg));
-      } else { 
+      } else {
           peerJsCallbacks.onError({ type: 'connect_failed', message: errorMsg }, leaderRawPeerIdToJoin);
       }
       state.setNetworkRoomData({ _setupCompleteCallback: null, _setupErrorCallback: null });
   }
 }
 
-function initPeerObject(peerIdToUse = null) { 
+function initPeerObject(peerIdToUse = null) {
     console.log(`[PeerConn] initPeerObject called. Requested PeerJS ID to use: ${peerIdToUse || 'Auto-assigned'}.`);
-    return new Promise((resolveIPO, rejectIPO) => { 
+    return new Promise((resolveIPO, rejectIPO) => {
         if (!window.peerJsMultiplayer?.init) {
             const err = new Error('Error interno: El sistema de conexión (peerJsMultiplayer) no está disponible.');
             console.error("[PeerConn] initPeerObject:", err.message);
@@ -443,30 +441,30 @@ function initPeerObject(peerIdToUse = null) {
             return;
         }
         console.log("[PeerConn] initPeerObject: Storing _peerInitResolve and _peerInitReject via setNetworkRoomData.");
-        state.setNetworkRoomData({ 
-            _peerInitResolve: resolveIPO, 
-            _peerInitReject: rejectIPO 
+        state.setNetworkRoomData({
+            _peerInitResolve: resolveIPO,
+            _peerInitReject: rejectIPO
         });
         console.log(`[PeerConn] initPeerObject: Calling peerJsMultiplayer.init with PeerJS ID: ${peerIdToUse || 'Auto-assigned'}.`);
-        window.peerJsMultiplayer.init(peerIdToUse || {}, peerJsCallbacks); 
+        window.peerJsMultiplayer.init(peerIdToUse || {}, peerJsCallbacks);
     });
 }
 
 export async function ensurePeerInitialized() {
     console.log("[PeerConn] ensurePeerInitialized called.");
     const existingPeer = window.peerJsMultiplayer?.getPeer();
-    let currentLocalRawId = window.peerJsMultiplayer?.getLocalId(); 
+    let currentLocalRawId = window.peerJsMultiplayer?.getLocalId();
 
     if (existingPeer && !existingPeer.destroyed && currentLocalRawId) {
         console.log(`[PeerConn] ensurePeerInitialized: Peer already exists, is not destroyed, and has ID: ${currentLocalRawId}.`);
-        if (state.getMyPeerId() !== currentLocalRawId) { 
+        if (state.getMyPeerId() !== currentLocalRawId) {
             console.log(`[PeerConn] ensurePeerInitialized: Aligning state.myPeerId with current local ID.`);
             state.setMyPeerId(currentLocalRawId);
         }
-        const setupCompleteCb = state.getInternalSetupCompleteCallback(); 
-        if (setupCompleteCb) { 
+        const setupCompleteCb = state.getInternalSetupCompleteCallback();
+        if (setupCompleteCb) {
             console.log("[PeerConn] ensurePeerInitialized: Existing peer, AND an internal _setupCompleteCallback exists. Attempting to finalize pending operation.");
-            const dataState = state.getRawNetworkRoomData(); 
+            const dataState = state.getRawNetworkRoomData();
             if (dataState.isRoomLeader && (dataState.roomState === 'creating_room' || dataState.roomState === 'seeking_match')) {
                 console.log("[PeerConn] ensurePeerInitialized: Conditions suggest pending HOST setup. Calling _finalizeHostSetup.");
                 _finalizeHostSetup(currentLocalRawId);
@@ -477,9 +475,9 @@ export async function ensurePeerInitialized() {
                  console.log("[PeerConn] ensurePeerInitialized: Existing peer and _setupCompleteCallback, but conditions for finalization not met (or already finalized). State:", dataState);
             }
         }
-        return currentLocalRawId; 
+        return currentLocalRawId;
     }
-    
+
     console.log("[PeerConn] ensurePeerInitialized: No valid existing peer or ID. Proceeding with initialization.");
     const existingPeerInitPromise = state.getInternalPeerInitPromise();
     if (existingPeerInitPromise) {
@@ -487,37 +485,37 @@ export async function ensurePeerInitialized() {
         try {
             const awaitedId = await existingPeerInitPromise;
             console.log("[PeerConn] ensurePeerInitialized: Existing _peerInitPromise resolved with ID:", awaitedId);
-            return awaitedId; 
+            return awaitedId;
         } catch (error) {
             console.error("[PeerConn] ensurePeerInitialized: Error awaiting existing _peerInitPromise:", error);
-            state.setNetworkRoomData({_peerInitPromise: null, _peerInitResolve: null, _peerInitReject: null}); 
-            throw error; 
+            state.setNetworkRoomData({_peerInitPromise: null, _peerInitResolve: null, _peerInitReject: null});
+            throw error;
         }
     }
 
     console.log("[PeerConn] ensurePeerInitialized: Creating new initPromise.");
-    const initPromise = initPeerObject(); 
-    state.setNetworkRoomData({ _peerInitPromise: initPromise }); 
+    const initPromise = initPeerObject();
+    state.setNetworkRoomData({ _peerInitPromise: initPromise });
 
     try {
-        const newRawPeerId = await initPromise; 
+        const newRawPeerId = await initPromise;
         console.log("[PeerConn] ensurePeerInitialized: New initPromise resolved. New PeerJS ID:", newRawPeerId);
-        if (state.getInternalPeerInitPromise() === initPromise) { 
-            state.setNetworkRoomData({ _peerInitPromise: null }); 
+        if (state.getInternalPeerInitPromise() === initPromise) {
+            state.setNetworkRoomData({ _peerInitPromise: null });
         }
-        return newRawPeerId; 
+        return newRawPeerId;
     } catch (err) {
         console.error("[PeerConn] ensurePeerInitialized: Error awaiting new initPromise:", err);
         if (state.getInternalPeerInitPromise() === initPromise) {
             state.setNetworkRoomData({ _peerInitPromise: null, _peerInitResolve: null, _peerInitReject: null });
         }
-        throw err; 
+        throw err;
     }
 }
 
 export function hostNewRoom(hostPlayerData, gameSettingsFromUI) {
     console.log("[PeerConn] hostNewRoom called. Host Player Data:", hostPlayerData, "Game Settings:", gameSettingsFromUI);
-    state.resetFullLocalStateForNewUIScreen(); 
+    state.resetFullLocalStateForNewUIScreen();
     state.setPvpRemoteActive(true);
     console.log("[PeerConn] hostNewRoom: PVP mode activated, state reset.");
 
@@ -525,45 +523,45 @@ export function hostNewRoom(hostPlayerData, gameSettingsFromUI) {
         console.log("[PeerConn] hostNewRoom: Promise created. Setting initial network room data for host.");
         state.setNetworkRoomData({
             isRoomLeader: true,
-            myPlayerIdInRoom: 0, 
+            myPlayerIdInRoom: 0,
             gameSettings: { difficulty: gameSettingsFromUI.difficulty || "easy" },
             maxPlayers: parseInt(gameSettingsFromUI.maxPlayers) || state.MAX_PLAYERS_NETWORK,
-            players: [{ 
+            players: [{
                 id: 0,
-                peerId: null, 
+                peerId: null,
                 name: hostPlayerData.name,
                 icon: hostPlayerData.icon,
                 color: hostPlayerData.color,
-                isReady: true, 
-                isConnected: true, 
+                isReady: true,
+                isConnected: true,
                 score: 0
             }],
             roomState: 'creating_room',
-            _setupCompleteCallback: resolve, 
-            _setupErrorCallback: reject    
+            _setupCompleteCallback: resolve,
+            _setupErrorCallback: reject
         });
-                
+
         try {
             console.log("[PeerConn] hostNewRoom: Calling ensurePeerInitialized.");
-            const hostRawPeerId = await ensurePeerInitialized(); 
+            const hostRawPeerId = await ensurePeerInitialized();
             console.log(`[PeerConn] hostNewRoom: ensurePeerInitialized successful (or was already initialized). Host raw PeerJS ID: ${hostRawPeerId}.`);
         } catch (err) {
             console.error("[PeerConn] hostNewRoom: Error during ensurePeerInitialized:", err);
             const setupErrorCb = state.getInternalSetupErrorCallback();
-            if (setupErrorCb === reject) { 
+            if (setupErrorCb === reject) {
                 console.log("[PeerConn] hostNewRoom: onError or deeper logic likely handled the rejection via _setupErrorCallback.");
-            } else if (reject) { 
+            } else if (reject) {
                 console.log("[PeerConn] hostNewRoom: Explicitly rejecting hostNewRoom promise due to error:", err.message);
-                reject(err); 
+                reject(err);
             }
             state.setNetworkRoomData({ _setupCompleteCallback: null, _setupErrorCallback: null });
         }
     });
 }
 
-export function joinRoomById(leaderRawPeerId, joinerPlayerData) { 
+export function joinRoomById(leaderRawPeerId, joinerPlayerData) {
     console.log(`[PeerConn] joinRoomById called for leader's raw PeerJS ID: ${leaderRawPeerId}. Joiner Data:`, joinerPlayerData);
-    state.resetFullLocalStateForNewUIScreen(); 
+    state.resetFullLocalStateForNewUIScreen();
     state.setPvpRemoteActive(true);
     console.log("[PeerConn] joinRoomById: PVP mode activated, state reset.");
 
@@ -571,25 +569,25 @@ export function joinRoomById(leaderRawPeerId, joinerPlayerData) {
         console.log("[PeerConn] joinRoomById: Promise created. Setting initial network room data for client.");
         state.setNetworkRoomData({
             isRoomLeader: false,
-            roomId: leaderRawPeerId, 
-            leaderPeerId: leaderRawPeerId, 
-            players: [{ 
+            roomId: leaderRawPeerId,
+            leaderPeerId: leaderRawPeerId,
+            players: [{
                 name: joinerPlayerData.name,
                 icon: joinerPlayerData.icon,
                 color: joinerPlayerData.color,
-                peerId: null, 
-                id: null,     
+                peerId: null,
+                id: null,
                 isReady: false,
-                isConnected: false 
+                isConnected: false
             }],
             roomState: 'connecting_to_lobby',
-            _setupCompleteCallback: resolve, 
-            _setupErrorCallback: reject    
+            _setupCompleteCallback: resolve,
+            _setupErrorCallback: reject
         });
-                
+
         try {
             console.log("[PeerConn] joinRoomById: Calling ensurePeerInitialized for client.");
-            const myRawPeerId = await ensurePeerInitialized(); 
+            const myRawPeerId = await ensurePeerInitialized();
             console.log(`[PeerConn] joinRoomById: ensurePeerInitialized for client successful. My raw PeerJS ID: ${myRawPeerId}.`);
         } catch (err) {
             console.error("[PeerConn] joinRoomById: Error during ensurePeerInitialized for client:", err);
@@ -605,16 +603,16 @@ export function joinRoomById(leaderRawPeerId, joinerPlayerData) {
     });
 }
 
-function handleLeaderDataReception(data, fromPeerId) { 
+function handleLeaderDataReception(data, fromPeerId) {
     console.log(`[PeerConn L RX] Leader received data from client ${fromPeerId}. Type: ${data.type}`);
     const connEntry = connections.get(fromPeerId);
     if (!connEntry && data.type !== MSG_TYPE.REQUEST_JOIN_ROOM) {
         console.warn(`[PeerConn L RX] Data from ${fromPeerId} (type ${data.type}) but no active connection entry and not a JOIN_REQUEST. Ignored.`);
         return;
     }
-    
-    const playerGameId = connEntry?.playerGameId; 
-    if (data.type !== MSG_TYPE.REQUEST_JOIN_ROOM && 
+
+    const playerGameId = connEntry?.playerGameId;
+    if (data.type !== MSG_TYPE.REQUEST_JOIN_ROOM &&
         (playerGameId === undefined || playerGameId === -1 || !connEntry?.player) ) {
         console.warn(`[PeerConn L RX] Msg type ${data.type} from ${fromPeerId}, but player not fully joined or connEntry invalid. Ignored. ConnEntry:`, connEntry);
         return;
@@ -627,7 +625,7 @@ function handleLeaderDataReception(data, fromPeerId) {
             break;
         case MSG_TYPE.PLAYER_READY_CHANGED:
             console.log(`[PeerConn L RX] Handling PLAYER_READY_CHANGED from ${fromPeerId} (PlayerGameID: ${playerGameId}). Ready: ${data.isReady}`);
-            handlePlayerReadyChanged(data, fromPeerId); 
+            handlePlayerReadyChanged(data, fromPeerId);
             break;
         case MSG_TYPE.LETTER_GUESS: // This is when HOST receives a guess from a CLIENT
             console.log(`[PeerConn L RX] Handling LETTER_GUESS from client ${fromPeerId} (PlayerGameID: ${playerGameId}). Letter: ${data.letter}`);
@@ -642,7 +640,7 @@ function handleLeaderDataReception(data, fromPeerId) {
     }
 }
 
-function handleJoinRequest(data, fromPeerId, connEntry) { 
+function handleJoinRequest(data, fromPeerId, connEntry) {
     console.log(`[PeerConn L] handleJoinRequest from PeerJS ID: ${fromPeerId}. Player data:`, data.playerData);
     const clientConnObjForJoin = connEntry?.connObject || window.peerJsMultiplayer.getConnection(fromPeerId);
     if (!clientConnObjForJoin || !clientConnObjForJoin.open) {
@@ -655,8 +653,16 @@ function handleJoinRequest(data, fromPeerId, connEntry) {
 
     const currentHostState = state.getRawNetworkRoomData();
     // Check for duplicate name or icon before adding
-    const nameTaken = currentHostState.players.some(p => p.name === data.playerData.name && p.peerId !== fromPeerId); // Exclude self if rejoining with same name
-    const iconTaken = currentHostState.players.some(p => p.icon === data.playerData.icon && p.peerId !== fromPeerId); // Exclude self if rejoining with same icon
+    const nameTaken = currentHostState.players.some(p =>
+        p.name === data.playerData.name &&
+        p.peerId !== fromPeerId &&
+        p.isConnected !== false // Check only against currently connected players
+    );
+    const iconTaken = currentHostState.players.some(p =>
+        p.icon === data.playerData.icon &&
+        p.peerId !== fromPeerId &&
+        p.isConnected !== false // Check only against currently connected players
+    );
 
     if (nameTaken) {
         console.warn(`[PeerConn L] Player name '${data.playerData.name}' taken. Rejecting join from ${fromPeerId}.`);
@@ -675,15 +681,15 @@ function handleJoinRequest(data, fromPeerId, connEntry) {
         console.log(`[PeerConn L] Player ${fromPeerId} (GameID: ${existingPlayer.id}) is rejoining or join request is redundant.`);
         if (!existingPlayer.isConnected || existingPlayer.name !== data.playerData.name || existingPlayer.icon !== data.playerData.icon) {
             console.log(`[PeerConn L] Updating player ${existingPlayer.name} data (isConnected, name, icon).`);
-            state.updatePlayerInNetworkRoom(fromPeerId, { isConnected: true, ...data.playerData }); 
+            state.updatePlayerInNetworkRoom(fromPeerId, { isConnected: true, ...data.playerData });
         }
         console.log(`[PeerConn L] Sending JOIN_ACCEPTED (rejoin) to ${fromPeerId}.`);
         sendDataToClient(fromPeerId, {
             type: MSG_TYPE.JOIN_ACCEPTED,
             yourPlayerIdInRoom: existingPlayer.id,
-            roomData: state.getSanitizedNetworkRoomDataForClient() 
+            roomData: state.getSanitizedNetworkRoomDataForClient()
         });
-        sendFullGameStateToClient(fromPeerId); 
+        sendFullGameStateToClient(fromPeerId);
         return;
     }
 
@@ -703,19 +709,19 @@ function handleJoinRequest(data, fromPeerId, connEntry) {
 
     const newPlayer = {
         id: newPlayerAssignedId,
-        peerId: fromPeerId, 
-        ...data.playerData, 
+        peerId: fromPeerId,
+        ...data.playerData,
         isReady: false,
-        isConnected: true, 
+        isConnected: true,
         score: 0
     };
-    
-    state.addPlayerToNetworkRoom(newPlayer); 
-    
+
+    state.addPlayerToNetworkRoom(newPlayer);
+
     connections.set(fromPeerId, {
-        connObject: clientConnObjForJoin, 
+        connObject: clientConnObjForJoin,
         playerGameId: newPlayer.id,
-        player: newPlayer, 
+        player: newPlayer,
         status: 'active'
     });
     console.log(`[PeerConn L] Player ${newPlayer.name} (PeerID: ${fromPeerId}) added to room with GameID ${newPlayer.id}. Connection status: active.`);
@@ -724,20 +730,20 @@ function handleJoinRequest(data, fromPeerId, connEntry) {
     sendDataToClient(fromPeerId, {
         type: MSG_TYPE.JOIN_ACCEPTED,
         yourPlayerIdInRoom: newPlayer.id,
-        roomData: state.getSanitizedNetworkRoomDataForClient() 
+        roomData: state.getSanitizedNetworkRoomDataForClient()
     });
-    
+
     console.log("[PeerConn L] Broadcasting full game state to all after new player joined.");
-    broadcastFullGameStateToAll(); 
-    
+    broadcastFullGameStateToAll();
+
     if (window.pizarraUiUpdateCallbacks?.updateLobby) {
         window.pizarraUiUpdateCallbacks.updateLobby();
     }
-    
+
     if (matchmaking && matchmaking.updateHostedRoomStatus) {
         console.log(`[PeerConn L] Updating matchmaking status after player ${fromPeerId} joined.`);
         matchmaking.updateHostedRoomStatus(
-            currentHostState.roomId, 
+            currentHostState.roomId,
             currentHostState.gameSettings,
             currentHostState.maxPlayers,
             state.getRawNetworkRoomData().players.filter(p => p.isConnected !== false).length
@@ -745,14 +751,14 @@ function handleJoinRequest(data, fromPeerId, connEntry) {
     }
 }
 
-function handlePlayerReadyChanged(data, fromPeerId) { 
+function handlePlayerReadyChanged(data, fromPeerId) {
     console.log(`[PeerConn L] handlePlayerReadyChanged from ${fromPeerId}. New ready state: ${data.isReady}`);
     const playerChangingReady = state.getRawNetworkRoomData().players.find(p => p.peerId === fromPeerId);
     if (playerChangingReady) {
         state.updatePlayerInNetworkRoom(fromPeerId, { isReady: data.isReady });
         console.log(`[PeerConn L] Player ${playerChangingReady.name} (GameID: ${playerChangingReady.id}) ready state changed to ${data.isReady}. Broadcasting full state.`);
-        broadcastFullGameStateToAll(); 
-        if (window.pizarraUiUpdateCallbacks?.updateLobby) { 
+        broadcastFullGameStateToAll();
+        if (window.pizarraUiUpdateCallbacks?.updateLobby) {
             window.pizarraUiUpdateCallbacks.updateLobby();
         }
     } else {
@@ -760,27 +766,27 @@ function handlePlayerReadyChanged(data, fromPeerId) {
     }
 }
 
-function handleLetterGuess(data, fromPeerId, playerGameId) { 
+function handleLetterGuess(data, fromPeerId, playerGameId) {
     console.log(`[PeerConn L] Processing LETTER_GUESS from client ${fromPeerId} (PlayerGameID ${playerGameId}). Letter: ${data.letter}`);
     if (playerGameId === state.getCurrentPlayerId() && state.getGameActive()) {
-        const result = logic.processGuess(data.letter); 
+        const result = logic.processGuess(data.letter);
         console.log(`[PeerConn L] Guess result for letter '${data.letter}' by player ${playerGameId}:`, result);
-        
-        const guessResultPayload = { 
-            type: MSG_TYPE.GUESS_RESULT, 
-            ...result, 
-            letter: data.letter.toUpperCase() 
+
+        const guessResultPayload = {
+            type: MSG_TYPE.GUESS_RESULT,
+            ...result,
+            letter: data.letter.toUpperCase()
         };
         console.log("[PeerConn L] Broadcasting GUESS_RESULT for client's guess:", guessResultPayload);
-        broadcastToRoom(guessResultPayload); 
-        
-        console.log("[PeerConn L] Broadcasting full game state after client's guess.");
-        broadcastFullGameStateToAll(); 
+        broadcastToRoom(guessResultPayload);
 
-        if (result.gameOver) { 
+        console.log("[PeerConn L] Broadcasting full game state after client's guess.");
+        broadcastFullGameStateToAll();
+
+        if (result.gameOver) {
             console.log(`[PeerConn L] Game over condition met after client's guess. Word: ${state.getCurrentWordObject()?.word}`);
-            state.setNetworkRoomData({ roomState: 'game_over' }); 
-            const winnerData = logic.getWinnerData(state); 
+            state.setNetworkRoomData({ roomState: 'game_over' });
+            const winnerData = logic.getWinnerData(state);
             const finalWord = state.getCurrentWordObject()?.word;
             const gameOverPayload = {
                 type: MSG_TYPE.GAME_OVER_ANNOUNCEMENT,
@@ -789,7 +795,7 @@ function handleLetterGuess(data, fromPeerId, playerGameId) {
                     id: p.id, name: p.name, icon: p.icon, score: p.score
                 })),
                 finalWord: finalWord,
-                reason: result.wordSolved ? 'word_solved' : 'player_lost' 
+                reason: result.wordSolved ? 'word_solved' : 'player_lost'
             };
             console.log("[PeerConn L] Broadcasting GAME_OVER_ANNOUNCEMENT (from client's guess):", gameOverPayload);
             broadcastToRoom(gameOverPayload);
@@ -805,16 +811,16 @@ function handleLetterGuess(data, fromPeerId, playerGameId) {
 
 function handleClueRequest(data, fromPeerId, playerGameId) {
     console.log(`[PeerConn L] Processing CLUE_REQUEST from client ${fromPeerId} (PlayerGameID ${playerGameId}).`);
-    if (playerGameId === state.getCurrentPlayerId() && 
-        state.getGameActive() && 
+    if (playerGameId === state.getCurrentPlayerId() &&
+        state.getGameActive() &&
         !state.getClueUsedThisGame()) {
-        const clueResult = logic.requestClue(); 
+        const clueResult = logic.requestClue();
         if (clueResult.success) {
             console.log("[PeerConn L] Clue request successful for client. Clue:", clueResult.clue);
             const clueProvidedPayload = {
                 type: MSG_TYPE.CLUE_PROVIDED,
                 clue: clueResult.clue,
-                clueUsed: state.getClueUsedThisGame() 
+                clueUsed: state.getClueUsedThisGame()
             };
             console.log("[PeerConn L] Broadcasting CLUE_PROVIDED for client's request:", clueProvidedPayload);
             broadcastToRoom(clueProvidedPayload);
@@ -833,14 +839,14 @@ function handleClueRequest(data, fromPeerId, playerGameId) {
         }
     } else {
         console.warn(`[PeerConn L] Clue request from ${fromPeerId} (Player ${playerGameId}) ignored. Conditions not met. Turn: ${state.getCurrentPlayerId()}, Active: ${state.getGameActive()}, ClueUsed: ${state.getClueUsedThisGame()}`);
-         sendDataToClient(fromPeerId, { 
-            type: MSG_TYPE.ERROR_MESSAGE, 
-            message: state.getClueUsedThisGame() ? "La pista ya fue usada." : "No puedes pedir pista ahora." 
+         sendDataToClient(fromPeerId, {
+            type: MSG_TYPE.ERROR_MESSAGE,
+            message: state.getClueUsedThisGame() ? "La pista ya fue usada." : "No puedes pedir pista ahora."
         });
     }
 }
 
-function handleClientDataReception(data, fromLeaderPeerId) { 
+function handleClientDataReception(data, fromLeaderPeerId) {
     const currentClientState = state.getRawNetworkRoomData();
     if (fromLeaderPeerId !== currentClientState.leaderPeerId) {
         console.warn(`[PeerConn C RX] Data from non-leader ${fromLeaderPeerId} (expected ${currentClientState.leaderPeerId}). Type ${data.type} Ignored.`);
@@ -851,18 +857,18 @@ function handleClientDataReception(data, fromLeaderPeerId) {
         case MSG_TYPE.JOIN_ACCEPTED:
             console.log("[PeerConn C RX] Received JOIN_ACCEPTED. Room Data:", data.roomData, "My Player ID in Room:", data.yourPlayerIdInRoom);
             state.setNetworkRoomData({
-                ...data.roomData, 
+                ...data.roomData,
                 myPlayerIdInRoom: data.yourPlayerIdInRoom,
-                isRoomLeader: false, 
-                myPeerId: state.getMyPeerId(), 
-                leaderPeerId: currentClientState.leaderPeerId, 
-                roomId: currentClientState.roomId, 
-                roomState: data.roomData.roomState || 'lobby' 
+                isRoomLeader: false,
+                myPeerId: state.getMyPeerId(),
+                leaderPeerId: currentClientState.leaderPeerId,
+                roomId: currentClientState.roomId,
+                roomState: data.roomData.roomState || 'lobby'
             });
             console.log("[PeerConn C RX] JOIN_ACCEPTED: State updated. Calling showLobby.");
-            if (window.pizarraUiUpdateCallbacks?.hideModal) window.pizarraUiUpdateCallbacks.hideModal(); 
-            if (window.pizarraUiUpdateCallbacks?.showLobby) window.pizarraUiUpdateCallbacks.showLobby(false); 
-            
+            if (window.pizarraUiUpdateCallbacks?.hideModal) window.pizarraUiUpdateCallbacks.hideModal();
+            if (window.pizarraUiUpdateCallbacks?.showLobby) window.pizarraUiUpdateCallbacks.showLobby(false);
+
             const setupCompleteCbJoin = state.getInternalSetupCompleteCallback();
             if (setupCompleteCbJoin) {
                  console.log("[PeerConn C RX] JOIN_ACCEPTED: Calling _setupCompleteCallback (from joinRoomById).");
@@ -878,18 +884,18 @@ function handleClientDataReception(data, fromLeaderPeerId) {
             if (data.reason === 'name_taken') rejectMsg = `El nombre '${data.detail}' ya está en uso. ¡Elige otro!`;
             if (data.reason === 'icon_taken') rejectMsg = `El ícono '${data.detail}' ya está en uso. ¡Elige otro!`;
 
-            if (setupErrorCbReject) { 
+            if (setupErrorCbReject) {
                 console.log("[PeerConn C RX] JOIN_REJECTED: Calling _setupErrorCallback (from joinRoomById).");
                 setupErrorCbReject(new Error(rejectMsg));
             } else if (window.pizarraUiUpdateCallbacks?.showNetworkError) {
                 window.pizarraUiUpdateCallbacks.showNetworkError(rejectMsg, true);
             }
-            state.resetFullLocalStateForNewUIScreen(); 
+            state.resetFullLocalStateForNewUIScreen();
             break;
 
         case MSG_TYPE.PLAYER_LEFT:
             console.log(`[PeerConn C RX] Received PLAYER_LEFT. Player GameID: ${data.playerId}, PeerID: ${data.peerId}, Name: ${data.playerName}`);
-            if (data.peerId !== state.getMyPeerId()) { 
+            if (data.peerId !== state.getMyPeerId()) {
                 if (window.pizarraUiUpdateCallbacks?.showLobbyMessage) {
                     window.pizarraUiUpdateCallbacks.showLobbyMessage(`${data.playerName || `Jugador ${data.playerId}`} ha salido de la sala.`);
                 }
@@ -898,14 +904,14 @@ function handleClientDataReception(data, fromLeaderPeerId) {
 
         case MSG_TYPE.GAME_STARTED:
             console.log("[PeerConn C RX] Received GAME_STARTED. Initial Game State:", data.initialGameState);
-            state.setPlayersData(data.initialGameState.playersInGameOrder); 
+            state.setPlayersData(data.initialGameState.playersInGameOrder);
             state.setCurrentWordObject(data.initialGameState.currentWordObject);
             state.setGuessedLetters(new Set(data.initialGameState.guessedLetters || []));
             state.setRemainingAttemptsPerPlayer(data.initialGameState.remainingAttemptsPerPlayer || []);
             state.setCurrentPlayerId(data.initialGameState.startingPlayerId);
             state.setClueUsedThisGame(data.initialGameState.clueUsedThisGame || false);
             state.setCurrentDifficulty(data.initialGameState.gameSettings.difficulty);
-            
+
             state.setNetworkRoomData({
                 gameSettings: data.initialGameState.gameSettings,
                 roomState: 'playing',
@@ -914,10 +920,10 @@ function handleClientDataReception(data, fromLeaderPeerId) {
                 remainingAttemptsPerPlayer: data.initialGameState.remainingAttemptsPerPlayer || [],
                 currentPlayerId: data.initialGameState.startingPlayerId,
                 clueUsedThisGame: data.initialGameState.clueUsedThisGame || false,
-                gameActive: true, 
-                players: data.initialGameState.playersInGameOrder 
+                gameActive: true,
+                players: data.initialGameState.playersInGameOrder
             });
-            
+
             if (window.pizarraUiUpdateCallbacks?.startGameOnNetwork) {
                 window.pizarraUiUpdateCallbacks.startGameOnNetwork(data.initialGameState);
             }
@@ -932,23 +938,23 @@ function handleClientDataReception(data, fromLeaderPeerId) {
         case MSG_TYPE.CLUE_PROVIDED:
             console.log("[PeerConn C RX] Received CLUE_PROVIDED:", data);
             if (window.pizarraUiUpdateCallbacks?.displayClueFromNetwork) {
-                window.pizarraUiUpdateCallbacks.displayClueFromNetwork(data); 
+                window.pizarraUiUpdateCallbacks.displayClueFromNetwork(data);
             }
-            state.setClueUsedThisGame(data.clueUsed); 
+            state.setClueUsedThisGame(data.clueUsed);
             break;
 
         case MSG_TYPE.FULL_GAME_STATE:
             console.log("[PeerConn C RX] Received FULL_GAME_STATE. Game State Payload:", data.gameState);
             state.setNetworkRoomData({
-                ...data.gameState, 
-                isRoomLeader: false, 
-                myPeerId: state.getMyPeerId(), 
-                myPlayerIdInRoom: data.gameState.players?.find(p => p.peerId === state.getMyPeerId())?.id ?? 
-                                 state.getRawNetworkRoomData().myPlayerIdInRoom, 
-                leaderPeerId: currentClientState.leaderPeerId, 
-                roomId: currentClientState.roomId, 
+                ...data.gameState,
+                isRoomLeader: false,
+                myPeerId: state.getMyPeerId(),
+                myPlayerIdInRoom: data.gameState.players?.find(p => p.peerId === state.getMyPeerId())?.id ??
+                                 state.getRawNetworkRoomData().myPlayerIdInRoom,
+                leaderPeerId: currentClientState.leaderPeerId,
+                roomId: currentClientState.roomId,
             });
-            
+
             console.log("[PeerConn C RX] FULL_GAME_STATE: State updated. Calling syncUIFromNetworkState.");
             if (window.pizarraUiUpdateCallbacks?.syncUIFromNetworkState) {
                 window.pizarraUiUpdateCallbacks.syncUIFromNetworkState();
@@ -957,36 +963,36 @@ function handleClientDataReception(data, fromLeaderPeerId) {
 
         case MSG_TYPE.GAME_OVER_ANNOUNCEMENT:
             console.log("[PeerConn C RX] Received GAME_OVER_ANNOUNCEMENT:", data);
-            state.setGameActive(false); 
-            state.setNetworkRoomData({ roomState: 'game_over' }); 
-            
-            if (data.finalWord && !logic.checkWinCondition()) { 
-                state.setCurrentWordObject({ 
+            state.setGameActive(false);
+            state.setNetworkRoomData({ roomState: 'game_over' });
+
+            if (data.finalWord && !logic.checkWinCondition()) {
+                state.setCurrentWordObject({
                     word: data.finalWord,
-                    definition: "La palabra era esta.", 
+                    definition: "La palabra era esta.",
                     difficulty: state.getCurrentDifficulty()
                 });
                 const finalGuessed = new Set();
-                for (const letter of data.finalWord.toUpperCase()) { 
+                for (const letter of data.finalWord.toUpperCase()) {
                     finalGuessed.add(state.normalizeString(letter).toLowerCase());
                 }
                 state.setGuessedLetters(finalGuessed);
             }
-            
+
             if (data.finalScores) {
-                const currentPlayers = state.getPlayersData(); 
-                const networkPlayers = state.getRawNetworkRoomData().players; 
+                const currentPlayers = state.getPlayersData();
+                const networkPlayers = state.getRawNetworkRoomData().players;
                 data.finalScores.forEach(ps => {
-                    const pLocal = currentPlayers.find(p => p.id === ps.id); 
+                    const pLocal = currentPlayers.find(p => p.id === ps.id);
                     if (pLocal) pLocal.score = ps.score;
-                    
+
                     const pNet = networkPlayers.find(pNetEntry => pNetEntry.id === ps.id);
                     if (pNet) pNet.score = ps.score;
                 });
-                state.setPlayersData(currentPlayers); 
-                if(networkPlayers.length > 0) state.setNetworkRoomData({players: networkPlayers}); 
+                state.setPlayersData(currentPlayers);
+                if(networkPlayers.length > 0) state.setNetworkRoomData({players: networkPlayers});
             }
-            
+
             if (window.pizarraUiUpdateCallbacks?.showNetworkGameOver) {
                 window.pizarraUiUpdateCallbacks.showNetworkGameOver(data);
             }
@@ -995,18 +1001,18 @@ function handleClientDataReception(data, fromLeaderPeerId) {
         case MSG_TYPE.ERROR_MESSAGE:
             console.warn(`[PeerConn C RX] Received ERROR_MESSAGE from leader: ${data.message}`);
             if (window.pizarraUiUpdateCallbacks?.showNetworkError) {
-                window.pizarraUiUpdateCallbacks.showNetworkError(data.message, false); 
+                window.pizarraUiUpdateCallbacks.showNetworkError(data.message, false);
             }
             break;
 
         default:
             console.warn(`[PeerConn C RX] Unhandled message type from leader: ${data.type}`);
     }
-    
+
     if (data.type === MSG_TYPE.JOIN_ACCEPTED || data.type === MSG_TYPE.JOIN_REJECTED) {
-        state.setNetworkRoomData({ 
-            _setupCompleteCallback: null, 
-            _setupErrorCallback: null 
+        state.setNetworkRoomData({
+            _setupCompleteCallback: null,
+            _setupErrorCallback: null
         });
     }
 }
@@ -1017,23 +1023,23 @@ function reassignPlayerIdsAndBroadcastUpdate() {
         console.warn("[PeerConn L] reassignPlayerIdsAndBroadcastUpdate called by non-leader. Aborting.");
         return;
     }
-    
-    const currentPlayersFromState = state.getRawNetworkRoomData().players; 
-    
-    const connectedPeerJsIds = new Set(Array.from(connections.keys()).filter(peerId => 
-        connections.get(peerId)?.connObject?.open));
-    connectedPeerJsIds.add(state.getMyPeerId()); 
 
-    const activePlayers = currentPlayersFromState.filter(p => 
+    const currentPlayersFromState = state.getRawNetworkRoomData().players;
+
+    const connectedPeerJsIds = new Set(Array.from(connections.keys()).filter(peerId =>
+        connections.get(peerId)?.connObject?.open));
+    connectedPeerJsIds.add(state.getMyPeerId());
+
+    const activePlayers = currentPlayersFromState.filter(p =>
         p.isConnected !== false && connectedPeerJsIds.has(p.peerId));
 
     console.log(`[PeerConn L] Active players for ID reassignment (isConn=true & has open conn): ${activePlayers.length}`, activePlayers.map(p=>({id:p.id, name:p.name, peerId:p.peerId})));
 
     activePlayers.sort((a, b) => {
-        if (a.peerId === state.getMyPeerId()) return -1; 
+        if (a.peerId === state.getMyPeerId()) return -1;
         if (b.peerId === state.getMyPeerId()) return 1;
-        return (a.id === undefined || a.id === null ? Infinity : a.id) - 
-               (b.id === undefined || b.id === null ? Infinity : b.id); 
+        return (a.id === undefined || a.id === null ? Infinity : a.id) -
+               (b.id === undefined || b.id === null ? Infinity : b.id);
     });
 
     let idsChanged = false;
@@ -1042,7 +1048,7 @@ function reassignPlayerIdsAndBroadcastUpdate() {
             idsChanged = true;
             console.log(`[PeerConn L] Reassigning ID for player ${player.name} (PeerID: ${player.peerId}): Old ID ${player.id} -> New ID ${index}`);
         }
-        return { ...player, id: index }; 
+        return { ...player, id: index };
     });
 
     const hostPlayerEntry = newPlayerArrayForState.find(p => p.peerId === state.getMyPeerId());
@@ -1054,22 +1060,22 @@ function reassignPlayerIdsAndBroadcastUpdate() {
 
     if (idsChanged || activePlayers.length !== currentPlayersFromState.filter(p => p.isConnected !== false).length) {
         console.log("[PeerConn L] Player list or IDs changed. Broadcasting new full game state.");
-        broadcastFullGameStateToAll(); 
+        broadcastFullGameStateToAll();
         if (window.pizarraUiUpdateCallbacks?.updateLobby) {
-            window.pizarraUiUpdateCallbacks.updateLobby(); 
+            window.pizarraUiUpdateCallbacks.updateLobby();
         }
     } else {
         console.log("[PeerConn L] No player ID changes detected after filtering and sorting active players.");
     }
 }
 
-function sendFullGameStateToClient(clientRawPeerId) { 
+function sendFullGameStateToClient(clientRawPeerId) {
     console.log(`[PeerConn L] sendFullGameStateToClient called for client: ${clientRawPeerId}.`);
     if (!state.getRawNetworkRoomData().isRoomLeader) return;
-    
-    const currentNetworkState = state.getRawNetworkRoomData(); 
+
+    const currentNetworkState = state.getRawNetworkRoomData();
     const gameStatePayload = {
-        players: currentNetworkState.players.map(p => ({ ...p })), 
+        players: currentNetworkState.players.map(p => ({ ...p })),
         gameSettings: { ...currentNetworkState.gameSettings },
         roomState: currentNetworkState.roomState,
         maxPlayers: currentNetworkState.maxPlayers,
@@ -1084,9 +1090,9 @@ function sendFullGameStateToClient(clientRawPeerId) {
         gameActive: currentNetworkState.gameActive,
     };
     console.log(`[PeerConn L] Preparing FULL_GAME_STATE payload for ${clientRawPeerId}:`, gameStatePayload);
-    sendDataToClient(clientRawPeerId, { 
-        type: MSG_TYPE.FULL_GAME_STATE, 
-        gameState: gameStatePayload 
+    sendDataToClient(clientRawPeerId, {
+        type: MSG_TYPE.FULL_GAME_STATE,
+        gameState: gameStatePayload
     });
 }
 
@@ -1096,15 +1102,15 @@ function broadcastFullGameStateToAll() {
         console.warn("[PeerConn L] broadcastFullGameStateToAll called by non-leader. Aborting.");
         return;
     }
-    
-    const currentNetworkState = state.getRawNetworkRoomData(); 
+
+    const currentNetworkState = state.getRawNetworkRoomData();
     const gameStatePayload = {
-        players: currentNetworkState.players.map(p => ({ ...p })), 
+        players: currentNetworkState.players.map(p => ({ ...p })),
         gameSettings: { ...currentNetworkState.gameSettings },
         roomState: currentNetworkState.roomState,
         maxPlayers: currentNetworkState.maxPlayers,
-        roomId: currentNetworkState.roomId, 
-        leaderPeerId: currentNetworkState.leaderPeerId, 
+        roomId: currentNetworkState.roomId,
+        leaderPeerId: currentNetworkState.leaderPeerId,
         turnCounter: currentNetworkState.turnCounter,
         currentWordObject: currentNetworkState.currentWordObject ? { ...currentNetworkState.currentWordObject } : null,
         guessedLetters: Array.isArray(currentNetworkState.guessedLetters) ? [...currentNetworkState.guessedLetters] : [],
@@ -1115,7 +1121,7 @@ function broadcastFullGameStateToAll() {
     };
     console.log("[PeerConn L] Broadcasting FULL_GAME_STATE to all clients. Payload:", gameStatePayload);
     broadcastToRoom({ type: MSG_TYPE.FULL_GAME_STATE, gameState: gameStatePayload });
-    
+
     if (window.pizarraUiUpdateCallbacks?.syncUIFromNetworkState) {
         console.log("[PeerConn L] Triggering host's own UI sync after broadcasting full state.");
         window.pizarraUiUpdateCallbacks.syncUIFromNetworkState();
@@ -1127,10 +1133,10 @@ export function leaveRoom() {
     if (window.pizarraUiUpdateCallbacks?.hideNetworkInfo) {
         window.pizarraUiUpdateCallbacks.hideNetworkInfo();
     }
-    
-    const currentRoomData = state.getRawNetworkRoomData(); 
+
+    const currentRoomData = state.getRawNetworkRoomData();
     const isCurrentlyLeader = currentRoomData.isRoomLeader;
-    const myCurrentPeerId = state.getMyPeerId(); 
+    const myCurrentPeerId = state.getMyPeerId();
 
     console.log(`[PeerConn] leaveRoom - Current State (from getRawNetworkRoomData): isLeader=${currentRoomData.isRoomLeader}, myPeerId (from getMyPeerId)=${myCurrentPeerId}, roomData.roomId=${currentRoomData.roomId}, roomData.leaderPeerId=${currentRoomData.leaderPeerId}, roomData.roomState=${currentRoomData.roomState}`);
 
@@ -1148,35 +1154,35 @@ export function leaveRoom() {
         broadcastToRoom({
             type: MSG_TYPE.GAME_OVER_ANNOUNCEMENT,
             reason: 'leader_left_room',
-            finalWord: state.getCurrentWordObject()?.word 
+            finalWord: state.getCurrentWordObject()?.word
         });
-        
-        if (roomIdForCleanup && matchmaking && matchmaking.leaveQueue) { 
+
+        if (roomIdForCleanup && matchmaking && matchmaking.leaveQueue) {
             console.log(`[PeerConn] Leader leaving matchmaking queue for room/peerId: ${roomIdForCleanup}`);
-            matchmaking.leaveQueue(roomIdForCleanup); 
+            matchmaking.leaveQueue(roomIdForCleanup);
         } else {
             console.warn(`[PeerConn] Leader leaveRoom: matchmaking.leaveQueue not called. roomIdForCleanup: ${roomIdForCleanup}`);
         }
-        
+
         setTimeout(() => {
             console.log("[PeerConn] Leader: Closing all client connections.");
             connections.forEach((connEntry, peerId) => {
                 if (connEntry.connObject?.close && !connEntry.connObject.disconnected) {
                     console.log(`[PeerConn] Leader: Closing connection to client ${peerId}`);
-                    try { connEntry.connObject.close(); } 
+                    try { connEntry.connObject.close(); }
                     catch (e) { console.warn(`[PeerConn] Error closing connection to ${peerId}:`, e); }
                 }
             });
             connections.clear();
-        }, 500); 
-    } else if (leaderConnection) { 
+        }, 500);
+    } else if (leaderConnection) {
         console.log(`[PeerConn] Client (PeerID: ${myCurrentPeerId}) is leaving room. Closing connection to leader ${leaderConnection.peer}.`);
         if (leaderConnection.close && !leaderConnection.disconnected) {
             try { leaderConnection.close(); }
             catch (e) { console.warn(`[PeerConn] Error closing leader connection:`, e); }
         }
     }
-    leaderConnection = null; 
+    leaderConnection = null;
     console.log("[PeerConn] leaveRoom processing finished. PeerJS session closure will be handled by stopAnyActiveGameOrNetworkSession.");
 }
 
@@ -1204,7 +1210,7 @@ function sendDataToLeader(data) {
     }
 }
 
-function sendDataToClient(clientRawPeerId, data) { 
+function sendDataToClient(clientRawPeerId, data) {
     const connEntry = connections.get(clientRawPeerId);
     if (connEntry?.connObject?.open) {
         try {
@@ -1218,13 +1224,13 @@ function sendDataToClient(clientRawPeerId, data) {
     }
 }
 
-function broadcastToRoom(data, excludePeerId = null) { 
+function broadcastToRoom(data, excludePeerId = null) {
     if (!state.getRawNetworkRoomData().isRoomLeader) {
         console.warn("[PeerConn L TX] Non-leader attempting to broadcast. Aborted.");
         return;
     }
     // console.log(`[PeerConn L TX] Host broadcasting to room. Type: ${data.type}, Excluding: ${excludePeerId}`, data);
-    connections.forEach((connEntry, peerId) => { 
+    connections.forEach((connEntry, peerId) => {
         if (peerId !== excludePeerId && connEntry?.connObject?.open) {
             try {
                 connEntry.connObject.send(data);
@@ -1242,15 +1248,15 @@ export function sendPlayerReadyState(isReady) {
         console.log("[PeerConn] Host is changing their own ready state.");
         state.updatePlayerInNetworkRoom(state.getMyPeerId(), { isReady });
         console.log("[PeerConn] Host ready state updated. Broadcasting full game state.");
-        broadcastFullGameStateToAll(); 
-        if (window.pizarraUiUpdateCallbacks?.updateLobby) { 
+        broadcastFullGameStateToAll();
+        if (window.pizarraUiUpdateCallbacks?.updateLobby) {
             window.pizarraUiUpdateCallbacks.updateLobby();
         }
     } else {
         console.log(`[PeerConn] Client (PlayerGameID: ${currentRoomData.myPlayerIdInRoom}) sending ready state ${isReady} to host.`);
         sendDataToLeader({
             type: MSG_TYPE.PLAYER_READY_CHANGED,
-            playerId: currentRoomData.myPlayerIdInRoom, 
+            playerId: currentRoomData.myPlayerIdInRoom,
             isReady: isReady
         });
     }
@@ -1258,7 +1264,7 @@ export function sendPlayerReadyState(isReady) {
 
 export function leaderStartGameRequest() {
     console.log("[PeerConn L] leaderStartGameRequest called by host.");
-    const currentRoomData = state.getRawNetworkRoomData(); 
+    const currentRoomData = state.getRawNetworkRoomData();
     if (!currentRoomData.isRoomLeader || currentRoomData.roomState !== 'lobby') {
         console.warn(`[PeerConn L] Leader start game request ignored. Not leader or not in lobby. State:`, currentRoomData);
         return;
@@ -1267,7 +1273,7 @@ export function leaderStartGameRequest() {
     const connectedAndReadyPlayers = currentRoomData.players.filter(p => p.isReady && p.isConnected !== false);
     const totalConnectedPlayers = currentRoomData.players.filter(p => p.isConnected !== false).length;
 
-    if (connectedAndReadyPlayers.length < state.MIN_PLAYERS_NETWORK || 
+    if (connectedAndReadyPlayers.length < state.MIN_PLAYERS_NETWORK ||
         connectedAndReadyPlayers.length !== totalConnectedPlayers) {
         const msg = `No todos los jugadores están listos (${connectedAndReadyPlayers.length}/${totalConnectedPlayers}) o no hay suficientes conectados (${state.MIN_PLAYERS_NETWORK} min).`;
         console.warn(`[PeerConn L] Cannot start game: ${msg}`);
@@ -1278,13 +1284,13 @@ export function leaderStartGameRequest() {
     }
 
     console.log("[PeerConn L] All conditions met. Starting game setup.");
-    
-    const gameInitResult = logic.initializeGame(state, currentRoomData.gameSettings.difficulty); 
 
-    if (!gameInitResult.success || !state.getCurrentWordObject()) { 
+    const gameInitResult = logic.initializeGame(state, currentRoomData.gameSettings.difficulty);
+
+    if (!gameInitResult.success || !state.getCurrentWordObject()) {
         console.error("[PeerConn L] Failed to initialize game logic (e.g., no word selected):", gameInitResult.message);
-        state.setNetworkRoomData({ roomState: 'lobby' }); 
-        broadcastFullGameStateToAll(); 
+        state.setNetworkRoomData({ roomState: 'lobby' });
+        broadcastFullGameStateToAll();
         if (window.pizarraUiUpdateCallbacks?.showNetworkError) {
             window.pizarraUiUpdateCallbacks.showNetworkError(
                 `Error del Host al iniciar: ${gameInitResult.message || "No se pudo seleccionar palabra."}`, false
@@ -1295,15 +1301,15 @@ export function leaderStartGameRequest() {
     console.log(`[PeerConn L] Game logic initialized. Word: ${state.getCurrentWordObject()?.word}. Starting player ID: ${state.getCurrentPlayerId()}`);
 
     state.setNetworkRoomData({
-        roomState: 'playing', 
+        roomState: 'playing',
         currentWordObject: state.getCurrentWordObject(),
         guessedLetters: Array.from(state.getGuessedLetters()),
         remainingAttemptsPerPlayer: state.getRemainingAttemptsPerPlayer(),
         currentPlayerId: state.getCurrentPlayerId(),
         clueUsedThisGame: state.getClueUsedThisGame(),
-        gameActive: true, 
-        turnCounter: 0, 
-        players: state.getPlayersData().map(p => ({...p, score:0})) 
+        gameActive: true,
+        turnCounter: 0,
+        players: state.getPlayersData().map(p => ({...p, score:0}))
     });
 
     const finalNetworkStateForStart = state.getRawNetworkRoomData();
@@ -1312,32 +1318,32 @@ export function leaderStartGameRequest() {
         currentWordObject: finalNetworkStateForStart.currentWordObject,
         guessedLetters: finalNetworkStateForStart.guessedLetters,
         remainingAttemptsPerPlayer: finalNetworkStateForStart.remainingAttemptsPerPlayer,
-        playersInGameOrder: finalNetworkStateForStart.players, 
+        playersInGameOrder: finalNetworkStateForStart.players,
         startingPlayerId: finalNetworkStateForStart.currentPlayerId,
         clueUsedThisGame: finalNetworkStateForStart.clueUsedThisGame,
     };
 
     console.log("[PeerConn L] Broadcasting GAME_STARTED with payload:", initialGameStatePayload);
     broadcastToRoom({ type: MSG_TYPE.GAME_STARTED, initialGameState: initialGameStatePayload });
-    
+
     if (window.pizarraUiUpdateCallbacks?.startGameOnNetwork) {
         console.log("[PeerConn L] Triggering host's own startGameOnNetwork UI update.");
         window.pizarraUiUpdateCallbacks.startGameOnNetwork(initialGameStatePayload);
     }
 
-    if (currentRoomData.roomId) { 
-        if (matchmaking && matchmaking.leaveQueue) { 
+    if (currentRoomData.roomId) {
+        if (matchmaking && matchmaking.leaveQueue) {
             console.log(`[PeerConn L] Removing room ${currentRoomData.roomId} from matchmaking 'waiting' queue as game starts.`);
-            matchmaking.leaveQueue(currentRoomData.roomId); 
+            matchmaking.leaveQueue(currentRoomData.roomId);
         }
         if (matchmaking && matchmaking.updateHostedRoomStatus) {
              console.log(`[PeerConn L] Updating matchmaking status for room ${currentRoomData.roomId} to 'in_game'.`);
             matchmaking.updateHostedRoomStatus(
-                currentRoomData.roomId, 
+                currentRoomData.roomId,
                 finalNetworkStateForStart.gameSettings,
                 finalNetworkStateForStart.maxPlayers,
                 finalNetworkStateForStart.players.length,
-                'in_game' 
+                'in_game'
             );
         }
     }
@@ -1354,23 +1360,23 @@ export function sendGuessToHost(letter) {
     sendDataToLeader({
       type: MSG_TYPE.LETTER_GUESS,
       letter: letter,
-      playerId: currentRoomData.myPlayerIdInRoom 
+      playerId: currentRoomData.myPlayerIdInRoom
     });
     return; // Client's job is done once message is sent
   }
-  
+
   // --- HOST path (local processing for host's own guess) ---
   if (currentRoomData.isRoomLeader && state.getGameActive()) {
     // Check if it's actually the host's turn (host is player 0, or more generally, their myPlayerIdInRoom)
     if (currentRoomData.myPlayerIdInRoom === state.getCurrentPlayerId()) {
         console.log(`[PeerConn L] Host (PlayerGameID: ${currentRoomData.myPlayerIdInRoom}) processing own guess '${letter}' locally.`);
-        const result = logic.processGuess(letter); 
+        const result = logic.processGuess(letter);
         console.log(`[PeerConn L] Host's own guess result for '${letter}':`, result);
 
         const guessResultPayload = {
           type   : MSG_TYPE.GUESS_RESULT,
-          ...result, 
-          letter : letter.toUpperCase() 
+          ...result,
+          letter : letter.toUpperCase()
         };
 
         // Update host's UI immediately
@@ -1380,15 +1386,15 @@ export function sendGuessToHost(letter) {
         }
 
         console.log("[PeerConn L] Broadcasting GUESS_RESULT for host's own guess:", guessResultPayload);
-        broadcastToRoom(guessResultPayload); 
-        
-        console.log("[PeerConn L] Broadcasting full game state after host's own guess.");
-        broadcastFullGameStateToAll(); 
+        broadcastToRoom(guessResultPayload);
 
-        if (result.gameOver) { 
+        console.log("[PeerConn L] Broadcasting full game state after host's own guess.");
+        broadcastFullGameStateToAll();
+
+        if (result.gameOver) {
             console.log(`[PeerConn L] Game over condition met after host's own guess. Word: ${state.getCurrentWordObject()?.word}`);
-            state.setNetworkRoomData({ roomState: 'game_over' }); 
-            const winnerData = logic.getWinnerData(state); 
+            state.setNetworkRoomData({ roomState: 'game_over' });
+            const winnerData = logic.getWinnerData(state);
             const finalWord = state.getCurrentWordObject()?.word;
             const gameOverPayload = {
                 type        : MSG_TYPE.GAME_OVER_ANNOUNCEMENT,
@@ -1424,7 +1430,7 @@ export function sendClueRequestToHost() {
         console.log(`[PeerConn C TX] Client (PlayerGameID: ${currentRoomData.myPlayerIdInRoom}) sending clue request to host.`);
         sendDataToLeader({
           type: MSG_TYPE.CLUE_REQUEST,
-          playerId: currentRoomData.myPlayerIdInRoom 
+          playerId: currentRoomData.myPlayerIdInRoom
         });
     } else {
         console.warn(`[PeerConn C TX] Client (PlayerGameID: ${currentRoomData.myPlayerIdInRoom}) tried to request clue, but not their turn (Current: ${state.getCurrentPlayerId()}).`);
@@ -1446,7 +1452,7 @@ export function sendClueRequestToHost() {
             const cluePayload = {
                 type     : MSG_TYPE.CLUE_PROVIDED,
                 clue     : clueResult.clue,
-                clueUsed : state.getClueUsedThisGame() 
+                clueUsed : state.getClueUsedThisGame()
             };
 
             if (window.pizarraUiUpdateCallbacks?.displayClueFromNetwork) {
@@ -1460,7 +1466,7 @@ export function sendClueRequestToHost() {
             broadcastFullGameStateToAll();
         } else {
             console.warn(`[PeerConn L] Host's own clue request failed: ${clueResult.message}`);
-            if (window.pizarraUiUpdateCallbacks?.showNetworkError) { 
+            if (window.pizarraUiUpdateCallbacks?.showNetworkError) {
                 window.pizarraUiUpdateCallbacks.showNetworkError(clueResult.message || "No se pudo obtener la pista.", false);
             }
         }
@@ -1473,34 +1479,34 @@ export function sendClueRequestToHost() {
     }
     return; // Host's processing done
   }
-  
+
   console.warn(`[PeerConn TX] sendClueRequestToHost: Conditions not met for client or host action. PVP: ${state.getPvpRemoteActive()}, IsLeader: ${currentRoomData.isRoomLeader}, GameActive: ${state.getGameActive()}`);
 }
 
-function setupConnectionEventHandlers(conn) { 
+function setupConnectionEventHandlers(conn) {
     console.log(`[PeerConn] Setting up event handlers for connection with PeerJS ID: ${conn.peer}. Reliable: ${conn.reliable}`);
     conn.on('open', () => peerJsCallbacks.onConnectionOpen(conn.peer));
     conn.on('data', (data) => peerJsCallbacks.onDataReceived(data, conn.peer));
     conn.on('close', () => peerJsCallbacks.onConnectionClose(conn.peer));
-    conn.on('error', (err) => peerJsCallbacks.onError(err, conn.peer)); 
+    conn.on('error', (err) => peerJsCallbacks.onError(err, conn.peer));
 }
 
 export function closePeerSession() {
     console.log("[PeerConn] closePeerSession called. Closing PeerJS session...");
-    
+
     if (window.peerJsMultiplayer?.close) {
-        window.peerJsMultiplayer.close(); 
+        window.peerJsMultiplayer.close();
     } else {
         console.warn("[PeerConn] peerJsMultiplayer.close function not available.");
     }
-    leaderConnection = null; 
-    connections.clear();     
+    leaderConnection = null;
+    connections.clear();
     console.log("[PeerConn] closePeerSession: PeerJS close requested. Local connection references cleared.");
 }
 
-window.addEventListener('load', () => { 
+window.addEventListener('load', () => {
     let checkCount = 0;
-    const maxChecks = 20; 
+    const maxChecks = 20;
     const checkIntervalTime = 200;
     const intervalId = setInterval(() => {
         if (window.peerJsMultiplayer && typeof window.peerJsMultiplayer.init === 'function') {
@@ -1521,15 +1527,15 @@ window.addEventListener('load', () => {
 
 window.addEventListener('beforeunload', () => {
     console.log("[PeerConn] beforeunload event triggered.");
-    if (state.getPvpRemoteActive()) { 
+    if (state.getPvpRemoteActive()) {
         console.log("[PeerConn] PVP mode active during unload. Attempting cleanup.");
-        const currentRoomData = state.getRawNetworkRoomData(); 
-        if (currentRoomData.isRoomLeader && currentRoomData.roomId) { 
+        const currentRoomData = state.getRawNetworkRoomData();
+        if (currentRoomData.isRoomLeader && currentRoomData.roomId) {
             if (matchmaking && matchmaking.leaveQueue) {
                 console.log(`[PeerConn] Host (Room: ${currentRoomData.roomId}) leaving matchmaking queue due to page unload.`);
-                matchmaking.leaveQueue(currentRoomData.roomId); 
+                matchmaking.leaveQueue(currentRoomData.roomId);
             }
         }
-        closePeerSession(); 
+        closePeerSession();
     }
 });
