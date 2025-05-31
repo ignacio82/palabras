@@ -215,7 +215,7 @@ const DICTIONARY_DATA = [
     { word: "MATEMATICAS", definition: "Ciencia de los números, las figuras y el cálculo.", difficulty: "hard" },
     { word: "ANTARTIDA", definition: "Continente helado en el polo sur de la Tierra.", difficulty: "hard" },
     { word: "CASCABEL", definition: "Pequeña campanita que suena al moverla.", difficulty: "hard" },
-    { word: "AEROPUERTO", definition: "Lugar donde despegan y aterrizan los aviones.", difficulty: "hard" },-
+    { word: "AEROPUERTO", definition: "Lugar donde despegan y aterrizan los aviones.", difficulty: "hard" },
     { word: "ARQUITECTURA", definition: "Arte de diseñar y construir edificios hermosos.", difficulty: "hard" },
     { word: "SUBMARINO", definition: "Barco especial que puede viajar bajo el agua.", difficulty: "hard" },
     { word: "REFRIGERADOR", definition: "Aparato que mantiene la comida fría y fresca.", difficulty: "hard" },
@@ -240,3 +240,4 @@ const DICTIONARY_DATA = [
     { word: "ESPELEÓLOGO", definition: "Explorador que estudia y explora cuevas profundas.", difficulty: "hard" },
     { word: "ENTOMÓLOGO", definition: "Científico que estudia insectos y bichos pequeños.", difficulty: "hard" },
     { word: "ORNITÓLOGO", definition: "Persona que estudia las aves y su comportamiento.", difficulty: "hard" }
+];
