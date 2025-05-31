@@ -659,20 +659,29 @@ body.playing #setup-container {
     flex: 1 1 auto; /* Allow it to take available space */
     overflow-y: auto; /* Allow scrolling if content overflows */
     display: flex;
+    flex-direction: column; /* Changed to column for rows */
     justify-content: center;
     align-items: center;
     min-height: 120px; /* Adjusted min-height */
 }
 
 #alphabet-keyboard-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(44px, 1fr)); /* NEW: Min 44px for touch */
-    gap: 0.2rem; /* Adjusted gap */
+    display: flex; /* Use flex for overall container */
+    flex-direction: column; /* Stack rows vertically */
+    gap: 0.2rem; /* Gap between rows */
     padding: 0.3rem; /* Adjusted padding */
     width: 100%;
     max-width: 520px; /* Adjusted max-width */
     margin: 0 auto;
 }
+
+.keyboard-row {
+    display: flex; /* Each row is a flex container */
+    justify-content: center; /* Center buttons within the row */
+    gap: 0.2rem; /* Gap between buttons in a row */
+    width: 100%;
+}
+
 
 .alphabet-button {
     font-family: 'Fredoka', cursive;
@@ -694,6 +703,8 @@ body.playing #setup-container {
     min-width: 44px; /* NEW: ensure each key is 44px wide */
     min-height: 44px; /* NEW: ensure each key is 44px tall */
     touch-action: manipulation; /* NEW: treat taps as single gestures */
+    flex-grow: 1; /* Allow buttons to grow to fill row space */
+    flex-basis: 0; /* Distribute space evenly */
 }
 
 .alphabet-button:hover:not(:disabled) {
@@ -1136,18 +1147,25 @@ body.playing #banner {
     }
 
     #alphabet-keyboard-container {
-        grid-template-columns: repeat(auto-fit, minmax(40px, 1fr)); /* Min size for touch */
+        /* grid-template-columns: repeat(auto-fit, minmax(40px, 1fr)); /* Min size for touch */
+        /* Replaced grid with flex for rows */
         gap: 0.15rem;
         padding: 0.15rem;
         max-width: 100%;
     }
+    .keyboard-row {
+        gap: 0.15rem; /* Gap between buttons in a row */
+    }
+
 
     .alphabet-button {
         font-size: clamp(0.8rem, 3.5vw, 1.1rem);
-        min-width: 40px;
-        min-height: 40px;
+        min-width: 30px; /* Adjusted for QWERTY */
+        min-height: 40px; /* Adjusted for QWERTY */
         border-radius: 5px;
+        padding: 2px; /* Add some padding if needed */
     }
+
 
     #guessed-letters-section {
         font-size: 0.75em;
@@ -1278,17 +1296,22 @@ body.playing #banner {
 
 
     #alphabet-keyboard-container {
-        grid-template-columns: repeat(auto-fit, minmax(36px, 1fr)); /* Min 36px */
+        /* grid-template-columns: repeat(auto-fit, minmax(36px, 1fr)); /* Min 36px */
+        /* Replaced grid with flex for rows */
         gap: 0.1rem; /* Minimal gap */
         padding: 0.1rem;
     }
+    .keyboard-row {
+        gap: 0.1rem; /* Gap between buttons in a row */
+    }
 
     .alphabet-button {
-        min-width: 36px; /* Ensure touch target */
-        min-height: 36px; /* Ensure touch target */
-        font-size: clamp(0.75rem, 3vw, 0.9rem);
+        min-width: 25px; /* Adjusted for QWERTY on small screens */
+        min-height: 36px; /* Adjusted for QWERTY on small screens */
+        font-size: clamp(0.7rem, 2.8vw, 0.85rem); /* Further reduced for QWERTY */
         border-radius: 4px;
     }
+
 
     #stars-display {
         font-size: 0.9em;

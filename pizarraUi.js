@@ -27,6 +27,13 @@ let confettiContainerEl;
 let uiInitialized = false;
 let currentMessageTimeout = null;
 
+// QWERTY layout for the keyboard
+const QWERTY_LAYOUT = [
+    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ñ'],
+    ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+];
+
 export function initializeUiDOMReferences() {
     if (uiInitialized) return;
 
@@ -307,29 +314,34 @@ export function createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback)
     alphabetKeyboardContainerEl.innerHTML = '';
     const guessed = state.getGuessedLetters();
     const gameIsActive = state.getGameActive();
-    
-    state.ALPHABET.forEach(letter => {
-        const button = document.createElement('button');
-        button.classList.add('alphabet-button');
-        button.textContent = letter;
-        button.dataset.letter = letter;
-        
-        const normalizedButtonLetter = normalizeGameLetter(letter);
-        const isGuessed = guessed.has(normalizedButtonLetter);
-        const shouldDisable = !gameIsActive || !isMyTurnCurrently || isGuessed;
-        
-        button.disabled = shouldDisable;
-        
-        if (isGuessed) {
-            button.classList.add('guessed');
-        }
-        
-        button.addEventListener('click', () => {
-            if (!button.disabled && typeof onLetterClickCallback === 'function') {
-                onLetterClickCallback(letter, button);
+
+    QWERTY_LAYOUT.forEach(row => {
+        const rowDiv = document.createElement('div');
+        rowDiv.classList.add('keyboard-row');
+        row.forEach(letter => {
+            const button = document.createElement('button');
+            button.classList.add('alphabet-button');
+            button.textContent = letter;
+            button.dataset.letter = letter;
+
+            const normalizedButtonLetter = normalizeGameLetter(letter);
+            const isGuessed = guessed.has(normalizedButtonLetter);
+            const shouldDisable = !gameIsActive || !isMyTurnCurrently || isGuessed;
+
+            button.disabled = shouldDisable;
+
+            if (isGuessed) {
+                button.classList.add('guessed');
             }
+
+            button.addEventListener('click', () => {
+                if (!button.disabled && typeof onLetterClickCallback === 'function') {
+                    onLetterClickCallback(letter, button);
+                }
+            });
+            rowDiv.appendChild(button);
         });
-        alphabetKeyboardContainerEl.appendChild(button);
+        alphabetKeyboardContainerEl.appendChild(rowDiv);
     });
 }
 
