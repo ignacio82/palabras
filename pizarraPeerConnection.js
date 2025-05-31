@@ -374,22 +374,26 @@ function _finalizeClientJoinAttempt(myRawPeerId, leaderRawPeerIdToJoin) {
     }
 }
 
-function initPeerObject(peerIdToUse = null) { // peerIdToUse is raw PeerJS ID, or null for auto
+
+function initPeerObject(peerIdToUse = null) { 
     console.log(`[PeerConn] initPeerObject called. Requested PeerJS ID to use: ${peerIdToUse || 'Auto-assigned'}.`);
-    return new Promise((resolve, reject) => {
+    return new Promise((resolveIPO, rejectIPO) => { // Renamed to avoid conflict if resolve/reject are in outer scope
         if (!window.peerJsMultiplayer?.init) {
             const err = new Error('Error interno: El sistema de conexión (peerJsMultiplayer) no está disponible.');
             console.error("[PeerConn] initPeerObject:", err.message);
-            reject(err);
+            rejectIPO(err);
             return;
         }
         
-        // Store resolve/reject for onPeerOpen/onError to use
-        console.log("[PeerConn] initPeerObject: Storing _peerInitResolve and _peerInitReject.");
-        state.setNetworkRoomData({ _peerInitResolve: resolve, _peerInitReject: reject });
+        console.log("[PeerConn] initPeerObject: Storing _peerInitResolve and _peerInitReject via setNetworkRoomData.");
+        // Use setNetworkRoomData to correctly merge these function properties
+        state.setNetworkRoomData({ 
+            _peerInitResolve: resolveIPO, 
+            _peerInitReject: rejectIPO 
+        });
         
         console.log(`[PeerConn] initPeerObject: Calling peerJsMultiplayer.init with PeerJS ID: ${peerIdToUse || 'Auto-assigned'}.`);
-        window.peerJsMultiplayer.init(peerIdToUse || {}, peerJsCallbacks); // Pass raw ID or empty object for auto
+        window.peerJsMultiplayer.init(peerIdToUse || {}, peerJsCallbacks); 
     });
 }
 
