@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const hostGameButton = document.getElementById('host-game-button');
     const joinRandomButton = document.getElementById('join-random-button');
     const copyRoomLinkButtonEl = document.getElementById('copy-room-link-button');
-    const cancelMatchmakingButtonEl = document.getElementById('cancel-matchmaking-button'); // Keep this reference
+    const cancelMatchmakingButtonEl = document.getElementById('cancel-matchmaking-button'); 
 
     const lobbyToggleReadyButtonEl = document.getElementById('lobby-toggle-ready-button');
     const lobbyStartGameLeaderButtonEl = document.getElementById('lobby-start-game-leader-button');
@@ -56,20 +56,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const qrCodeContainerEl = document.getElementById('qr-code-container');
 
     function handleCancelMatchmaking() {
+        console.log("[Main] handleCancelMatchmaking called.");
         sound.playUiClick();
         exitPlayMode();
-        if (state.getMyPeerId() && matchmaking?.leaveQueue) {
-            matchmaking.leaveQueue(state.getMyPeerId());
+        const currentPeerId = state.getMyPeerId();
+        if (currentPeerId && matchmaking?.leaveQueue) {
+            console.log(`[Main] Calling matchmaking.leaveQueue for peerId: ${currentPeerId}`);
+            matchmaking.leaveQueue(currentPeerId);
         }
-        stopAnyActiveGameOrNetworkSession(true); // Preserve UI to stay on network setup
+        stopAnyActiveGameOrNetworkSession(true); 
         ui.showScreen('networkSetup');
         ui.displayMessage("Búsqueda de partida cancelada. 🚫", "info");
-        ui.hideModal(); // Ensure modal is hidden
-        if (cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none'; // Hide separate button if it was shown
+        ui.hideModal(); 
+        if (cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
     }
 
 
     function refreshAlphabetKeyboard() {
+        // console.log("[Main] refreshAlphabetKeyboard called.");
         if (!state.getGameActive()) {
             ui.createAlphabetKeyboard(false, handleLetterClickUI);
             return;
@@ -81,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startLocalGameUI() {
+        console.log("[Main] startLocalGameUI called.");
         ui.stopConfetti();
         const selectedDifficulty = state.getCurrentDifficulty();
         console.log(`[Main] Starting local game with difficulty: ${selectedDifficulty}`);
@@ -99,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const initState = logic.initializeGame(state, selectedDifficulty);
         if (!initState.success) {
+            console.error("[Main] Failed to initialize local game:", initState.message);
             ui.showModal(initState.message || "No se pudo iniciar el juego local.");
             exitPlayMode();
             return;
@@ -115,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleLetterClickUI(letter, buttonElement) {
+        // console.log(`[Main] handleLetterClickUI called with letter: ${letter}`);
         if (!state.getGameActive() || (buttonElement && buttonElement.disabled)) {
             console.log("[Main] Letter click ignored: game not active or button disabled.");
             return;
@@ -122,15 +129,19 @@ document.addEventListener('DOMContentLoaded', () => {
         sound.triggerVibration(25);
 
         if (state.getPvpRemoteActive()) {
+            console.log("[Main] PVP mode active for letter click.");
             if (state.getRawNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId()) {
+                console.log("[Main] It's my turn. Sending guess to host.");
                 if (buttonElement) buttonElement.disabled = true;
                 peerConnection.sendGuessToHost(letter);
             } else {
+                console.log("[Main] Not my turn. Displaying message.");
                 ui.displayMessage("No es tu turno. ¡Espera un poquito! ⏳", 'error');
             }
             return;
         }
 
+        console.log("[Main] Local mode active for letter click. Processing guess.");
         const result = logic.processGuess(letter);
         ui.renderFullGameBoard(true, handleLetterClickUI);
 
@@ -142,6 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sound.playLetterSelectSound(true);
             ui.displayMessage(`¡Genial! '${result.letter.toUpperCase()}' está en la palabra. 👍`, 'success');
             if (result.wordSolved) {
+                console.log("[Main] Word solved locally!");
                 endGameUI(true); 
                 return;
             }
@@ -149,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sound.playLetterSelectSound(false);
             ui.displayMessage(`'${result.letter.toUpperCase()}' no está. ¡Pierdes una ${state.STAR_SYMBOL}! 😢`, 'error');
             if (result.gameOver) {
+                console.log("[Main] Game over locally (player lost).");
                 endGameUI(false);
                 return;
             }
@@ -156,8 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleClueRequestUI() {
+        console.log("[Main] handleClueRequestUI called.");
         if (!state.getGameActive() || state.getClueUsedThisGame()) {
             if (state.getClueUsedThisGame()) ui.displayMessage("Ya usaste la pista para esta palabra. 🤫", "error");
+            console.log("[Main] Clue request ignored: game not active or clue already used.");
             return;
         }
         const isMyTurnForClue = state.getPvpRemoteActive() ?
@@ -165,14 +180,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                true;
         if (!isMyTurnForClue) {
             ui.displayMessage("No es tu turno para pedir una pista. 🚫", "error");
+            console.log("[Main] Clue request ignored: not my turn in PVP.");
             return;
         }
 
         sound.triggerVibration(40);
         if (state.getPvpRemoteActive()) {
+            console.log("[Main] PVP mode: Sending clue request to host.");
             peerConnection.sendClueRequestToHost();
             if(clueButtonEl) clueButtonEl.disabled = true;
         } else {
+            console.log("[Main] Local mode: Processing clue request.");
             const clueResult = logic.requestClue();
             if (clueResult.success) {
                 sound.playClueReveal();
@@ -187,6 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function endGameUI(isWin) {
+        console.log(`[Main] endGameUI called. isWin: ${isWin}`);
         state.setGameActive(false);
         refreshAlphabetKeyboard();
         ui.toggleClueButtonUI(false, false);
@@ -221,31 +240,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function returnToMainMenuUI() {
+        console.log("[Main] returnToMainMenuUI called.");
         ui.stopConfetti();
         stopAnyActiveGameOrNetworkSession(); 
     }
 
     function stopAnyActiveGameOrNetworkSession(preserveUIScreen = false) {
-        console.log("[Main] stopAnyActiveGameOrNetworkSession. Preserve UI:", preserveUIScreen);
+        console.log(`[Main] stopAnyActiveGameOrNetworkSession called. Preserve UI: ${preserveUIScreen}`);
         exitPlayMode();
         const wasPvpActive = state.getPvpRemoteActive();
         const currentNetworkRoomState = state.getRawNetworkRoomData().roomState;
+        const myCurrentPeerId = state.getMyPeerId(); // Get peer ID before reset
 
-        if (state.getGameActive()) state.setGameActive(false);
+        console.log(`[Main] Before reset: PVP Active: ${wasPvpActive}, Room State: ${currentNetworkRoomState}, My Peer ID: ${myCurrentPeerId}`);
+
+
+        if (state.getGameActive()) {
+            console.log("[Main] Setting game inactive.");
+            state.setGameActive(false);
+        }
 
         if (wasPvpActive) {
+            console.log("[Main] PVP was active, leaving room and closing peer session.");
             peerConnection.leaveRoom();
-            peerConnection.closePeerSession();
-            if (currentNetworkRoomState === 'seeking_match' && state.getMyPeerId()) {
+            peerConnection.closePeerSession(); // This will eventually nullify state.myPeerId
+            if (currentNetworkRoomState === 'seeking_match' && myCurrentPeerId) {
                  if (matchmaking && typeof matchmaking.leaveQueue === 'function') {
-                    matchmaking.leaveQueue(state.getMyPeerId());
+                    console.log(`[Main] Leaving matchmaking queue for peerId: ${myCurrentPeerId}`);
+                    matchmaking.leaveQueue(myCurrentPeerId);
                 }
             }
         }
-
+        
+        console.log("[Main] Resetting full local state.");
         state.resetFullLocalStateForNewUIScreen();
+        console.log("[Main] State after resetFullLocalStateForNewUIScreen:", state.getRawNetworkRoomData());
+
 
         if (!preserveUIScreen) {
+            console.log("[Main] Not preserving UI screen. Resetting to local setup.");
             if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
             if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
             ui.updateGameModeTabs('local');
@@ -255,7 +288,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clueDisplayAreaEl) clueDisplayAreaEl.style.display = 'none';
         if (messageAreaEl) ui.displayMessage('\u00A0', 'info', true);
         
-        // Ensure cancel matchmaking button is hidden when stopping session generally
         if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
 
         if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';
@@ -269,6 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.toggleClueButtonUI(false, false);
         if(playAgainButtonEl) playAgainButtonEl.style.display = 'none';
         if(mainMenuButtonEl) mainMenuButtonEl.style.display = 'none';
+        console.log("[Main] stopAnyActiveGameOrNetworkSession completed.");
     }
 
     function getPlayerCustomizationDataFromUI(isModal = false, modalNameInput = null, modalIconSelect = null) {
@@ -281,10 +314,12 @@ document.addEventListener('DOMContentLoaded', () => {
             name = networkPlayerNameInput?.value.trim() || `Pizarrín${randomSuffix}`;
             icon = networkPlayerIconSelect?.value || state.AVAILABLE_ICONS[0];
         }
+        // console.log(`[Main] getPlayerCustomizationDataFromUI: Name: ${name}, Icon: ${icon}`);
         return { name, icon };
     }
 
     async function hostGameUI() {
+        console.log("[Main] hostGameUI called.");
         stopAnyActiveGameOrNetworkSession(true);
         ui.showModal("Creando tu sala de Palabras... 🏰✨");
         sound.triggerVibration(50);
@@ -294,13 +329,21 @@ document.addEventListener('DOMContentLoaded', () => {
             difficulty: state.getCurrentDifficulty(),
             maxPlayers: parseInt(networkMaxPlayersSelect.value) || state.MAX_PLAYERS_NETWORK
         };
+        console.log("[Main] Host Customization:", hostCustomization, "Game Settings:", gameSettings);
 
         try {
+            console.log("[Main] Calling peerConnection.hostNewRoom...");
             const hostPeerId = await peerConnection.hostNewRoom(hostCustomization, gameSettings);
-            if (matchmaking?.updateHostedRoomStatus && hostPeerId) {
-                 matchmaking.updateHostedRoomStatus(hostPeerId, gameSettings, gameSettings.maxPlayers, 1, 'hosting_waiting_for_players');
+            console.log(`[Main] hostNewRoom successful. Host Peer ID (from hostNewRoom promise): ${hostPeerId}. Current state peerId: ${state.getMyPeerId()}`);
+            // Note: hostPeerId from hostNewRoom's promise is the one resolved by _setupCompleteCallback
+            // state.getMyPeerId() is updated by onPeerOpen directly. They should match.
+            
+            if (matchmaking?.updateHostedRoomStatus && state.getMyPeerId()) { // Use the confirmed peer ID from state
+                 console.log(`[Main] Calling matchmaking.updateHostedRoomStatus for host: ${state.getMyPeerId()}`);
+                 matchmaking.updateHostedRoomStatus(state.getMyPeerId(), gameSettings, gameSettings.maxPlayers, 1, 'hosting_waiting_for_players');
+            } else {
+                 console.warn("[Main] Matchmaking updateHostedRoomStatus not called or myPeerId not available.");
             }
-             // Do not hide modal here, showLobby callback will handle it or network error
         } catch (error) {
             console.error("[Main] Error hosting game:", error);
             ui.hideModal();
@@ -311,11 +354,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function joinRandomGameUI() {
-        stopAnyActiveGameOrNetworkSession(true); // Reset state before starting a new attempt
+        console.log("[Main] joinRandomGameUI called.");
+        stopAnyActiveGameOrNetworkSession(true); 
         sound.triggerVibration(50);
         state.setPvpRemoteActive(true);
+        console.log("[Main] PVP mode set to true for join random.");
 
-        // Show a modal with a cancel button immediately
         ui.showModal("Buscando una sala de Palabras... 🎲🕵️‍♀️", [
             { text: "❌ Cancelar Búsqueda", action: handleCancelMatchmaking, className: 'action-button-danger' }
         ]);
@@ -325,77 +369,90 @@ document.addEventListener('DOMContentLoaded', () => {
             maxPlayers: parseInt(networkMaxPlayersSelect.value) || state.MAX_PLAYERS_NETWORK,
             gameSettings: { difficulty: state.getCurrentDifficulty() }
         };
+        console.log("[Main] Joiner Customization:", joinerCustomization, "Preferences:", preferences);
 
         try {
+            console.log("[Main] Calling peerConnection.ensurePeerInitialized for joiner...");
             const localRawPeerId = await peerConnection.ensurePeerInitialized();
-            if (!localRawPeerId) {
-                throw new Error("No se pudo obtener ID de PeerJS para matchmaking.");
-            }
+            console.log(`[Main] ensurePeerInitialized for joiner successful. Local Raw Peer ID: ${localRawPeerId}`);
 
+            if (!localRawPeerId || typeof localRawPeerId !== 'string') { // Added string check for robustness
+                console.error(`[Main] Invalid localRawPeerId after ensurePeerInitialized: ${localRawPeerId}, type: ${typeof localRawPeerId}`);
+                throw new Error("ID de jugador local inválido después de la inicialización de PeerJS.");
+            }
+            
+            console.log(`[Main] Peer ID for matchmaking.joinQueue: ${localRawPeerId}`);
             if (matchmaking?.joinQueue) {
                 matchmaking.joinQueue(localRawPeerId, joinerCustomization, preferences, {
                     onSearching: () => {
-                        // Modal is already shown. We can update its text if desired, or do nothing here.
-                        console.log("[Main] Matchmaking: onSearching - Modal should be visible.");
-                        // No longer showing #network-info-area here, rely on modal.
-                        // Ensure other UI elements are hidden if necessary
-                        if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block'; // Keep setup visible in background
+                        console.log("[Main] Matchmaking Callback: onSearching.");
+                        if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block'; 
                         if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
-                        ui.showScreen('networkSetup'); // Or 'networkInfo' if you want a specific background screen for the modal
+                        ui.showScreen('networkSetup'); 
                         exitPlayMode();
                     },
                     onMatchFoundAndJoiningRoom: async (leaderRawPeerIdToJoin, roomDetails) => {
-                        // Modal will be updated by showLobby or error message
-                        ui.hideModal(); // Hide searching modal
+                        console.log(`[Main] Matchmaking Callback: onMatchFoundAndJoiningRoom. Leader Peer ID: ${leaderRawPeerIdToJoin}`, roomDetails);
+                        ui.hideModal(); 
                         ui.showModal(`¡Sala encontrada! (${state.PIZARRA_PEER_ID_PREFIX}${leaderRawPeerIdToJoin}). Uniendo... ⏳`);
-                        // The cancel button from the "searching" modal is gone now.
                         try {
+                            console.log(`[Main] Calling peerConnection.joinRoomById for leader: ${leaderRawPeerIdToJoin}`);
                             await peerConnection.joinRoomById(leaderRawPeerIdToJoin, joinerCustomization);
-                            // ui.hideModal() will be called by showLobby if successful
+                            console.log(`[Main] joinRoomById completed for ${leaderRawPeerIdToJoin}. Waiting for showLobby.`);
                         } catch (joinError) {
+                            console.error(`[Main] Error joining room ${leaderRawPeerIdToJoin}:`, joinError);
                             ui.hideModal();
                             ui.showModal(`Error al unirse a la sala: ${joinError.message || 'Intenta de nuevo'}`);
                             stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup');
                         }
                     },
                     onMatchFoundAndHostingRoom: async (myNewRawPeerIdForHosting, initialHostData) => {
-                         // Modal will be updated by showLobby or error message
-                        ui.hideModal(); // Hide searching modal
+                        console.log(`[Main] Matchmaking Callback: onMatchFoundAndHostingRoom. My new Peer ID for hosting: ${myNewRawPeerIdForHosting}`, initialHostData);
+                        ui.hideModal(); 
                         ui.showModal("No hay salas disponibles, ¡creando una nueva para ti! 🚀");
                         try {
-                            await peerConnection.hostNewRoom(joinerCustomization, initialHostData.gameSettings);
-                            // ui.hideModal() will be called by showLobby if successful
-                            if (matchmaking?.updateHostedRoomStatus && myNewRawPeerIdForHosting) { // Should be hostPeerId from hostNewRoom
-                                matchmaking.updateHostedRoomStatus(myNewRawPeerIdForHosting, initialHostData.gameSettings, initialHostData.gameSettings.maxPlayers || preferences.maxPlayers, 1, 'hosting_waiting_for_players');
+                            console.log("[Main] Calling peerConnection.hostNewRoom from onMatchFoundAndHostingRoom.");
+                            // hostNewRoom uses getLocalPlayerCustomizationForNetwork, so joinerCustomization is implicitly used.
+                            const actualHostPeerId = await peerConnection.hostNewRoom(joinerCustomization, initialHostData.gameSettings); 
+                            console.log(`[Main] hostNewRoom (from onMatchFoundAndHostingRoom) successful. Actual Host Peer ID: ${actualHostPeerId}. Current state peerId: ${state.getMyPeerId()}`);
+                            
+                            if (matchmaking?.updateHostedRoomStatus && state.getMyPeerId()) {
+                                console.log(`[Main] Updating matchmaking status for new host: ${state.getMyPeerId()}`);
+                                matchmaking.updateHostedRoomStatus(state.getMyPeerId(), initialHostData.gameSettings, initialHostData.gameSettings.maxPlayers || preferences.maxPlayers, 1, 'hosting_waiting_for_players');
+                            } else {
+                                console.warn("[Main] matchmaking.updateHostedRoomStatus not called in onMatchFoundAndHostingRoom or myPeerId missing.");
                             }
                         } catch (hostError) {
+                            console.error("[Main] Error hosting new room from onMatchFoundAndHostingRoom:", hostError);
                             ui.hideModal(); ui.showModal(`Error al crear nueva sala: ${hostError.message}`);
                             stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup');
                         }
                     },
                     onError: (errMsg) => {
+                        console.error(`[Main] Matchmaking Callback: onError. Message: ${errMsg}`);
                         ui.hideModal(); 
                         ui.showModal(`Error de Matchmaking: ${errMsg}`, [{text: "OK", action: () => {
-                            handleCancelMatchmaking(); // Use the centralized cancel logic
+                            handleCancelMatchmaking(); 
                         }}]);
-                        // stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup'); // Covered by handleCancelMatchmaking
                     }
                 });
             } else {
+                 console.error("[Main] matchmaking.joinQueue is not available.");
                  throw new Error("Servicio de matchmaking no disponible.");
             }
         } catch (initError) {
+            console.error("[Main] Error in joinRandomGameUI (likely during peer initialization):", initError);
             ui.hideModal(); 
             ui.showModal(`Error de Red: ${initError.message || 'No se pudo conectar.'}`, [{text: "OK", action: () => {
-                handleCancelMatchmaking(); // Use the centralized cancel logic
+                handleCancelMatchmaking(); 
             }}]);
-            // stopAnyActiveGameOrNetworkSession(true); ui.showScreen('networkSetup'); // Covered by handleCancelMatchmaking
         }
     }
 
     window.pizarraUiUpdateCallbacks = {
         showLobby: (isHost) => {
-            ui.hideModal(); // Ensure any previous modal (like "searching" or "connecting") is hidden
+            console.log(`[Main] UI Callback: showLobby. Is Host: ${isHost}. Current Room Data:`, state.getRawNetworkRoomData());
+            ui.hideModal(); 
             if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
             if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
             ui.showScreen('lobby');
@@ -407,20 +464,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             exitPlayMode();
         },
-        updateLobby: ui.updateLobbyUI,
+        updateLobby: () => {
+            // console.log("[Main] UI Callback: updateLobby.");
+            ui.updateLobbyUI();
+        },
         showNetworkError: (message, shouldReturnToSetupIfCritical = false) => {
+            console.error(`[Main] UI Callback: showNetworkError. Message: ${message}, Critical: ${shouldReturnToSetupIfCritical}`);
             ui.showModal(`Error de Red: ${message}`, [{ text: "OK", action: () => {
                 ui.hideModal();
                 if (shouldReturnToSetupIfCritical) {
-                    // Use the centralized cancel/reset logic if appropriate
-                    handleCancelMatchmaking(); // This resets to networkSetup
+                    console.log("[Main] Critical network error, calling handleCancelMatchmaking.");
+                    handleCancelMatchmaking(); 
                 }
             }}]);
             sound.playErrorSound();
             exitPlayMode();
         },
         startGameOnNetwork: (initialGameState) => {
-            console.log('[Main] startGameOnNetwork called with initialGameState:', initialGameState);
+            console.log('[Main] UI Callback: startGameOnNetwork called with initialGameState:', initialGameState);
             ui.hideModal();
             if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';
             ui.stopConfetti();
@@ -435,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sound.playGameStart();
         },
         updateGameFromNetwork: (guessResultPayload) => {
-            console.log('[Main] updateGameFromNetwork (GUESS_RESULT) received:', guessResultPayload);
+            // console.log('[Main] UI Callback: updateGameFromNetwork (GUESS_RESULT) received:', guessResultPayload);
             const { letter, correct, error, affectedPlayerId } = guessResultPayload;
             const playerMakingGuess = state.getPlayersData().find(p => p.id === affectedPlayerId);
             const guesserName = playerMakingGuess ? `${playerMakingGuess.icon}${playerMakingGuess.name}` : 'Alguien';
@@ -457,10 +518,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.updateStarsDisplay();
         },
         syncUIFromNetworkState: () => {
-            console.log('[Main] syncUIFromNetworkState: Forcing UI sync from full network state.');
+            console.log('[Main] UI Callback: syncUIFromNetworkState. Current game phase:', state.getGamePhase());
             const currentPhase = state.getGamePhase();
             if (currentPhase === 'lobby') {
-                // If moving to lobby, ensure modal is hidden (e.g. "connecting" modal)
                 ui.hideModal();
                 if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
                 if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
@@ -468,7 +528,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 ui.updateLobbyUI();
                 exitPlayMode();
             } else if (currentPhase === 'playing' || currentPhase === 'game_over' || currentPhase === 'ended') {
-                 // If moving to game, ensure modal is hidden
                 ui.hideModal();
                 if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'none';
                 if(document.getElementById('app')) document.getElementById('app').style.display = 'flex';
@@ -479,15 +538,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     ui.toggleClueButtonUI(false, false);
                 }
                 if(currentPhase === 'playing') enterPlayMode(); else exitPlayMode();
+            } else {
+                console.log(`[Main] syncUIFromNetworkState: Unhandled phase '${currentPhase}' for full UI sync, potentially showing setup.`);
+                 if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
+                if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
+                ui.showScreen('networkSetup'); // Default to network setup if phase is unclear
+                exitPlayMode();
             }
         },
         displayClueFromNetwork: (clueData) => {
+            console.log('[Main] UI Callback: displayClueFromNetwork.', clueData);
             sound.playClueReveal();
             ui.displayClueOnUI(clueData.clue);
             ui.displayMessage("¡Pista mágica para todos! 🤫✨", 'info');
             ui.toggleClueButtonUI(false, true);
         },
         showNetworkGameOver: (gameOverData) => {
+            console.log('[Main] UI Callback: showNetworkGameOver.', gameOverData);
             state.setGameActive(false);
             refreshAlphabetKeyboard();
             ui.toggleClueButtonUI(false, false);
@@ -531,28 +598,34 @@ document.addEventListener('DOMContentLoaded', () => {
             else { sound.playGameOverSound(); sound.triggerVibration([70,50,70]); }
         },
         handleCriticalDisconnect: () => {
+            console.error("[Main] UI Callback: handleCriticalDisconnect.");
             exitPlayMode();
-            // Use the centralized cancel/reset logic
-            handleCancelMatchmaking(); // This resets to networkSetup and hides modal
-            // show a specific modal after the reset if needed
+            handleCancelMatchmaking(); 
             ui.showModal("Desconectado de la partida. Volviendo al menú principal.", [{text: "OK", action: ui.hideModal}]);
         },
         showLobbyMessage: (messageText, isError = false) => {
+            console.log(`[Main] UI Callback: showLobbyMessage. Text: ${messageText}, Error: ${isError}`);
             const lobbyMessageArea = document.getElementById('lobby-message-area');
             if(lobbyMessageArea) ui.displayMessage(messageText, isError ? 'error' : 'info', false, lobbyMessageArea);
         },
         hideModal: ui.hideModal,
         showModal: ui.showModal,
-        hideNetworkInfo: () => {if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';}
+        hideNetworkInfo: () => {
+            console.log("[Main] UI Callback: hideNetworkInfo.");
+            if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';
+        }
     };
 
     function initializeAppEventListeners() {
+        console.log("[Main] Initializing app event listeners.");
         gameModeTabs.forEach(tab => tab.addEventListener('click', () => {
+            console.log(`[Main] Game mode tab clicked: ${tab.dataset.mode}`);
             sound.playUiClick();
             exitPlayMode();
             const newMode = tab.dataset.mode;
             const isCurrentlyPvp = state.getPvpRemoteActive();
             if ((newMode === 'local' && isCurrentlyPvp) || (newMode === 'network' && !isCurrentlyPvp)) {
+                 console.log("[Main] Mode changed, stopping active session.");
                  stopAnyActiveGameOrNetworkSession(true);
             }
             ui.updateGameModeTabs(newMode);
@@ -560,22 +633,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
             ui.showScreen(newMode === 'local' ? 'localSetup' : 'networkSetup');
             state.setPvpRemoteActive(newMode === 'network');
+            console.log(`[Main] PVP mode set to: ${state.getPvpRemoteActive()}`);
         }));
 
         difficultyButtons.forEach(button => {
             button.addEventListener('click', (event) => {
+                const newDifficulty = event.target.dataset.difficulty;
+                console.log(`[Main] Difficulty button clicked: ${newDifficulty}`);
                 sound.playUiClick();
-                state.setCurrentDifficulty(event.target.dataset.difficulty);
+                state.setCurrentDifficulty(newDifficulty);
                 ui.updateDifficultyButtonUI();
                 if (state.getPvpRemoteActive() && state.getRawNetworkRoomData().isRoomLeader) {
+                    console.log("[Main] Host changed difficulty, updating network room data.");
                     state.setNetworkRoomData({ gameSettings: { ...state.getRawNetworkRoomData().gameSettings, difficulty: state.getCurrentDifficulty() } });
+                     // Consider broadcasting this change to lobby members if not already handled by full state syncs
                 }
             });
         });
 
-        if(startLocalGameButton) startLocalGameButton.addEventListener('click', () => { sound.playUiClick(); startLocalGameUI(); });
-        if(clueButtonEl) clueButtonEl.addEventListener('click', () => { sound.playUiClick(); handleClueRequestUI(); });
+        if(startLocalGameButton) startLocalGameButton.addEventListener('click', () => { console.log("[Main] Start Local Game button clicked."); sound.playUiClick(); startLocalGameUI(); });
+        if(clueButtonEl) clueButtonEl.addEventListener('click', () => { console.log("[Main] Clue button clicked."); sound.playUiClick(); handleClueRequestUI(); });
         if(playAgainButtonEl) playAgainButtonEl.addEventListener('click', () => {
+            console.log("[Main] Play Again button clicked.");
             sound.playUiClick(); ui.stopConfetti();
             if (state.getPvpRemoteActive()) {
                 exitPlayMode();
@@ -585,70 +664,82 @@ document.addEventListener('DOMContentLoaded', () => {
                 startLocalGameUI();
             }
         });
-        if(mainMenuButtonEl) mainMenuButtonEl.addEventListener('click', () => { sound.playUiClick(); ui.stopConfetti(); returnToMainMenuUI(); });
-        if(hostGameButton) hostGameButton.addEventListener('click', () => { sound.playUiClick(); hostGameUI(); });
-        if(joinRandomButton) joinRandomButton.addEventListener('click', () => { sound.playUiClick(); joinRandomGameUI(); });
+        if(mainMenuButtonEl) mainMenuButtonEl.addEventListener('click', () => { console.log("[Main] Main Menu button clicked."); sound.playUiClick(); ui.stopConfetti(); returnToMainMenuUI(); });
+        if(hostGameButton) hostGameButton.addEventListener('click', () => { console.log("[Main] Host Game button clicked."); sound.playUiClick(); hostGameUI(); });
+        if(joinRandomButton) joinRandomButton.addEventListener('click', () => { console.log("[Main] Join Random button clicked."); sound.playUiClick(); joinRandomGameUI(); });
 
         if(copyRoomLinkButtonEl) copyRoomLinkButtonEl.addEventListener('click', () => {
+            console.log("[Main] Copy Room Link button clicked.");
             sound.playUiClick();
             const roomId = state.getRawNetworkRoomData().roomId;
             if (!roomId) {
+                console.warn("[Main] Copy Room Link: Room ID not available.");
                 ui.displayMessage("ID de sala no disponible aún. 😔", "error", false, document.getElementById('lobby-message-area') || messageAreaEl);
                 return;
             }
             const roomLink = `${PIZARRA_BASE_URL}?room=${roomId}`;
             navigator.clipboard.writeText(roomLink).then(() => {
+                console.log("[Main] Room link copied to clipboard:", roomLink);
                 ui.displayMessage("¡Enlace copiado al portapapeles! ✨", "success", false, document.getElementById('lobby-message-area') || messageAreaEl);
             }).catch(err => {
-                console.error('Error al copiar enlace: ', err);
+                console.error('[Main] Error al copiar enlace: ', err);
                 ui.displayMessage("No se pudo copiar el enlace. 😔", "error", false, document.getElementById('lobby-message-area') || messageAreaEl);
             });
         });
-
-        // The cancelMatchmakingButtonEl is now primarily controlled by the modal logic in joinRandomGameUI
-        // This listener is a fallback or if it's shown elsewhere.
-        if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.addEventListener('click', handleCancelMatchmaking);
+        
+        if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.addEventListener('click', () => {
+            console.log("[Main] Cancel Matchmaking button (standalone) clicked.");
+            handleCancelMatchmaking();
+        });
 
         if(lobbyToggleReadyButtonEl) lobbyToggleReadyButtonEl.addEventListener('click', () => {
+            console.log("[Main] Lobby Toggle Ready button clicked.");
             sound.playUiClick(); sound.triggerVibration(25);
             const myPlayer = state.getRawNetworkRoomData().players.find(p => p.peerId === state.getMyPeerId());
-            if(myPlayer) peerConnection.sendPlayerReadyState(!myPlayer.isReady);
+            if(myPlayer) {
+                console.log(`[Main] Sending player ready state: ${!myPlayer.isReady}`);
+                peerConnection.sendPlayerReadyState(!myPlayer.isReady);
+            } else {
+                console.warn("[Main] Lobby Toggle Ready: My player not found in room data.");
+            }
         });
         if(lobbyStartGameLeaderButtonEl) lobbyStartGameLeaderButtonEl.addEventListener('click', () => {
+            console.log("[Main] Lobby Start Game Leader button clicked.");
             sound.playUiClick(); sound.triggerVibration(50);
             peerConnection.leaderStartGameRequest();
         });
         if(lobbyLeaveRoomButtonEl) lobbyLeaveRoomButtonEl.addEventListener('click', () => {
+            console.log("[Main] Lobby Leave Room button clicked.");
             sound.playUiClick(); sound.triggerVibration(30);
              ui.showModal("¿Seguro que quieres salir de la sala? 🚪🥺", [
                  {text: "Sí, Salir", action: returnToMainMenuUI, className: 'action-button-danger'},
                  {text: "No, Quedarme", action: ui.hideModal, className: 'action-button-secondary'}
                 ]);
         });
-        if(modalCloseButtonEl) modalCloseButtonEl.addEventListener('click', () => {sound.playUiClick(); ui.hideModal();});
+        if(modalCloseButtonEl) modalCloseButtonEl.addEventListener('click', () => { console.log("[Main] Modal Close (X) button clicked."); sound.playUiClick(); ui.hideModal();});
         if(customModalEl) customModalEl.addEventListener('click', (e) => {
-            // Only close if clicking outside the modal-content AND no dynamic buttons are present
-            // (as dynamic buttons imply a choice needs to be made).
-            // Or, if dynamic buttons ARE present, this click-outside-to-close should be disabled.
-            // For now, let's stick to: if modal has dynamic buttons, only buttons close it.
-            // If it only has the 'X' (modalCloseButtonEl), then clicking outside is fine.
             if (e.target === customModalEl) {
                 const hasDynamicButtons = modalDynamicButtonsEl && modalDynamicButtonsEl.children.length > 0;
-                if (!hasDynamicButtons) { // Only allow click-outside-to-close if no dynamic buttons
+                if (!hasDynamicButtons) { 
+                    console.log("[Main] Clicked outside modal (no dynamic buttons), closing.");
                     sound.playUiClick(); 
                     ui.hideModal();
+                } else {
+                    console.log("[Main] Clicked outside modal (dynamic buttons present), not closing.");
                 }
             }
         });
 
         const bodyEl = document.querySelector('body');
         const initAudioOnUserGesture = async () => {
+            console.log("[Main] User gesture detected for audio initialization.");
             try {
                 if (typeof Tone !== 'undefined' && Tone.start && Tone.context && Tone.context.state !== 'running') {
                     await Tone.start();
                     console.log("[Main] Tone.js AudioContext started on user gesture.");
                 }
                 if (sound?.initSounds && !sound.soundsCurrentlyInitialized) {
+                    console.log("[Main] Initializing custom sounds.");
                     await sound.initSounds(); 
                 }
             } catch (e) {
@@ -662,24 +753,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initializeApp() {
+        console.log("[Main] initializeApp called.");
         initializeAppEventListeners(); 
         
         if (typeof DICTIONARY_DATA !== 'undefined' && DICTIONARY_DATA.length > 0) {
+            console.log("[Main] Dictionary loaded. Populating icons and setting defaults.");
             if(networkPlayerIconSelect) ui.populatePlayerIcons(networkPlayerIconSelect);
             state.setCurrentDifficulty('easy');
             ui.updateDifficultyButtonUI();
             returnToMainMenuUI(); 
         } else {
+            console.error("[Main] CRITICAL ERROR: Dictionary not loaded.");
             ui.showModal("Error Crítico: El diccionario de palabras no está cargado. El juego no puede iniciar. 💔");
             exitPlayMode();
         }
         processUrlJoin(); 
+        console.log("[Main] initializeApp completed.");
     }
 
     async function processUrlJoin() {
+        console.log("[Main] processUrlJoin called.");
         const urlParams = new URLSearchParams(window.location.search);
         const roomIdFromUrl = urlParams.get('room');
         if (roomIdFromUrl && roomIdFromUrl.trim()) {
+            console.log(`[Main] Room ID found in URL: ${roomIdFromUrl}. Processing join.`);
             window.history.replaceState({}, document.title, window.location.pathname);
             exitPlayMode();
 
@@ -696,6 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
             const buttonsConfig = [
                 { text: "✅ Unirme a la Sala", className: 'action-button-confirm', action: async () => {
+                    console.log("[Main] URL Join: 'Unirme a la Sala' button clicked.");
                     ui.hideModal();
                     ui.showModal(`Conectando a ${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl}... Por favor espera. ⏳`);
                     const nameInputInModal = document.getElementById(modalPlayerNameId);
@@ -705,23 +803,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     if(iconSelectInModal && networkPlayerIconSelect) networkPlayerIconSelect.value = iconSelectInModal.value;
 
                     const joinerCustomization = state.getLocalPlayerCustomizationForNetwork();
+                    console.log("[Main] URL Join: Joiner customization:", joinerCustomization);
                     state.setPvpRemoteActive(true);
                     ui.updateGameModeTabs('network');
                     if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
                     if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
-                    ui.showScreen('networkSetup'); // Show the setup screen briefly before lobby/error
+                    ui.showScreen('networkSetup'); 
 
                     try {
+                        console.log(`[Main] URL Join: Calling peerConnection.joinRoomById for room: ${roomIdFromUrl.trim()}`);
                         await peerConnection.joinRoomById(roomIdFromUrl.trim(), joinerCustomization);
-                         // Success will lead to showLobby callback hiding the modal
+                        console.log("[Main] URL Join: joinRoomById completed. Waiting for showLobby callback.");
                     } catch (error) {
-                        ui.hideModal(); // Hide "Connecting..." modal
+                        console.error("[Main] URL Join: Error joining room:", error);
+                        ui.hideModal(); 
                         ui.showModal(`Error al unirse a la sala: ${error.message || 'Intenta de nuevo o verifica el ID.'}`);
-                        stopAnyActiveGameOrNetworkSession(true); // Reset state
-                        ui.showScreen('networkSetup'); // Back to setup
+                        stopAnyActiveGameOrNetworkSession(true); 
+                        ui.showScreen('networkSetup'); 
                     }
                 }},
-                { text: "❌ Cancelar", action: () => { ui.hideModal(); ui.showScreen('localSetup'); ui.updateGameModeTabs('local'); exitPlayMode(); }, className: 'action-button-secondary'}
+                { text: "❌ Cancelar", action: () => { console.log("[Main] URL Join: Cancel button clicked."); ui.hideModal(); ui.showScreen('localSetup'); ui.updateGameModeTabs('local'); exitPlayMode(); }, className: 'action-button-secondary'}
             ];
             ui.showModal(joinPromptHtml, buttonsConfig, true);
 
@@ -730,6 +831,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ui.populatePlayerIcons(iconSelectInModal);
                 if(networkPlayerIconSelect) iconSelectInModal.value = networkPlayerIconSelect.value || state.AVAILABLE_ICONS[0];
             }
+        } else {
+            console.log("[Main] No room ID found in URL parameters.");
         }
     }
     initializeApp();
