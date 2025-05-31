@@ -1,6 +1,6 @@
 // pizarraUi.js - Fixed for mobile, network mode, and easy mode clue display
 import * as state from './pizarraState.js';
-import { normalizeLetter as normalizeGameLetter } from './util.js'; 
+import { normalizeLetter as normalizeGameLetter } from './util.js';
 
 // --- DOM Element References (fetched once) ---
 let localGameSetupSection, networkGameSetupSection, gameAreaEl, lobbyAreaEl, networkInfoAreaEl;
@@ -9,8 +9,8 @@ let starsDisplayEl, currentPlayerTurnDisplaySpan, clueButtonEl, clueDisplayAreaE
 let messageAreaEl, wordDisplayContainerEl, alphabetKeyboardContainerEl;
 let incorrectLettersDisplayEl, correctLettersDisplayEl, scoreDisplayAreaEl;
 let playAgainButtonEl, mainMenuButtonEl, cancelMatchmakingButtonEl;
-let difficultyButtons; 
-let gameModeTabs; 
+let difficultyButtons;
+let gameModeTabs;
 
 // Network UI
 let networkPlayerNameInput, networkPlayerIconSelect, networkMaxPlayersSelect;
@@ -79,7 +79,6 @@ export function initializeUiDOMReferences() {
     confettiContainerEl = document.getElementById('confetti-container');
     
     uiInitialized = true;
-    // console.log("[pizarraUi] DOM references initialized."); // Kept for initial check
 }
 
 // --- General UI Functions ---
@@ -91,11 +90,11 @@ export function displayMessage(text, type = 'info', persistent = false, area = m
     
     if (!persistent && area === messageAreaEl && gameAreaEl && gameAreaEl.style.display !== 'none') {
         currentMessageTimeout = setTimeout(() => {
-            if (area.textContent === text) { 
-                if (state.getGameActive() && (type === 'info' || type === '')) { 
-                    area.textContent = '\u00A0'; 
+            if (area.textContent === text) {
+                if (state.getGameActive() && (type === 'info' || type === '')) {
+                    area.textContent = '\u00A0';
                     area.className = 'message';
-                } else if (!state.getGameActive() && type !== 'success' && type !== 'error') { 
+                } else if (!state.getGameActive() && type !== 'success' && type !== 'error') {
                     area.textContent = '\u00A0';
                     area.className = 'message';
                 }
@@ -105,9 +104,9 @@ export function displayMessage(text, type = 'info', persistent = false, area = m
 }
 
 export function showModal(messageOrHtml, buttonsConfig = null, isHtmlContent = false) {
-    if (!customModalEl || !modalMainContentAreaEl || !modalCloseButtonEl || !modalDynamicButtonsEl) { 
-        console.error("Modal elements not found."); 
-        return; 
+    if (!customModalEl || !modalMainContentAreaEl || !modalCloseButtonEl || !modalDynamicButtonsEl) {
+        console.error("Modal elements not found.");
+        return;
     }
     if (isHtmlContent) {
         modalMainContentAreaEl.innerHTML = messageOrHtml;
@@ -117,21 +116,21 @@ export function showModal(messageOrHtml, buttonsConfig = null, isHtmlContent = f
     
     modalDynamicButtonsEl.innerHTML = '';
     if (buttonsConfig?.length > 0) {
-        modalCloseButtonEl.style.display = 'none'; 
+        modalCloseButtonEl.style.display = 'none';
         modalDynamicButtonsEl.style.display = 'flex';
         buttonsConfig.forEach(btnConfig => {
-            const button = document.createElement('button'); 
+            const button = document.createElement('button');
             button.textContent = btnConfig.text;
             button.className = btnConfig.className || 'action-button-secondary';
             button.addEventListener('click', (event) => {
                 if (typeof btnConfig.action === 'function') {
                     btnConfig.action(event);
                 }
-            }); 
+            });
             modalDynamicButtonsEl.appendChild(button);
         });
     } else {
-        modalCloseButtonEl.style.display = 'inline-block'; 
+        modalCloseButtonEl.style.display = 'inline-block';
         modalDynamicButtonsEl.style.display = 'none';
     }
     customModalEl.style.display = 'flex';
@@ -140,12 +139,12 @@ export function hideModal() { if (customModalEl) customModalEl.style.display = '
 
 export function showScreen(screenName) {
     if(!uiInitialized) initializeUiDOMReferences();
-    const screens = { 
-        localSetup: localGameSetupSection, 
-        networkSetup: networkGameSetupSection, 
-        game: gameAreaEl, 
-        lobby: lobbyAreaEl, 
-        networkInfo: networkInfoAreaEl 
+    const screens = {
+        localSetup: localGameSetupSection,
+        networkSetup: networkGameSetupSection,
+        game: gameAreaEl,
+        lobby: lobbyAreaEl,
+        networkInfo: networkInfoAreaEl
     };
     
     for (const key in screens) if (screens[key]) screens[key].style.display = 'none';
@@ -155,24 +154,43 @@ export function showScreen(screenName) {
     if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
     
     if (gameModeSelectionSection) {
-        if (screenName === 'game') {
+        // Hide game mode selection when in game, lobby, or network info screen
+        if (screenName === 'game' || screenName === 'lobby' || screenName === 'networkInfo') {
             gameModeSelectionSection.style.display = 'none';
         } else {
+            // Show game mode selection for localSetup and networkSetup
             gameModeSelectionSection.style.display = 'block';
         }
     }
     
     if (screens[screenName]) {
-        screens[screenName].style.display = 'block';
+        // Ensure setup-container is visible for setup screens and lobby
+        const setupContainer = document.getElementById('setup-container');
+        if (setupContainer) {
+            if (screenName === 'localSetup' || screenName === 'networkSetup' || screenName === 'lobby' || screenName === 'networkInfo') {
+                setupContainer.style.display = 'flex'; // Use flex for centering
+            } else {
+                setupContainer.style.display = 'none';
+            }
+        }
+        
+        // Display the target screen
+        if (screens[screenName].id === 'app') { // Special handling for the main game app area
+             screens[screenName].style.display = 'flex';
+        } else {
+            screens[screenName].style.display = 'block';
+        }
+
     } else {
         // console.warn(`[pizarraUi] showScreen: Unknown screen name '${screenName}'`);
     }
 }
 
+
 function getAvailableIcons(excludeCurrentPlayer = false) {
     const allIcons = state.AVAILABLE_ICONS;
-    const currentPlayers = state.getPvpRemoteActive() ? 
-        state.getRawNetworkRoomData().players : 
+    const currentPlayers = state.getPvpRemoteActive() ?
+        state.getRawNetworkRoomData().players :
         state.getPlayersData();
     
     const usedIcons = new Set();
@@ -191,21 +209,20 @@ function getAvailableIcons(excludeCurrentPlayer = false) {
 }
 
 export function populatePlayerIcons(targetSelectElement, excludeCurrentPlayer = false) {
-    if (!targetSelectElement) { 
-        // console.warn("[pizarraUi] populatePlayerIcons: No target select element provided."); 
-        return; 
+    if (!targetSelectElement) {
+        return;
     }
     
     const currentValue = targetSelectElement.value;
-    targetSelectElement.innerHTML = ''; 
+    targetSelectElement.innerHTML = '';
     
     const availableIcons = getAvailableIcons(excludeCurrentPlayer);
     const iconsToUse = availableIcons.length > 0 ? availableIcons : state.AVAILABLE_ICONS;
     
     iconsToUse.forEach(icon => {
-        const option = document.createElement('option'); 
-        option.value = icon; 
-        option.textContent = icon; 
+        const option = document.createElement('option');
+        option.value = icon;
+        option.textContent = icon;
         targetSelectElement.appendChild(option);
     });
     
@@ -236,7 +253,7 @@ export function updateStarsDisplay() {
         const myPlayerId = state.getNetworkRoomData().myPlayerIdInRoom;
         if (myPlayerId !== null && myPlayerId !== undefined) {
             pidToShowAttemptsFor = myPlayerId;
-        } else { 
+        } else {
             pidToShowAttemptsFor = 0;
         }
     }
@@ -247,19 +264,19 @@ export function updateStarsDisplay() {
 export function updateWordDisplay() {
     if (!wordDisplayContainerEl) return;
     wordDisplayContainerEl.innerHTML = '';
-    const currentWord = state.getCurrentWord(); 
+    const currentWord = state.getCurrentWord();
     if (!currentWord) return;
     
     const guessed = state.getGuessedLetters();
     
-    for (const letter of currentWord) { 
-        const letterBox = document.createElement('div'); 
+    for (const letter of currentWord) {
+        const letterBox = document.createElement('div');
         letterBox.classList.add('letter-box');
-        const normalizedLetterFromWord = normalizeGameLetter(letter); 
+        const normalizedLetterFromWord = normalizeGameLetter(letter);
         if (guessed.has(normalizedLetterFromWord)) {
-            letterBox.textContent = letter.toUpperCase(); 
-        } else { 
-            letterBox.textContent = ''; 
+            letterBox.textContent = letter.toUpperCase();
+        } else {
+            letterBox.textContent = '';
             letterBox.classList.add('empty');
         }
         wordDisplayContainerEl.appendChild(letterBox);
@@ -269,11 +286,11 @@ export function updateWordDisplay() {
 export function updateGuessedLettersDisplay() {
     if (!correctLettersDisplayEl || !incorrectLettersDisplayEl) return;
     const correctArr = [], incorrectArr = [];
-    const guessed = state.getGuessedLetters(); 
-    const currentWord = state.getCurrentWord(); 
+    const guessed = state.getGuessedLetters();
+    const currentWord = state.getCurrentWord();
     const sortedGuessedLetters = Array.from(guessed).sort((a,b)=>a.localeCompare(b,'es'));
     
-    for (const guessedLetter of sortedGuessedLetters) { 
+    for (const guessedLetter of sortedGuessedLetters) {
         if (currentWord?.toLowerCase().includes(guessedLetter)) {
             correctArr.push(guessedLetter.toUpperCase());
         } else {
@@ -288,16 +305,16 @@ export function updateGuessedLettersDisplay() {
 export function createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback) {
     if (!alphabetKeyboardContainerEl) return;
     alphabetKeyboardContainerEl.innerHTML = '';
-    const guessed = state.getGuessedLetters(); 
+    const guessed = state.getGuessedLetters();
     const gameIsActive = state.getGameActive();
     
-    state.ALPHABET.forEach(letter => { 
+    state.ALPHABET.forEach(letter => {
         const button = document.createElement('button');
-        button.classList.add('alphabet-button'); 
-        button.textContent = letter; 
-        button.dataset.letter = letter; 
+        button.classList.add('alphabet-button');
+        button.textContent = letter;
+        button.dataset.letter = letter;
         
-        const normalizedButtonLetter = normalizeGameLetter(letter); 
+        const normalizedButtonLetter = normalizeGameLetter(letter);
         const isGuessed = guessed.has(normalizedButtonLetter);
         const shouldDisable = !gameIsActive || !isMyTurnCurrently || isGuessed;
         
@@ -318,11 +335,11 @@ export function createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback)
 
 export function updateAllAlphabetButtons(disableCompletely) {
     if (!alphabetKeyboardContainerEl) return;
-    const guessed = state.getGuessedLetters(); 
+    const guessed = state.getGuessedLetters();
     const gameIsActive = state.getGameActive();
     alphabetKeyboardContainerEl.querySelectorAll('.alphabet-button').forEach(button => {
-        const letterFromButton = button.dataset.letter; 
-        const normalizedButtonLetter = normalizeGameLetter(letterFromButton); 
+        const letterFromButton = button.dataset.letter;
+        const normalizedButtonLetter = normalizeGameLetter(letterFromButton);
         const isGuessed = guessed.has(normalizedButtonLetter);
 
         if (disableCompletely) {
@@ -339,15 +356,15 @@ export function updateAllAlphabetButtons(disableCompletely) {
     });
 }
 
-export function updateAlphabetEnablement(onLetterClickCallback) { 
+export function updateAlphabetEnablement(onLetterClickCallback) {
     if(!uiInitialized) initializeUiDOMReferences();
     if (!alphabetKeyboardContainerEl) return;
-    if (!state.getGameActive()) { 
-        createAlphabetKeyboard(false, onLetterClickCallback); 
-        return; 
+    if (!state.getGameActive()) {
+        createAlphabetKeyboard(false, onLetterClickCallback);
+        return;
     }
-    const myTurn = state.getPvpRemoteActive() ? 
-                   (state.getNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId()) : 
+    const myTurn = state.getPvpRemoteActive() ?
+                   (state.getNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId()) :
                    true;
     createAlphabetKeyboard(myTurn, onLetterClickCallback);
 }
@@ -372,7 +389,6 @@ export function updateCurrentPlayerTurnUI() {
     if (currentPlayer) {
         let turnText = `${currentPlayer.icon || '❓'} ${currentPlayer.name || 'Jugador'}`;
         if (state.getPvpRemoteActive()) {
-             // Localization: Using "Tu Turno" as it's a direct status, not addressing the player.
             turnText = (currentPlayer.id === state.getNetworkRoomData().myPlayerIdInRoom) ? `✅ ${turnText} (Tu Turno)` : `⏳ ${turnText}`;
         }
         currentPlayerTurnDisplaySpan.textContent = turnText;
@@ -386,11 +402,11 @@ export function renderFullGameBoard(isMyTurnCurrently, onLetterClickCallback) {
     updateGuessedLettersDisplay();
     updateScoreDisplayUI();
     updateCurrentPlayerTurnUI();
-    createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback); 
+    createAlphabetKeyboard(isMyTurnCurrently, onLetterClickCallback);
     
     const difficulty = state.getCurrentDifficulty();
     const wordObject = state.getCurrentWordObject();
-    const clueIsUsed = state.getClueUsedThisGame(); // In easy mode, this will be true from the start.
+    const clueIsUsed = state.getClueUsedThisGame();
 
     if (difficulty === 'easy') {
         if (wordObject?.definition) {
@@ -409,33 +425,29 @@ export function renderFullGameBoard(isMyTurnCurrently, onLetterClickCallback) {
         if(clueTextEl && clueIsUsed && wordObject?.definition) {
             clueTextEl.textContent = wordObject.definition;
         } else if (clueTextEl && !clueIsUsed){
-            clueTextEl.textContent = ""; 
+            clueTextEl.textContent = "";
         }
     }
 }
 
-export function displayClueOnUI(clueDefinition) { 
+export function displayClueOnUI(clueDefinition) {
     if(!uiInitialized) initializeUiDOMReferences();
     if(clueTextEl) clueTextEl.textContent = clueDefinition;
     if(clueDisplayAreaEl) clueDisplayAreaEl.style.display = 'block';
-    // For non-easy modes, clueButton would be disabled by game logic setting clueUsedThisGame
-    // For easy mode, clueButton is hidden by renderFullGameBoard.
 }
 
 export function toggleClueButtonUI(enabled, show = true) {
-    // This function might be less relevant if renderFullGameBoard handles easy mode directly.
-    // However, it can still be used for explicit control in non-easy modes if needed.
     if (clueButtonEl && state.getCurrentDifficulty() !== 'easy') {
         clueButtonEl.disabled = !enabled;
         clueButtonEl.style.display = show ? 'inline-block' : 'none';
     } else if (clueButtonEl && state.getCurrentDifficulty() === 'easy') {
-        clueButtonEl.style.display = 'none'; // Ensure it's hidden in easy mode
+        clueButtonEl.style.display = 'none';
     }
 }
 
 const confettiColors = ["#ff69b4", "#ffc0cb", "#ff1493", "#da70d6", "#9370db", "#ffd700", "#ffb6c1", "#f0f8ff"];
 export function createConfettiPiece() {
-    if (!confettiContainerEl) { if(uiInitialized) /* console.warn("Confetti container not found"); */ return;}
+    if (!confettiContainerEl) { if(uiInitialized) return;}
     const piece = document.createElement('div'); piece.classList.add('confetti-piece');
     piece.style.backgroundColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
     piece.style.left = Math.random() * window.innerWidth + 'px';
@@ -469,7 +481,7 @@ export function updateLobbyUI() {
             const iconSpan = document.createElement('span'); iconSpan.className = 'icon'; iconSpan.textContent = player.icon || '❓';
             const nameSpan = document.createElement('span'); nameSpan.className = 'name';
             nameSpan.textContent = (player.name || `Jugador ${player.id === undefined ? '?' : player.id +1}`) +
-                                 (player.peerId === state.getMyPeerId() ? " (Vos)" : "") + 
+                                 (player.peerId === state.getMyPeerId() ? " (Vos)" : "") +
                                  (player.peerId === roomData.leaderPeerId ? " 👑" : "");
             const statusSpan = document.createElement('span'); statusSpan.className = 'status';
             statusSpan.textContent = player.isConnected === false ? "Desconectado 😢" : (player.isReady ? "Lista ✨" : "Esperando... ⏳");
@@ -507,7 +519,7 @@ export function updateLobbyUI() {
 export function displayRoomQRCodeAndLink(roomId, maxPlayers, baseShareUrl = "https://palabras.martinez.fyi", peerIdPrefix = state.PIZARRA_PEER_ID_PREFIX) {
     if(!uiInitialized) initializeUiDOMReferences();
     if (!networkInfoAreaEl || !networkInfoTitleEl || !networkInfoTextEl || !qrCodeContainerEl || !copyRoomLinkButtonEl) return;
-    const gameLink = `${baseShareUrl}?room=${roomId}`; 
+    const gameLink = `${baseShareUrl}?room=${roomId}`;
     networkInfoTitleEl.textContent = "¡Sala Lista! Invita a tus Amigas 💖";
     networkInfoTextEl.innerHTML = `🆔 ID de Sala: <strong>${peerIdPrefix}${roomId}</strong><br>🔗 Enlace: <a href="${gameLink}" target="_blank" class="underline hover:text-pink-400">${gameLink}</a>`;
     qrCodeContainerEl.innerHTML = '';
@@ -516,7 +528,7 @@ export function displayRoomQRCodeAndLink(roomId, maxPlayers, baseShareUrl = "htt
         try {
             new QRious({ element: canvas, value: gameLink, size: 128, padding: 5, level: 'M', foreground: '#8b4cb8', background: '#ffffff' });
             qrCodeContainerEl.appendChild(canvas);
-        } catch (e) { /* console.error("QRious error:", e); */ qrCodeContainerEl.textContent = "Error QR"; }
+        } catch (e) { qrCodeContainerEl.textContent = "Error QR"; }
     } else { qrCodeContainerEl.textContent = "QR no disponible."; }
     if(networkInfoAreaEl && state.getNetworkRoomData()?.isRoomLeader) networkInfoAreaEl.style.display = 'block';
 }
@@ -541,9 +553,9 @@ export function createJoinRoomModal(roomId, onJoin, onCancel) {
         </div>`;
     
     const buttonsConfig = [
-        { 
-            text: "✅ ¡Unirme!", 
-            className: 'action-button-confirm', 
+        {
+            text: "✅ ¡Unirme!",
+            className: 'action-button-confirm',
             action: () => {
                 const nameInput = document.getElementById(modalPlayerNameId);
                 const iconSelect = document.getElementById(modalPlayerIconId);
@@ -555,12 +567,12 @@ export function createJoinRoomModal(roomId, onJoin, onCancel) {
                 onJoin({ name, icon });
             }
         },
-        { 
-            text: "❌ Cancelar", 
+        {
+            text: "❌ Cancelar",
             action: () => {
                 hideModal();
                 onCancel();
-            }, 
+            },
             className: 'action-button-secondary'
         }
     ];

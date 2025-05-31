@@ -21,17 +21,16 @@ let hapticsEnabled = true; // User preference, can be made a setting in pizarraS
  */
 export async function initSounds() {
     if (soundsCurrentlyInitialized) {
-        // console.log("[PizarraSound] Sounds already initialized.");
         return;
     }
     if (typeof Tone === 'undefined') {
-        console.warn("[PizarraSound] Tone.js library not found. Sound effects will be unavailable.");
+        // console.warn("[PizarraSound] Tone.js library not found. Sound effects will be unavailable.");
         return;
     }
 
     try {
         await Tone.start(); // Required by modern browsers for AudioContext
-        console.log("[PizarraSound] Tone.js AudioContext started.");
+        // console.log("[PizarraSound] Tone.js AudioContext started.");
 
         letterSelectCorrectSound = new Tone.Synth({
             oscillator: { type: 'sine' }, volume: -18,
@@ -77,8 +76,7 @@ export async function initSounds() {
         }).toDestination();
 
         soundsCurrentlyInitialized = true;
-        // state.setSoundsInitialized(true); // If a flag exists in pizarraState.js
-        console.log("[PizarraSound] Sounds initialized.");
+        // console.log("[PizarraSound] Sounds initialized.");
     } catch (e) {
         console.error("[PizarraSound] Error initializing sounds:", e);
         soundsCurrentlyInitialized = false;
@@ -89,7 +87,6 @@ export async function initSounds() {
  * Plays a specified sound if sounds are enabled and initialized.
  */
 export function playSound(soundObject, note = "C4", duration = "8n", time) {
-    // const soundIsEnabled = state.getSoundEnabled(); // If using global toggle
     const soundIsEnabled = true; // Assuming enabled for now
 
     if (soundIsEnabled && soundsCurrentlyInitialized && soundObject && Tone.context.state === 'running') {
@@ -114,10 +111,10 @@ export function playLetterSelectSound(isCorrect) {
     }
 }
 export function playWordSolvedSound() { playSound(wordSolvedSound, ["C4", "E4", "G4", "C5"], "2n"); }
-export function playGameOverSound() { playSound(gameOverSound, undefined, "2n"); } // Note/duration might need adjustment
-export function playUiClick() { playSound(uiClickSound, "C5", "32n"); } // Renamed to avoid conflict
-export function playGameStart() { playSound(gameStartSound, "G4", "4n"); } // Renamed
-export function playClueReveal() { playSound(clueRevealSound, "A3", "4n"); } // Renamed
+export function playGameOverSound() { playSound(gameOverSound, undefined, "2n"); }
+export function playUiClick() { playSound(uiClickSound, "C5", "32n"); }
+export function playGameStart() { playSound(gameStartSound, "G4", "4n"); }
+export function playClueReveal() { playSound(clueRevealSound, "A3", "4n"); }
 export function playErrorSound() { playSound(errorSound, undefined, "8n");}
 
 
@@ -127,12 +124,11 @@ export function playErrorSound() { playSound(errorSound, undefined, "8n");}
  * @param {number | number[]} pattern - Vibration pattern (e.g., 50, [100, 30, 100]).
  */
 export function triggerVibration(pattern = 30) {
-    // const hapticsAreEnabled = state.getHapticsEnabled(); // If using global toggle from pizarraState
     if (hapticsEnabled && typeof navigator.vibrate === 'function') {
         try {
             navigator.vibrate(pattern);
         } catch (e) {
-            console.warn("[PizarraSound] Haptic feedback failed:", e);
+            // console.warn("[PizarraSound] Haptic feedback failed:", e);
         }
     }
 }
@@ -140,14 +136,12 @@ export function triggerVibration(pattern = 30) {
 // --- Toggles (basic implementation) ---
 export function toggleSoundGlobally() {
     // This would ideally toggle a flag in pizarraState.js
-    // For now, it's a placeholder if not using a state flag.
-    // To actually mute, you might set Tone.Destination.mute = !isSoundEnabled;
-    console.warn("[PizarraSound] toggleSoundGlobally needs integration with a global state for soundEnabled.");
+    // console.warn("[PizarraSound] toggleSoundGlobally needs integration with a global state for soundEnabled.");
 }
 
 export function toggleHapticsGlobally() {
     hapticsEnabled = !hapticsEnabled;
-    console.log(`[PizarraSound] Haptics enabled: ${hapticsEnabled}`);
+    // console.log(`[PizarraSound] Haptics enabled: ${hapticsEnabled}`);
     if (hapticsEnabled) triggerVibration(20);
     return hapticsEnabled;
 }

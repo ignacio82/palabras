@@ -17,86 +17,76 @@ export const ALPHABET = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split('');
 export const PIZARRA_PEER_ID_PREFIX = "pizarra-";
 
 /* ----------  PRIVATE, MUTABLE MODULE-LEVEL STATE  ---------- */
-// Renamed to _networkRoomData to match the patch's convention for the internal store
 let _networkRoomData = { // Internal store
-    roomId: null,              
-    leaderPeerId: null,        
-    myPlayerIdInRoom: null,    
-    isRoomLeader: false,       
+    roomId: null,
+    leaderPeerId: null,
+    myPlayerIdInRoom: null,
+    isRoomLeader: false,
     maxPlayers: MAX_PLAYERS_NETWORK,
-    players: [],               
-    gameSettings: { difficulty: "easy" }, 
-    roomState: 'idle',         
-    turnCounter: 0,            
+    players: [],
+    gameSettings: { difficulty: "easy" },
+    roomState: 'idle',
+    turnCounter: 0,
     currentWordObject: null,
-    guessedLetters: [], 
+    guessedLetters: [],
     remainingAttemptsPerPlayer: [],
     currentPlayerId: 0,
     clueUsedThisGame: false,
-    gameActive: false, 
+    gameActive: false,
     _peerInitPromise: null,
     _peerInitResolve: null,
     _peerInitReject: null,
-    _setupCompleteCallback: null, 
+    _setupCompleteCallback: null,
     _setupErrorCallback: null,
 };
 
-// Core Gameplay State (these are distinct from _networkRoomData's snapshot)
-let currentWord = ''; 
-let currentWordObject = null; 
-let guessedLetters = new Set(); 
-let remainingAttemptsPerPlayer = []; 
-let currentPlayerId = 0; 
-let gameActive = false; 
-let gamePhase = 'idle'; 
+// Core Gameplay State
+let currentWord = '';
+let currentWordObject = null;
+let guessedLetters = new Set();
+let remainingAttemptsPerPlayer = [];
+let currentPlayerId = 0;
+let gameActive = false;
+let gamePhase = 'idle';
 let currentDifficulty = "easy";
 let clueUsedThisGame = false;
 
-// Network Play State (global flags)
-let pvpRemoteActive = false; 
-let myPeerId = null; 
+// Network Play State
+let pvpRemoteActive = false;
+let myPeerId = null;
 
 let localPlayersData = [];
 
 /* ----------  HELPERS  ---------- */
-// Keep a general-purpose clone for data properties if needed elsewhere,
-// but setNetworkRoomData will use Object.assign
 function clone(value) {
   if (typeof value === 'function') return value;
   if (value instanceof Set) return new Set(Array.from(value));
   if (value === null || typeof value !== 'object') return value;
   if (Array.isArray(value)) return value.map(item => clone(item));
-  try { 
-    return JSON.parse(JSON.stringify(value)); 
+  try {
+    return JSON.parse(JSON.stringify(value));
   }
-  catch (e) { 
-    console.warn("[State] Clone failed for value (falling back to shallow):", value, "Error:", e); 
+  catch (e) {
+    console.warn("[State] Clone failed for value (falling back to shallow):", value, "Error:", e);
     return { ...value };
   }
 }
 
 function normalizeStringInternal(str) {
     if (!str) return "";
-    // Convert to uppercase first. This correctly handles "ñ" -> "Ñ".
     let s = str.toUpperCase();
-    // Normalize to NFD (Canonical Decomposition Form)
-    // e.g., "Á" becomes "A" + "´" (combining acute accent), "Ñ" becomes "N" + "~" (combining tilde)
     s = s.normalize("NFD");
     
     let resultChars = [];
     for (let i = 0; i < s.length; i++) {
         const char = s[i];
-        // Check if it's an 'N' followed by a combining tilde (U+0303)
         if (char === 'N' && i + 1 < s.length && s[i+1] === '\u0303') {
             resultChars.push('Ñ');
-            i++; // Increment to skip the combining tilde, as it's now part of 'Ñ'
-        } 
-        // Check if it's a base uppercase letter A-Z (excluding Ñ, which is handled above)
+            i++;
+        }
         else if (char.charCodeAt(0) >= 65 && char.charCodeAt(0) <= 90) {
             resultChars.push(char);
         }
-        // Other combining diacritics (like accents on other letters) are effectively removed
-        // because only base letters (and Ñ) are pushed.
     }
     return resultChars.join('');
 }
@@ -109,12 +99,12 @@ export function setCurrentWordObject(obj) {
     } else {
         currentWord = "";
     }
-    if (pvpRemoteActive) _networkRoomData.currentWordObject = currentWordObject; // Update internal store
+    if (pvpRemoteActive) _networkRoomData.currentWordObject = currentWordObject;
 }
 
 export function setGuessedLetters(newSet) {
     guessedLetters = newSet instanceof Set ? new Set(Array.from(newSet).map(l => typeof l === 'string' ? l.toLowerCase() : l)) : new Set();
-    if (pvpRemoteActive) _networkRoomData.guessedLetters = Array.from(guessedLetters); 
+    if (pvpRemoteActive) _networkRoomData.guessedLetters = Array.from(guessedLetters);
 }
 
 export function initRemainingAttempts(numPlayers, attempts = DEFAULT_ATTEMPTS_PER_PLAYER) {
@@ -127,7 +117,7 @@ export function setRemainingAttemptsPerPlayer(newArray) {
     remainingAttemptsPerPlayer = Array.from(newArray);
     if (pvpRemoteActive) _networkRoomData.remainingAttemptsPerPlayer = [...remainingAttemptsPerPlayer];
   } else {
-    console.error("[State] setRemainingAttemptsPerPlayer: Provided value is not an array.", newArray);
+    // console.error("[State] setRemainingAttemptsPerPlayer: Provided value is not an array.", newArray);
   }
 }
 
@@ -141,7 +131,7 @@ export function decAttemptsFor(playerId) {
 }
 
 export function setGameActive(isActive) {
-    if (gameActive === isActive) return; 
+    if (gameActive === isActive) return;
     gameActive = isActive;
     if (pvpRemoteActive) _networkRoomData.gameActive = gameActive;
     
@@ -153,21 +143,21 @@ export function setGameActive(isActive) {
     }
 }
 
-export function setCurrentDifficulty(difficultyStr) { 
-    currentDifficulty = difficultyStr; 
+export function setCurrentDifficulty(difficultyStr) {
+    currentDifficulty = difficultyStr;
     if (pvpRemoteActive) {
         if (!_networkRoomData.gameSettings) _networkRoomData.gameSettings = {};
         _networkRoomData.gameSettings.difficulty = currentDifficulty;
     }
 }
 
-export function setClueUsedThisGame(wasUsed) { 
-    clueUsedThisGame = wasUsed; 
+export function setClueUsedThisGame(wasUsed) {
+    clueUsedThisGame = wasUsed;
     if (pvpRemoteActive) _networkRoomData.clueUsedThisGame = clueUsedThisGame;
 }
 
 export function setPlayersData(newPlayers) {
-  localPlayersData = newPlayers ? clone(newPlayers) : []; 
+  localPlayersData = newPlayers ? clone(newPlayers) : [];
   if (pvpRemoteActive) {
     _networkRoomData.players = newPlayers ? clone(newPlayers) : [];
   } else if (localPlayersData.length > 0 && remainingAttemptsPerPlayer.length !== localPlayersData.length) {
@@ -175,8 +165,8 @@ export function setPlayersData(newPlayers) {
   }
 }
 
-export function setCurrentPlayerId(id) { 
-    currentPlayerId = id; 
+export function setCurrentPlayerId(id) {
+    currentPlayerId = id;
     if (pvpRemoteActive) _networkRoomData.currentPlayerId = id;
 }
 
@@ -185,16 +175,16 @@ export function setGamePhase(phase) {
     if (validPhases.includes(phase)) {
         if (pvpRemoteActive) {
             if (_networkRoomData.roomState !== phase) {
-                _networkRoomData.roomState = phase; 
+                _networkRoomData.roomState = phase;
             }
-            if (gamePhase !== phase) gamePhase = phase; 
-        } else { 
+            if (gamePhase !== phase) gamePhase = phase;
+        } else {
             if (gamePhase !== phase) {
                 gamePhase = phase;
             }
         }
     } else {
-        console.warn(`[State] Attempted to set invalid game phase: ${phase}`);
+        // console.warn(`[State] Attempted to set invalid game phase: ${phase}`);
     }
 }
 
@@ -202,24 +192,11 @@ export function setGamePhase(phase) {
 export function setPvpRemoteActive(isActive) { pvpRemoteActive = isActive; }
 export function setMyPeerId(id) { myPeerId = id; }
 
-/**
- * Merge a partial update into the live room-state *without*
- * destroying function references (promise resolvers, callbacks, etc.).
- */
 export function setNetworkRoomData(partialUpdate) {
-  // console.log("[State] setNetworkRoomData (new impl) called with partialUpdate:", partialUpdate);
-  // console.log("[State] _networkRoomData BEFORE Object.assign:", JSON.parse(JSON.stringify(getRawNetworkRoomData())));
-
   if (partialUpdate && typeof partialUpdate === 'object') {
-    // Object.assign directly merges properties from partialUpdate into _networkRoomData.
-    // If partialUpdate has a function (e.g., _setupCompleteCallback), that function reference is copied.
     Object.assign(_networkRoomData, partialUpdate);
   }
-  // console.log("[State] _networkRoomData AFTER Object.assign:", JSON.parse(JSON.stringify(getRawNetworkRoomData())));
 
-
-  // Sync relevant parts to global state variables IF they were in the partialUpdate
-  // This is important if setNetworkRoomData is called with a full game state snapshot from network.
   if (partialUpdate) {
     if (partialUpdate.hasOwnProperty('currentWordObject')) setCurrentWordObject(partialUpdate.currentWordObject);
     if (partialUpdate.hasOwnProperty('guessedLetters')) setGuessedLetters(new Set(partialUpdate.guessedLetters));
@@ -229,19 +206,17 @@ export function setNetworkRoomData(partialUpdate) {
     if (partialUpdate.hasOwnProperty('players')) setPlayersData(partialUpdate.players);
     if (partialUpdate.gameSettings?.hasOwnProperty('difficulty')) setCurrentDifficulty(partialUpdate.gameSettings.difficulty);
     
-    const oldGameActive = gameActive; // Need to compare with global gameActive
+    const oldGameActive = gameActive;
     if (partialUpdate.hasOwnProperty('gameActive')) {
         if (partialUpdate.gameActive !== oldGameActive) {
             setGameActive(partialUpdate.gameActive);
-        } else { // Ensure internal _networkRoomData.gameActive is aligned if it wasn't via setGameActive
+        } else {
             if(_networkRoomData.gameActive !== partialUpdate.gameActive) _networkRoomData.gameActive = partialUpdate.gameActive;
         }
     }
 
     if (partialUpdate.hasOwnProperty('roomState') && partialUpdate.roomState !== _networkRoomData.roomState) {
-        // If roomState is being explicitly set by partialUpdate, let setGamePhase handle it
-        // and also ensure gameActive is consistent if not part of partialUpdate.
-        setGamePhase(partialUpdate.roomState); // This updates _networkRoomData.roomState
+        setGamePhase(partialUpdate.roomState);
         if (!partialUpdate.hasOwnProperty('gameActive')) {
             const expectedGameActive = (partialUpdate.roomState === 'playing');
             if (gameActive !== expectedGameActive) {
@@ -250,7 +225,6 @@ export function setNetworkRoomData(partialUpdate) {
         }
     }
   }
-  // console.log("[State] _networkRoomData FINAL after all updates in setNetworkRoomData:", JSON.parse(JSON.stringify(getRawNetworkRoomData())));
 }
 
 
@@ -259,39 +233,39 @@ export function resetNetworkRoomData() {
     _networkRoomData = {
         roomId: null, leaderPeerId: null, myPlayerIdInRoom: null, isRoomLeader: false,
         maxPlayers: MAX_PLAYERS_NETWORK, players: [],
-        gameSettings: { difficulty: currentDifficultyPreserved }, 
+        gameSettings: { difficulty: currentDifficultyPreserved },
         roomState: 'idle', turnCounter: 0,
         currentWordObject: null, guessedLetters: [], remainingAttemptsPerPlayer: [],
         currentPlayerId: 0, clueUsedThisGame: false, gameActive: false,
-        _peerInitPromise: null, 
-        _peerInitResolve: null, 
-        _peerInitReject: null,  
-        _setupCompleteCallback: null, 
+        _peerInitPromise: null,
+        _peerInitResolve: null,
+        _peerInitReject: null,
+        _setupCompleteCallback: null,
         _setupErrorCallback: null,
     };
-    if (!pvpRemoteActive) { 
+    if (!pvpRemoteActive) {
         setGamePhase('idle');
     }
 }
 
 
-export function addPlayerToNetworkRoom(player) { 
+export function addPlayerToNetworkRoom(player) {
     const existingPlayerIndex = _networkRoomData.players.findIndex(p => p.peerId === player.peerId || (p.id !== null && p.id !== undefined && p.id === player.id));
     if (existingPlayerIndex === -1) {
         _networkRoomData.players.push(clone(player));
-    } else { 
+    } else {
         _networkRoomData.players[existingPlayerIndex] = { ..._networkRoomData.players[existingPlayerIndex], ...clone(player), isConnected: true };
     }
     _networkRoomData.players.sort((a, b) => (a.id === undefined || a.id === null ? Infinity : a.id) - (b.id === undefined || b.id === null ? Infinity : b.id));
     if (pvpRemoteActive) setPlayersData(_networkRoomData.players);
 }
 
-export function removePlayerFromNetworkRoom(peerIdToRemove) { 
+export function removePlayerFromNetworkRoom(peerIdToRemove) {
     _networkRoomData.players = _networkRoomData.players.filter(p => p.peerId !== peerIdToRemove);
     if (pvpRemoteActive) setPlayersData(_networkRoomData.players);
 }
 
-export function updatePlayerInNetworkRoom(peerIdToUpdate, updates) { 
+export function updatePlayerInNetworkRoom(peerIdToUpdate, updates) {
     const playerIndex = _networkRoomData.players.findIndex(p => p.peerId === peerIdToUpdate);
     if (playerIndex !== -1) {
         _networkRoomData.players[playerIndex] = { ..._networkRoomData.players[playerIndex], ...clone(updates) };
@@ -302,7 +276,7 @@ export function updatePlayerInNetworkRoom(peerIdToUpdate, updates) {
 /* ----------  PUBLIC GETTERS for Core Gameplay State ---------- */
 export function getCurrentWord() { return currentWord; }
 export function getCurrentWordObject() { return currentWordObject ? clone(currentWordObject) : null; }
-export function getGuessedLetters() { return new Set(guessedLetters); } 
+export function getGuessedLetters() { return new Set(guessedLetters); }
 
 export function getAttemptsFor(playerId) {
   if (playerId !== null && playerId !== undefined && playerId >= 0 && playerId < remainingAttemptsPerPlayer.length) {
@@ -311,7 +285,7 @@ export function getAttemptsFor(playerId) {
   return DEFAULT_ATTEMPTS_PER_PLAYER;
 }
 
-export function getRemainingAttemptsPerPlayer() { 
+export function getRemainingAttemptsPerPlayer() {
   return [...remainingAttemptsPerPlayer];
 }
 
@@ -323,9 +297,9 @@ export function getPlayersData() {
     return clone(localPlayersData);
 }
 
-export function getCurrentPlayerId() { return currentPlayerId; } 
+export function getCurrentPlayerId() { return currentPlayerId; }
 
-export function getGamePhase() { 
+export function getGamePhase() {
     return pvpRemoteActive ? _networkRoomData.roomState : gamePhase;
 }
 
@@ -333,35 +307,25 @@ export function getGamePhase() {
 export function getPvpRemoteActive() { return pvpRemoteActive; }
 export function getMyPeerId() { return myPeerId; }
 
-/**
- * Read-only snapshot for consumers that should **not** mutate or leak
- * our internal callbacks.  
- * Function values are stripped on purpose.
- */
 export function getRawNetworkRoomData() {
   return JSON.parse(
     JSON.stringify(_networkRoomData, (key, value) =>
-      typeof value === 'function' ? `[Function ${key}]` : value // Stringify functions for logging if needed, or undefined to strip
+      typeof value === 'function' ? `[Function ${key}]` : value
     )
   );
 }
 
-// Getters for internal callbacks return the direct function reference
 export const getInternalPeerInitPromise = () => _networkRoomData._peerInitPromise ?? null;
 export const getInternalPeerInitResolve = () => _networkRoomData._peerInitResolve ?? null;
 export const getInternalPeerInitReject = () => _networkRoomData._peerInitReject ?? null;
 export const getInternalSetupCompleteCallback = () => _networkRoomData._setupCompleteCallback ?? null;
 export const getInternalSetupErrorCallback = () => _networkRoomData._setupErrorCallback ?? null;
 
-
-// Alias for getRawNetworkRoomData if used elsewhere by that name
-export function getNetworkRoomData() { 
+export function getNetworkRoomData() {
     return getRawNetworkRoomData();
 }
 
 export function getSanitizedNetworkRoomDataForClient() {
-    // Use a temporary object from _networkRoomData to avoid cloning functions
-    // then clone that temporary object.
     const tempObjectForCloning = { ..._networkRoomData };
 
     delete tempObjectForCloning._peerInitPromise;
@@ -370,14 +334,7 @@ export function getSanitizedNetworkRoomDataForClient() {
     delete tempObjectForCloning._setupCompleteCallback;
     delete tempObjectForCloning._setupErrorCallback;
     
-    // If full game state shouldn't be in simple lobby updates, remove those too
-    // delete tempObjectForCloning.currentWordObject;
-    // delete tempObjectForCloning.guessedLetters;
-    // etc.
-
     const clonedSanitizedData = clone(tempObjectForCloning);
-    // Ensure players array within is also a clone if present (clone already handles arrays)
-    
     return clonedSanitizedData;
 }
 
@@ -386,7 +343,7 @@ export function resetScores() {
     if (localPlayersData) localPlayersData.forEach(p => p.score = 0);
     if (_networkRoomData?.players) {
         _networkRoomData.players.forEach(p => p.score = 0);
-        if (pvpRemoteActive) setPlayersData(_networkRoomData.players); 
+        if (pvpRemoteActive) setPlayersData(_networkRoomData.players);
     }
 }
 
@@ -401,47 +358,36 @@ export function resetGameFlowState() {
         _networkRoomData.remainingAttemptsPerPlayer = [];
         _networkRoomData.currentPlayerId = 0;
         _networkRoomData.clueUsedThisGame = false;
-        _networkRoomData.gameActive = false; 
+        _networkRoomData.gameActive = false;
     }
 }
 
 export function resetFullLocalStateForNewUIScreen() {
-    resetGameFlowState(); 
-    resetScores();       
+    resetGameFlowState();
+    resetScores();
 
-    localPlayersData = []; 
+    localPlayersData = [];
     currentPlayerId = 0;
     
-    resetNetworkRoomData(); 
-    setGameActive(false);   
-    setGamePhase('idle');   
+    resetNetworkRoomData();
+    setGameActive(false);
+    setGamePhase('idle');
 }
 
 export function normalizeString(str) { return normalizeStringInternal(str); }
 
-// FIXED: Better player customization function that properly handles network state
 export function getLocalPlayerCustomizationForNetwork() {
-    console.log("[State] getLocalPlayerCustomizationForNetwork called");
-    
-    // Get UI elements
     const nameEl = document.getElementById('network-player-name');
     const iconEl = document.getElementById('network-player-icon');
     
-    // Get values with fallbacks
     const randomSuffix = Math.floor(Math.random() * 1000);
     const name = nameEl?.value.trim() || `Pizarrín${randomSuffix}`;
     const icon = iconEl?.value || AVAILABLE_ICONS[0];
     
-    console.log(`[State] Player customization - Name: "${name}", Icon: "${icon}"`);
-    
-    // Get current players in room to determine available color
     const currentPlayersInRoom = _networkRoomData?.players || [];
-    console.log("[State] Current players in room:", currentPlayersInRoom);
-    
     let colorIndex = 0;
     
     if (currentPlayersInRoom.length > 0) {
-        // Get colors already in use by connected players (excluding current player if reconnecting)
         const usedColors = new Set();
         currentPlayersInRoom.forEach(p => {
             if (p.isConnected !== false && p.peerId !== myPeerId && p.color) {
@@ -449,9 +395,6 @@ export function getLocalPlayerCustomizationForNetwork() {
             }
         });
         
-        console.log("[State] Used colors:", Array.from(usedColors));
-        
-        // Find first available color
         for (let i = 0; i < DEFAULT_PLAYER_COLORS.length; i++) {
             if (!usedColors.has(DEFAULT_PLAYER_COLORS[i])) {
                 colorIndex = i;
@@ -459,23 +402,24 @@ export function getLocalPlayerCustomizationForNetwork() {
             }
         }
         
-        // If all colors are taken, use modulo fallback
         if (usedColors.size >= DEFAULT_PLAYER_COLORS.length) {
             colorIndex = currentPlayersInRoom.length % DEFAULT_PLAYER_COLORS.length;
         }
     }
     
     const selectedColor = DEFAULT_PLAYER_COLORS[colorIndex];
-    console.log(`[State] Selected color index: ${colorIndex}, color: ${selectedColor}`);
     
-    return { 
-        name, 
-        icon, 
-        color: selectedColor 
+    return {
+        name,
+        icon,
+        color: selectedColor
     };
 }
 
 export function logCurrentState(context = "Generic") {
+    // This function can be kept for debugging complex state issues if needed.
+    // For general release, it might be commented out or removed.
+    /*
     console.log(`--- CURRENT GAME STATE (${context}) ---`);
     console.log("Difficulty:", currentDifficulty, "Game Active:", gameActive, "Game Phase:", getGamePhase());
     console.log("Word Object:", currentWordObject ? currentWordObject.word : "N/A", "Norm Word:", currentWord);
@@ -501,4 +445,5 @@ export function logCurrentState(context = "Generic") {
     console.log("_setupCompleteCallback exists:", !!_networkRoomData._setupCompleteCallback);
     console.log("_setupErrorCallback exists:", !!_networkRoomData._setupErrorCallback);
     console.log("------------------------");
+    */
 }
