@@ -61,7 +61,6 @@ let networkRoomData = {
 
 let localPlayersData = [];
 
-
 /* ----------  HELPERS  ---------- */
 function clone(value) {
   try { return JSON.parse(JSON.stringify(value)); }
@@ -84,6 +83,7 @@ export function setCurrentWordObject(obj) {
     // Sync to networkRoomData snapshot if pvp is active
     if (pvpRemoteActive) networkRoomData.currentWordObject = currentWordObject;
 }
+
 export function setGuessedLetters(newSet) {
     guessedLetters = newSet instanceof Set ? new Set(Array.from(newSet).map(l => typeof l === 'string' ? l.toLowerCase() : l)) : new Set();
     if (pvpRemoteActive) networkRoomData.guessedLetters = Array.from(guessedLetters); // Sync as array
@@ -122,10 +122,15 @@ export function setGameActive(isActive) {
         setGamePhase('playing');
     }
 }
+
 export function setCurrentDifficulty(difficultyStr) { 
     currentDifficulty = difficultyStr; 
-    if (pvpRemoteActive) networkRoomData.gameSettings.difficulty = currentDifficulty;
+    if (pvpRemoteActive) {
+        if (!networkRoomData.gameSettings) networkRoomData.gameSettings = {};
+        networkRoomData.gameSettings.difficulty = currentDifficulty;
+    }
 }
+
 export function setClueUsedThisGame(wasUsed) { 
     clueUsedThisGame = wasUsed; 
     if (pvpRemoteActive) networkRoomData.clueUsedThisGame = clueUsedThisGame;
@@ -135,12 +140,12 @@ export function setPlayersData(newPlayers) {
   localPlayersData = newPlayers ? clone(newPlayers) : [];
   if (pvpRemoteActive) {
     // If these are the game instance players being set, reflect in networkRoomData.players if structure matches
-    // This assumes newPlayers are {id, name, icon, color, score, peerId, isConnected, isReady}
     networkRoomData.players = clone(localPlayersData);
   } else if (localPlayersData.length > 0) { 
       initRemainingAttempts(localPlayersData.length || 1);
   }
 }
+
 export function setCurrentPlayerId(id) { 
     currentPlayerId = id; 
     if (pvpRemoteActive) networkRoomData.currentPlayerId = currentPlayerId;
@@ -266,9 +271,11 @@ export function getAttemptsFor(playerId) {
   }
   return DEFAULT_ATTEMPTS_PER_PLAYER;
 }
+
 export function getRemainingAttemptsPerPlayer() { 
   return [...remainingAttemptsPerPlayer];
 }
+
 export function getGameActive() { return gameActive; }
 export function getCurrentDifficulty() { return currentDifficulty; }
 export function getClueUsedThisGame() { return clueUsedThisGame; }
@@ -276,6 +283,7 @@ export function getClueUsedThisGame() { return clueUsedThisGame; }
 export function getPlayersData() {
     return clone(localPlayersData);
 }
+
 export function getCurrentPlayerId() { return currentPlayerId; } 
 
 export function getGamePhase() { 
@@ -287,12 +295,14 @@ export function getPvpRemoteActive() { return pvpRemoteActive; }
 export function getMyPeerId() { return myPeerId; }
 
 // Returns a clone of the *entire internal* networkRoomData object.
-// This is what other modules like main.js and peerConnection.js will use when they need the full room state.
 export function getRawNetworkRoomData() {
     return clone(networkRoomData);
 }
-// ---- FIX: Add the missing getNetworkRoomData function as an alias ----
-export { getRawNetworkRoomData as getNetworkRoomData };
+
+// Alias for consistency with Cajitas code
+export function getNetworkRoomData() {
+    return getRawNetworkRoomData();
+}
 
 // Returns a version of networkRoomData suitable for sending to clients for lobby updates.
 export function getSanitizedNetworkRoomDataForClient() {

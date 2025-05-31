@@ -18,7 +18,6 @@ function exitPlayMode(){
   document.body.classList.remove('playing');
   console.log("[Main] Exited play mode. Body class 'playing' removed.");
 }
-// --- END NEW ---
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Pizarra de Palabras: DOMContentLoaded, initializing main.js with network features.");
@@ -75,23 +74,29 @@ document.addEventListener('DOMContentLoaded', () => {
         stopAnyActiveGameOrNetworkSession(true); 
 
         state.setPvpRemoteActive(false);
-        state.setPlayersData([{ id: 0, name: "Jugador", icon: "✏️", color: state.DEFAULT_PLAYER_COLORS[0], score: 0 }]);
+        state.setPlayersData([{ 
+            id: 0, 
+            name: "Jugador", 
+            icon: "✏️", 
+            color: state.DEFAULT_PLAYER_COLORS[0], 
+            score: 0 
+        }]);
         state.setCurrentPlayerId(0);
 
         const initState = logic.initializeGame(state, selectedDifficulty);
         if (!initState.success) {
             ui.showModal(initState.message || "No se pudo iniciar el juego local.");
-            exitPlayMode(); // Ensure we are not in play mode if game fails to start
+            exitPlayMode();
             return;
         }
 
         console.log(`[Main] Local game initialized. Word: ${initState.currentWordObject?.word}`);
         ui.renderFullGameBoard(true, handleLetterClickUI);
-        // Hide setup screens and show game app screen
-        if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'none';
-        if(document.getElementById('app')) document.getElementById('app').style.display = 'flex'; // 'flex' as per new CSS
         
-        enterPlayMode(); // NEW: Add 'playing' class to body
+        if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'none';
+        if(document.getElementById('app')) document.getElementById('app').style.display = 'flex';
+        
+        enterPlayMode();
         ui.displayMessage("¡Adivina la palabra secreta! ✨", 'info', false);
     }
 
@@ -174,7 +179,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (playAgainButtonEl) playAgainButtonEl.style.display = 'inline-block';
         if (mainMenuButtonEl) mainMenuButtonEl.style.display = 'inline-block';
-        // exitPlayMode(); // NEW: Remove 'playing' class from body - called by functions that lead here.
 
         const wordObject = state.getCurrentWordObject();
         let finalMessage = "";
@@ -200,22 +204,16 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.displayMessage(finalMessage, 'error', true);
             sound.triggerVibration([70, 50, 70]);
         }
-        // Note: exitPlayMode() will likely be called by whatever function leads to endGameUI,
-        // like showNetworkGameOver or when playAgain/mainMenu buttons are clicked leading to a state change.
-        // For local game, if playAgainButtonEl or mainMenuButtonEl are clicked, they will call
-        // startLocalGameUI or returnToMainMenuUI, which will handle play mode.
-        // If no buttons are clicked, the 'playing' class would persist, which is fine until a navigation action.
     }
 
     function returnToMainMenuUI() {
         ui.stopConfetti();
         stopAnyActiveGameOrNetworkSession(); 
-        // stopAnyActiveGameOrNetworkSession now calls exitPlayMode
     }
 
     function stopAnyActiveGameOrNetworkSession(preserveUIScreen = false) {
         console.log("[Main] stopAnyActiveGameOrNetworkSession. Preserve UI:", preserveUIScreen);
-        exitPlayMode(); // NEW: Remove 'playing' class from body
+        exitPlayMode();
         const wasPvpActive = state.getPvpRemoteActive();
         const currentNetworkRoomState = state.getRawNetworkRoomData().roomState;
 
@@ -234,7 +232,6 @@ document.addEventListener('DOMContentLoaded', () => {
         state.resetFullLocalStateForNewUIScreen();
 
         if (!preserveUIScreen) {
-            // Show setup screens, hide game app screen
             if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
             if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
             ui.updateGameModeTabs('local');
@@ -283,8 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const hostPeerId = await peerConnection.hostNewRoom(hostCustomization, gameSettings);
-            // UI transition to lobby is handled by callback chain:
-            // hostNewRoom -> _finalizeHostSetup -> pizarraUiUpdateCallbacks.showLobby
             if (matchmaking?.updateHostedRoomStatus && hostPeerId) {
                  matchmaking.updateHostedRoomStatus(hostPeerId, gameSettings, gameSettings.maxPlayers, 1, 'hosting_waiting_for_players');
             }
@@ -320,11 +315,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         if(networkInfoTitleEl) networkInfoTitleEl.textContent = "Buscando una partida divertida... 🧐";
                         if(networkInfoTextEl) networkInfoTextEl.textContent = "Conectando con amigas... ¡qué emoción! 💕";
                         if(qrCodeContainerEl) qrCodeContainerEl.innerHTML = '';
-                        // Show networkInfo screen which is part of #setup-container
                         if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
                         if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
-                        ui.showScreen('networkInfo'); // ui.showScreen handles display:block for the target
-                        exitPlayMode(); // Ensure not in play mode while searching
+                        ui.showScreen('networkInfo');
+                        exitPlayMode();
                     },
                     onMatchFoundAndJoiningRoom: async (leaderRawPeerIdToJoin, roomDetails) => {
                         ui.hideModal();
@@ -332,8 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.style.display = 'none';
                         try {
                             await peerConnection.joinRoomById(leaderRawPeerIdToJoin, joinerCustomization);
-                            // Success leads to lobby via JOIN_ACCEPTED -> showLobby callback
-                            // showLobby callback will handle enterPlayMode if lobby is considered part of "playing" visually
                         } catch (joinError) {
                             ui.hideModal();
                             ui.showModal(`Error al unirse a la sala: ${joinError.message || 'Intenta de nuevo'}`);
@@ -370,21 +362,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // FIX: The callback function names - main.js was using wrong name
     window.pizarraUiUpdateCallbacks = {
         showLobby: (isHost) => {
             ui.hideModal();
-            // Show setup-container (which contains lobby-area), hide #app
             if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
             if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
-            ui.showScreen('lobby'); // Makes lobby-area visible
+            ui.showScreen('lobby');
             ui.updateLobbyUI();
             if (isHost) {
                 ui.displayRoomQRCodeAndLink(state.getRawNetworkRoomData().roomId, state.getRawNetworkRoomData().maxPlayers, PIZARRA_BASE_URL, state.PIZARRA_PEER_ID_PREFIX);
             } else {
                 if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';
             }
-            exitPlayMode(); // Lobby is not "play mode" for header/footer collapse
+            exitPlayMode();
         },
         updateLobby: ui.updateLobbyUI,
         showNetworkError: (message, shouldReturnToSetupIfCritical = false) => {
@@ -395,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }}]);
             sound.playErrorSound();
-            exitPlayMode(); // Usually errors mean exiting play mode
+            exitPlayMode();
         },
         startGameOnNetwork: (initialGameState) => {
             console.log('[Main] startGameOnNetwork called with initialGameState:', initialGameState);
@@ -407,9 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if(document.getElementById('app')) document.getElementById('app').style.display = 'flex';
 
             ui.renderFullGameBoard(state.getRawNetworkRoomData().myPlayerIdInRoom === state.getCurrentPlayerId(), handleLetterClickUI);
-            // ui.showScreen('game'); // Already handled by showing #app and hiding #setup-container
             
-            enterPlayMode(); // NEW: Add 'playing' class
+            enterPlayMode();
             ui.displayMessage("¡El juego en red ha comenzado! 🎮🌍", 'info', false);
             sound.playGameStart();
         },
@@ -435,10 +424,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.updateCurrentPlayerTurnUI();
             ui.updateStarsDisplay();
         },
-        // FIX: Change from syncGameUIFromNetworkState to syncUIFromNetworkState
         syncUIFromNetworkState: () => {
             console.log('[Main] syncUIFromNetworkState: Forcing UI sync from full network state.');
-            const currentPhase = state.getGamePhase(); // This reflects networkRoomData.roomState
+            const currentPhase = state.getGamePhase();
             if (currentPhase === 'lobby') {
                 if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
                 if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
@@ -454,7 +442,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!state.getGameActive()) {
                     ui.toggleClueButtonUI(false, false);
                 }
-                // ui.showScreen('game'); // Covered by showing #app
                 if(currentPhase === 'playing') enterPlayMode(); else exitPlayMode();
             }
         },
@@ -468,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.setGameActive(false);
             refreshAlphabetKeyboard();
             ui.toggleClueButtonUI(false, false);
-            exitPlayMode(); // NEW: Game over, remove 'playing' class
+            exitPlayMode();
 
             let message = gameOverData.reason ? `Juego terminado: ${gameOverData.reason}.` : "¡Juego Terminado!";
             let isWinForLocalPlayer = false;
@@ -508,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else { sound.playGameOverSound(); sound.triggerVibration([70,50,70]); }
         },
         handleCriticalDisconnect: () => {
-            exitPlayMode(); // NEW
+            exitPlayMode();
             stopAnyActiveGameOrNetworkSession();
             ui.showModal("Desconectado de la partida. Volviendo al menú principal.", [{text: "OK", action: ui.hideModal}]);
         },
@@ -524,14 +511,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeAppEventListeners() {
         gameModeTabs.forEach(tab => tab.addEventListener('click', () => {
             sound.playUiClick();
-            exitPlayMode(); // NEW: Exiting play mode when changing modes
+            exitPlayMode();
             const newMode = tab.dataset.mode;
             const isCurrentlyPvp = state.getPvpRemoteActive();
             if ((newMode === 'local' && isCurrentlyPvp) || (newMode === 'network' && !isCurrentlyPvp)) {
                  stopAnyActiveGameOrNetworkSession(true);
             }
             ui.updateGameModeTabs(newMode);
-            // Show setup container, hide app
             if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
             if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
             ui.showScreen(newMode === 'local' ? 'localSetup' : 'networkSetup');
@@ -554,15 +540,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if(playAgainButtonEl) playAgainButtonEl.addEventListener('click', () => {
             sound.playUiClick(); ui.stopConfetti();
             if (state.getPvpRemoteActive()) {
-                // For network, 'Play Again' should take them to lobby or new game setup by host
-                exitPlayMode(); // Exit current play mode visuals
+                exitPlayMode();
                  ui.showModal("Para jugar otra vez en red, el líder de la sala debe iniciar una nueva partida. Puedes volver al menú.", 
                     [{text: "🏠 Volver al Menú", action: returnToMainMenuUI}, {text: "OK", action: ui.hideModal}]);
             } else {
-                startLocalGameUI(); // This will call enterPlayMode
+                startLocalGameUI();
             }
         });
-        if(mainMenuButtonEl) mainMenuButtonEl.addEventListener('click', () => { sound.playUiClick(); ui.stopConfetti(); returnToMainMenuUI(); }); // returnToMainMenuUI calls exitPlayMode via stopAny...
+        if(mainMenuButtonEl) mainMenuButtonEl.addEventListener('click', () => { sound.playUiClick(); ui.stopConfetti(); returnToMainMenuUI(); });
         if(hostGameButton) hostGameButton.addEventListener('click', () => { sound.playUiClick(); hostGameUI(); });
         if(joinRandomButton) joinRandomButton.addEventListener('click', () => { sound.playUiClick(); joinRandomGameUI(); });
 
@@ -584,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if(cancelMatchmakingButtonEl) cancelMatchmakingButtonEl.addEventListener('click', () => {
             sound.playUiClick();
-            exitPlayMode(); // NEW
+            exitPlayMode();
             if(state.getMyPeerId() && matchmaking?.leaveQueue) matchmaking.leaveQueue(state.getMyPeerId());
             stopAnyActiveGameOrNetworkSession(true);
             ui.showScreen('networkSetup');
@@ -597,12 +582,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if(lobbyStartGameLeaderButtonEl) lobbyStartGameLeaderButtonEl.addEventListener('click', () => {
             sound.playUiClick(); sound.triggerVibration(50);
-            peerConnection.leaderStartGameRequest(); // This will lead to startGameOnNetwork callback which calls enterPlayMode
+            peerConnection.leaderStartGameRequest();
         });
         if(lobbyLeaveRoomButtonEl) lobbyLeaveRoomButtonEl.addEventListener('click', () => {
             sound.playUiClick(); sound.triggerVibration(30);
              ui.showModal("¿Seguro que quieres salir de la sala? 🚪🥺", [
-                 {text: "Sí, Salir", action: returnToMainMenuUI, className: 'action-button-danger'}, // returnToMainMenuUI calls exitPlayMode
+                 {text: "Sí, Salir", action: returnToMainMenuUI, className: 'action-button-danger'},
                  {text: "No, Quedarme", action: ui.hideModal, className: 'action-button-secondary'}
                 ]);
         });
@@ -631,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(networkPlayerIconSelect) ui.populatePlayerIcons(networkPlayerIconSelect);
             state.setCurrentDifficulty('easy');
             ui.updateDifficultyButtonUI();
-            returnToMainMenuUI(); // Initializes to setup screen, calls exitPlayMode
+            returnToMainMenuUI();
         } else {
             ui.showModal("Error Crítico: El diccionario de palabras no está cargado. El juego no puede iniciar. 💔");
             exitPlayMode();
@@ -644,12 +629,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const roomIdFromUrl = urlParams.get('room');
         if (roomIdFromUrl && roomIdFromUrl.trim()) {
             window.history.replaceState({}, document.title, window.location.pathname);
-            exitPlayMode(); // Ensure not in play mode when processing URL join
+            exitPlayMode();
 
             const modalPlayerNameId = 'modal-player-name-urljoin';
             const modalPlayerIconId = 'modal-player-icon-urljoin';
             const joinPromptHtml = `
-                <p>¡Te invitaron a una sala de Palabras (${PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl})! 🎉</p>
+                <p>¡Te invitaron a una sala de Palabras (${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl})! 🎉</p>
                 <p>Elige tu nombre e ícono:</p>
                 <div class="modal-form-inputs">
                     <label for="${modalPlayerNameId}">Tu Nombre:</label>
@@ -660,7 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const buttonsConfig = [
                 { text: "✅ Unirme a la Sala", className: 'action-button-confirm', action: async () => {
                     ui.hideModal();
-                    ui.showModal(`Conectando a ${PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl}... Por favor espera. ⏳`);
+                    ui.showModal(`Conectando a ${state.PIZARRA_PEER_ID_PREFIX}${roomIdFromUrl}... Por favor espera. ⏳`);
                     const nameInputInModal = document.getElementById(modalPlayerNameId);
                     const iconSelectInModal = document.getElementById(modalPlayerIconId);
                     
@@ -670,14 +655,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const joinerCustomization = state.getLocalPlayerCustomizationForNetwork();
                     state.setPvpRemoteActive(true);
                     ui.updateGameModeTabs('network');
-                    // Show setup container, ensure #app is hidden before potential lobby display
                     if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
                     if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
-                    ui.showScreen('networkSetup'); // Show a relevant setup screen as backdrop
+                    ui.showScreen('networkSetup');
 
                     try {
                         await peerConnection.joinRoomById(roomIdFromUrl.trim(), joinerCustomization);
-                        // Success leads to showLobby callback which calls exitPlayMode (ensuring it's not 'playing' if lobby is setup)
                     } catch (error) {
                         ui.hideModal();
                         ui.showModal(`Error al unirse a la sala: ${error.message || 'Intenta de nuevo o verifica el ID.'}`);
