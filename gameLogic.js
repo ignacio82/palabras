@@ -1,72 +1,60 @@
 // gameLogic.js
 
 import * as state from './pizarraState.js';
-import { normalizeLetter } from './util.js'; // Using the new util.js
+import { normalizeLetter } from './util.js'; 
 
 // Assuming DICTIONARY_DATA is globally available from dictionary.js
 
-/**
- * Initializes a new game round.
- * stateRef: A reference to the state management object (pizarraState.js exports)
- * difficulty: The difficulty string ("easy", "medium", "hard")
- */
 export function initializeGame(stateRef, difficulty) {
+    // console.log(`[GameLogic] initializeGame called. Difficulty: ${difficulty}`);
     stateRef.resetGameFlowState();
     stateRef.setCurrentDifficulty(difficulty);
 
     const wordSelected = selectNewWord(stateRef);
     if (!wordSelected) {
-        stateRef.setGameActive(false); // Ensure game is not active if no word
+        stateRef.setGameActive(false); 
+        console.error(`[GameLogic] No words found for difficulty '${difficulty}'.`);
         return { success: false, message: `No hay palabras para la dificultad '${difficulty}'.` };
     }
 
-    // Initialize attempts per player based on current playersData
-    // playersData should be set before calling initializeGame (e.g., by main.js or network logic)
-    let playersToInit = stateRef.getPlayersData(); // This is localPlayersData in state
-    if (stateRef.getPvpRemoteActive()) { // If network game, use players from networkRoomData
-        playersToInit = stateRef.getNetworkRoomData().players;
+    let playersToInit = [];
+    if (stateRef.getPvpRemoteActive()) { 
+        playersToInit = stateRef.getRawNetworkRoomData().players; // Get players from network state
+    } else {
+        playersToInit = stateRef.getPlayersData(); // Get players from local state
     }
 
+    if (!playersToInit || playersToInit.length === 0) {
+        console.warn("[GameLogic] No playersData found during init, creating default player.");
+        const defaultPlayer = {id: 0, name: "Jugador", icon: "✏️", color: state.DEFAULT_PLAYER_COLORS[0], score: 0, isConnected: true };
+        stateRef.setPlayersData([defaultPlayer]); // This will also update networkRoomData.players if PVP active
+        playersToInit = stateRef.getPlayersData(); // Re-fetch after setting
+        stateRef.setCurrentPlayerId(0);
+    }
+    
+    // console.log("[GameLogic] Initializing attempts for players:", playersToInit);
+    stateRef.initRemainingAttempts(playersToInit.length);
+    
+    // Reset scores for all players at the start of a new game
+    const playersWithResetScores = playersToInit.map(p => ({ ...p, score: 0 }));
+    stateRef.setPlayersData(playersWithResetScores); // This updates both localPlayersData and networkRoomData.players
 
-    if (playersToInit && playersToInit.length > 0) {
-        stateRef.initRemainingAttempts(playersToInit.length);
-         // Ensure scores are reset for these players
-        playersToInit.forEach(p => p.score = 0);
-        if (stateRef.getPvpRemoteActive()) {
-            stateRef.setNetworkRoomData({ players: [...playersToInit] }); // Update network state if modified
-        } else {
-            stateRef.setPlayersData([...playersToInit]); // Update local state
-        }
+    // Determine starting player - typically player 0 unless specific logic dictates otherwise
+    if (playersWithResetScores.length > 0) {
+        stateRef.setCurrentPlayerId(playersWithResetScores[0].id); // Start with the first player in the (potentially sorted) list
     } else {
-        stateRef.initRemainingAttempts(1); 
-        if (playersToInit.length === 0) { 
-             const defaultPlayer = {id: 0, name: "Jugador 1", icon: "✏️", color: state.DEFAULT_PLAYER_COLORS[0], score: 0};
-            if (stateRef.getPvpRemoteActive()) {
-                // This case should ideally not happen if hostNewRoom sets up the host player
-                stateRef.setNetworkRoomData({ players: [defaultPlayer] });
-            } else {
-                stateRef.setPlayersData([defaultPlayer]);
-            }
-            stateRef.setCurrentPlayerId(0);
-        }
+        stateRef.setCurrentPlayerId(0); // Fallback
     }
     
     stateRef.setGameActive(true);
-    const guessedLetters = stateRef.getGuessedLetters(); // Should be empty from resetGameFlowState
-    // guessedLetters.clear(); // Already cleared in resetGameFlowState
-    // stateRef.setGuessedLetters(guessedLetters); 
-    // stateRef.setClueUsedThisGame(false); // Already cleared in resetGameFlowState
-
-    console.log(`[GameLogic] Game initialized. Word: ${stateRef.getCurrentWordObject()?.word}, Difficulty: ${difficulty}, CurrentPlayerID: ${stateRef.getCurrentPlayerId()}`);
+    
+    console.log(`[GameLogic] Game initialized. Word: ${stateRef.getCurrentWordObject()?.word}, Difficulty: ${difficulty}, CurrentPlayerID: ${stateRef.getCurrentPlayerId()}, Players:`, stateRef.getPlayersData());
     return { success: true, currentWordObject: stateRef.getCurrentWordObject() };
 }
 
-/**
- * Selects a new word based on the current difficulty set in stateRef.
- */
 export function selectNewWord(stateRef) {
     if (typeof DICTIONARY_DATA === 'undefined' || DICTIONARY_DATA.length === 0) {
-        console.error("GAME LOGIC: ¡Diccionario no cargado o vacío!");
+        console.error("[GameLogic] CRITICAL: DICTIONARY_DATA not loaded or empty!");
         stateRef.setCurrentWordObject(null);
         return false;
     }
@@ -75,7 +63,7 @@ export function selectNewWord(stateRef) {
     const availableWords = DICTIONARY_DATA.filter(item => item.difficulty === currentDifficulty);
 
     if (availableWords.length === 0) {
-        console.warn(`GAME LOGIC: No hay palabras para la dificultad: ${currentDifficulty}`);
+        console.warn(`[GameLogic] No words available for difficulty: ${currentDifficulty}`);
         stateRef.setCurrentWordObject(null);
         return false;
     }
@@ -83,35 +71,34 @@ export function selectNewWord(stateRef) {
     const randomIndex = Math.floor(Math.random() * availableWords.length);
     const selectedWordObj = availableWords[randomIndex];
     stateRef.setCurrentWordObject(selectedWordObj); 
+    // console.log(`[GameLogic] New word selected: ${selectedWordObj.word} (Difficulty: ${currentDifficulty})`);
     return true;
 }
 
-/**
- * Processes a player's letter guess.
- * Directly uses the imported 'state' module.
- */
 export function processGuess(letter) {
+    const affectedPlayerId = state.getCurrentPlayerId(); // Player whose turn it was
+    // console.log(`[GameLogic] processGuess: Letter '${letter}', PlayerID '${affectedPlayerId}', Current Word: '${state.getCurrentWord()}'`);
+
     if (!state.getGameActive()) {
+         console.warn("[GameLogic] processGuess: Game not active. Returning error state.");
          return {
             letter: normalizeLetter(letter), 
             correct: false,
-            affectedPlayerId: state.getCurrentPlayerId(),
-            attemptsLeft: state.getAttemptsFor(state.getCurrentPlayerId()),
+            affectedPlayerId: affectedPlayerId,
+            attemptsLeft: state.getAttemptsFor(affectedPlayerId),
             guessedLetters: Array.from(state.getGuessedLetters()),
-            nextPlayerId: state.getCurrentPlayerId(),
+            nextPlayerId: affectedPlayerId, 
             wordSolved: false,
             gameOver: true, 
             error: "El juego no está activo."
         };
     }
 
-    const l = normalizeLetter(letter); // Normalized, lowercase letter
-    const affectedPlayerId = state.getCurrentPlayerId(); 
-    const guessedLetters = state.getGuessedLetters(); // Set of normalized, lowercase letters
-
-    console.log(`[GameLogic] Processing guess: ${l}, Current word: ${state.getCurrentWord()}, Already guessed: ${Array.from(guessedLetters)}`);
+    const l = normalizeLetter(letter); 
+    const guessedLetters = state.getGuessedLetters(); 
 
     if (guessedLetters.has(l)) {
+        // console.log(`[GameLogic] Letter '${l}' already guessed.`);
         return {
             letter: l,
             correct: state.getCurrentWord().toLowerCase().includes(l), 
@@ -128,7 +115,7 @@ export function processGuess(letter) {
     guessedLetters.add(l); 
     state.setGuessedLetters(guessedLetters); 
 
-    const currentWordNormalized = state.getCurrentWord().toLowerCase(); // Normalized current word for checking
+    const currentWordNormalized = state.getCurrentWord().toLowerCase(); 
     const wasCorrect = currentWordNormalized.includes(l);
     let attemptsLeftForPlayer = state.getAttemptsFor(affectedPlayerId);
 
@@ -138,165 +125,174 @@ export function processGuess(letter) {
     }
 
     const wordSolved = checkWinCondition();
-    const playerLostThisWord = attemptsLeftForPlayer <= 0 && !wordSolved; // Player specific loss for this word
+    const playerLostThisWord = attemptsLeftForPlayer <= 0 && !wordSolved; 
     
-    // Game Over condition: either word is solved OR the current player has lost AND no other players can continue (single player)
-    // In multiplayer, game over is more complex (e.g., all players lost, or host decides).
-    // For now, processGuess determines if THIS guess makes the game end for THIS player or solves word.
-    // The actual game over state for multiplayer is managed by pizarraPeerConnection based on these results.
-    const gameIsOver = wordSolved || playerLostThisWord; // Simplified: if word is solved, game ends. If player loses, and it's single player, game ends.
+    let gameIsOver = wordSolved || playerLostThisWord; 
 
-    console.log(`[GameLogic] Letter ${l} is ${wasCorrect ? 'correct' : 'incorrect'}. Word solved: ${wordSolved}, Player ${affectedPlayerId} lost this word: ${playerLostThisWord}`);
+    // If it's a single-player game (local or network with 1 player), playerLostThisWord means game over.
+    // In multiplayer, game continues until all players lose or word is solved.
+    // For now, this 'gameIsOver' reflects immediate end conditions from this guess.
+    // The host will ultimately decide true "game over" in network play.
+    const playersInGame = state.getPvpRemoteActive() ? state.getRawNetworkRoomData().players : state.getPlayersData();
+    const activePlayers = playersInGame.filter(p => p.isConnected !== false && state.getAttemptsFor(p.id) > 0);
 
-    if (gameIsOver && !state.getPvpRemoteActive()) { // Only set game inactive for local game based on this logic directly
+    if (!wordSolved && activePlayers.length === 0) { // All active players ran out of attempts
+        console.log("[GameLogic] All active players have run out of attempts and word not solved. Setting gameIsOver=true.");
+        gameIsOver = true;
+    }
+    
+    // console.log(`[GameLogic] Letter ${l} is ${wasCorrect ? 'correct' : 'incorrect'}. Word solved: ${wordSolved}, Player ${affectedPlayerId} lost this word: ${playerLostThisWord}, Overall gameIsOver: ${gameIsOver}`);
+
+    if (gameIsOver && !state.getPvpRemoteActive()) { 
         state.setGameActive(false);
     }
-
+    // In PVP, host controls gameActive state via network messages based on these results.
 
     if (wordSolved) {
-        // Update score for the current player if word is solved
-        // This needs to handle both localPlayersData and networkRoomData.players
-        let playersListToUpdate;
-        if (state.getPvpRemoteActive()) {
-            playersListToUpdate = state.getRawNetworkRoomData().players; // Get mutable list for host
-        } else {
-            playersListToUpdate = state.getPlayersData(); // Get copy for local
-        }
-        
-        const currentPlayerInList = playersListToUpdate.find(p => p.id === affectedPlayerId);
-        if (currentPlayerInList) {
-            currentPlayerInList.score = (currentPlayerInList.score || 0) + 1;
-            if (state.getPvpRemoteActive()) {
-                state.setNetworkRoomData({ players: [...playersListToUpdate] }); // Host updates its state
+        let playersListToUpdate = state.getPvpRemoteActive() ? state.getRawNetworkRoomData().players : state.getPlayersData();
+        const playerToGetScore = playersListToUpdate.find(p => p.id === affectedPlayerId);
+        if (playerToGetScore) {
+            playerToGetScore.score = (playerToGetScore.score || 0) + 1;
+            // The state update will be done via setNetworkRoomData by the host after broadcasting
+            // or directly by setPlayersData for local games.
+            // For now, we ensure the local copy of players (if used by host) is updated.
+            // If this is called by host, this modifies a clone from getRawNetworkRoomData(),
+            // host needs to commit this via setNetworkRoomData.
+            // If local, this modifies a clone from getPlayersData(), needs setPlayersData.
+            // This function primarily returns the result; state persistence is slightly outside.
+            // However, to ensure consistency for the *next turn* logic, we update the state used by getPlayersData()
+            if(state.getPvpRemoteActive()){
+                 // The host will call setNetworkRoomData which internally updates players
             } else {
-                state.setPlayersData([...playersListToUpdate]); // Local game updates its state
+                state.setPlayersData(playersListToUpdate);
             }
         }
     }
 
-    let nextPlayerId;
-    const playersInGame = state.getPvpRemoteActive() ? state.getNetworkRoomData().players : state.getPlayersData();
-    
-    if (playersInGame.length === 0) {
-        console.error("[GameLogic] No players found for next player logic!");
-        nextPlayerId = 0; // Fallback, should not happen
-    } else if (wordSolved || playerLostThisWord && playersInGame.length === 1) { // If solved, or single player loses
-        nextPlayerId = -1; // Indicates game should end or pause for "Game Over"
-    } else {
-        // Standard turn progression: find current player index, go to next, wrap around.
-        const currentPlayerIndex = playersInGame.findIndex(p => p.id === affectedPlayerId);
-        if (currentPlayerIndex === -1) {
-            console.error(`[GameLogic] Current player ID ${affectedPlayerId} not found in players list.`);
-            nextPlayerId = playersInGame[0].id; // Default to first player
+    // --- NEW: Turn progression logic (AI's suggestion) ---
+    let nextPlayerId = affectedPlayerId; // Default to same player if no change
+    if (state.getGameActive() && !wordSolved && playersInGame.length > 0) { // Only switch if game is ongoing and word not solved
+        const connectedPlayers = playersInGame.filter(p => p.isConnected !== false); // Consider only connected players for turn rotation
+        if (connectedPlayers.length > 0) {
+            // Find current player's index among *connected* players
+            const currentPlayerIndexInConnected = connectedPlayers.findIndex(p => p.id === affectedPlayerId);
+            
+            if (currentPlayerIndexInConnected !== -1) {
+                // Try to find the next connected player who still has attempts
+                let attemptsToFindNext = connectedPlayers.length; // Max attempts to find next player
+                let nextPlayerIndex = (currentPlayerIndexInConnected + 1) % connectedPlayers.length;
+                
+                while(attemptsToFindNext > 0 && state.getAttemptsFor(connectedPlayers[nextPlayerIndex].id) <= 0) {
+                    nextPlayerIndex = (nextPlayerIndex + 1) % connectedPlayers.length;
+                    attemptsToFindNext--;
+                }
+
+                if (state.getAttemptsFor(connectedPlayers[nextPlayerIndex].id) > 0) { // Found a valid next player
+                    nextPlayerId = connectedPlayers[nextPlayerIndex].id;
+                } else { // No player with attempts left (should also mean gameIsOver is true)
+                    console.log("[GameLogic] No connected players with attempts left. Game should be over.");
+                    nextPlayerId = -1; // Or handle as game over
+                    if(!gameIsOver) gameIsOver = true; // Force game over if not already set
+                }
+            } else {
+                console.warn(`[GameLogic] Current player ID ${affectedPlayerId} not found in connected players list for turn rotation. Defaulting to first connected player.`);
+                if (connectedPlayers.length > 0 && state.getAttemptsFor(connectedPlayers[0].id) > 0) {
+                     nextPlayerId = connectedPlayers[0].id;
+                } else {
+                    nextPlayerId = -1; // No valid player
+                    if(!gameIsOver) gameIsOver = true;
+                }
+            }
         } else {
-            nextPlayerId = playersInGame[(currentPlayerIndex + 1) % playersInGame.length].id;
+            console.warn("[GameLogic] No connected players found for turn rotation.");
+            nextPlayerId = -1; // No one to pass turn to
+            if(!gameIsOver) gameIsOver = true;
         }
+    } else if (wordSolved || !state.getGameActive()) { // If word solved or game became inactive
+        nextPlayerId = -1; // No next player, game ends or pauses
     }
     
-    // If game became inactive due to this guess (e.g. local player lost)
-    if (!state.getGameActive() && !wordSolved) { // If game is over and not because word was solved
-         nextPlayerId = -1; // ensure nextPlayerId reflects game end
+    if (nextPlayerId !== -1 && nextPlayerId !== affectedPlayerId) {
+        console.log(`[GameLogic] Advancing turn from player ${affectedPlayerId} to ${nextPlayerId}`);
+        state.setCurrentPlayerId(nextPlayerId);
+    } else if (nextPlayerId === -1) {
+        console.log(`[GameLogic] Turn does not advance, game ended or no valid next player. Next Player ID set to -1.`);
+        // state.setCurrentPlayerId(affectedPlayerId); // Or keep current player, game will be marked inactive
     }
 
 
     return {
         letter: l,
         correct: wasCorrect,
+        alreadyGuessed: false, // This path is for new guesses
         affectedPlayerId: affectedPlayerId,
-        attemptsLeft: attemptsLeftForPlayer, // Attempts left for the affected player
-        guessedLetters: Array.from(state.getGuessedLetters()), // Current set of all guessed letters
-        nextPlayerId: nextPlayerId, // ID of the next player to play
+        attemptsLeft: attemptsLeftForPlayer, 
+        guessedLetters: Array.from(state.getGuessedLetters()), 
+        nextPlayerId: state.getCurrentPlayerId(), // Return the *new* current player ID from state
         wordSolved: wordSolved,
-        gameOver: gameIsOver, // True if this guess resulted in word solved OR current player losing their last attempt
-        scores: (state.getPvpRemoteActive() ? state.getNetworkRoomData().players : state.getPlayersData()).map(p => ({id: p.id, score: p.score}))
+        gameOver: gameIsOver, 
+        // Scores are now part of the FULL_GAME_STATE, not typically sent with each guess result message
+        // scores: (state.getPvpRemoteActive() ? state.getRawNetworkRoomData().players : state.getPlayersData()).map(p => ({id: p.id, score: p.score}))
     };
 }
 
-/**
- * Checks if the current word has been completely guessed.
- * Uses the imported 'state'.
- */
 export function checkWinCondition() {
-    const currentWord = state.getCurrentWord(); // Normalized, uppercase
-    if (!currentWord) {
-        // console.log("[GameLogic] checkWinCondition: No current word");
-        return false;
-    }
-    
-    const guessedLetters = state.getGuessedLetters(); // Set of normalized, lowercase letters
-    // console.log(`[GameLogic] checkWinCondition: Word "${currentWord}", Guessed letters: [${Array.from(guessedLetters).join(', ')}]`);
-    
-    for (const letter of currentWord) { // letter is like 'M', 'A', 'Ñ'
-        const normalizedLetterFromWord = normalizeLetter(letter); // Convert to lowercase, keep ñ
-        if (!guessedLetters.has(normalizedLetterFromWord)) {
-            // console.log(`[GameLogic] checkWinCondition: Missing letter "${letter}" (normalized: "${normalizedLetterFromWord}") - word not solved`);
+    const currentWord = state.getCurrentWord(); 
+    if (!currentWord) return false;    
+    const guessedLettersSet = state.getGuessedLetters(); 
+    for (const letter of currentWord) { 
+        const normalizedLetterFromWord = normalizeLetter(letter); 
+        if (!guessedLettersSet.has(normalizedLetterFromWord)) {
             return false;
         }
     }
-    
-    // console.log("[GameLogic] checkWinCondition: All letters found - word solved!");
     return true;
 }
-
 
 export function checkLossConditionForPlayer(playerId) {
     return state.getAttemptsFor(playerId) <= 0;
 }
 
-
-export function getWinnerData(stateRef) { // stateRef is the main state module
-    const players = stateRef.getPvpRemoteActive() ? stateRef.getNetworkRoomData().players : stateRef.getPlayersData();
+export function getWinnerData(stateRef) { 
+    const players = stateRef.getPvpRemoteActive() ? stateRef.getRawNetworkRoomData().players : stateRef.getPlayersData();
     if (!players || players.length === 0) {
         return { winners: [], isTie: false, reason: "No player data." };
     }
 
-    const wordWasSolved = checkWinCondition(); // Check against the current state
+    const wordWasSolved = checkWinCondition(); 
 
     if (wordWasSolved) {
-        // If word solved, current player (who made the winning guess) is the primary winner for this round.
-        // Or, if multiple players contributed and solved it, it's more complex.
-        // Simplified: player whose turn it was when solved.
-        const winner = players.find(p => p.id === stateRef.getCurrentPlayerId());
+        const winner = players.find(p => p.id === stateRef.getCurrentPlayerId()); // Player whose turn it was
         return { 
-            winners: winner ? [winner] : (players.length > 0 ? [players[0]] : []), // Fallback
-            isTie: false,
+            winners: winner ? [winner] : (players.length > 0 && players.some(p=>p.score > 0) ? players.filter(p=>p.score === Math.max(...players.map(pl=>pl.score || 0))) : []), 
+            isTie: winner ? false : (players.length > 0 && players.some(p=>p.score > 0) ? players.filter(p=>p.score === Math.max(...players.map(pl=>pl.score || 0))).length > 1 : false),
             reason: `Palabra '${stateRef.getCurrentWordObject()?.word}' resuelta.`
         };
     }
 
-    // If word not solved, game might end due to other reasons (e.g., host ends, disconnects)
-    // Or, if all players run out of attempts. This needs a more robust check.
-    // For now, let's assume game over implies we need to find highest score.
-    // This function is typically called when the game is already declared over.
-
-    const maxScore = Math.max(...players.map(p => p.score || 0));
-    const topScorers = players.filter(p => (p.score || 0) === maxScore);
+    // If word not solved, game ended due to other reasons (e.g., all players lost attempts)
+    const activePlayersWithAttempts = players.filter(p => p.isConnected !== false && stateRef.getAttemptsFor(p.id) > 0);
+    if (activePlayersWithAttempts.length === 0 && !wordWasSolved) { // All players lost
+         return { winners: [], isTie: false, reason: "Todos los jugadores perdieron sus intentos." };
+    }
     
-    if (topScorers.length === 0 && players.length > 0) { // No one scored, but players exist
-        return { winners: [], isTie: false, reason: "Nadie puntuó."};
-    }
-    if (topScorers.length === 1) {
-        return { winners: topScorers, isTie: false, reason: "Puntuación más alta." };
-    } 
-    if (topScorers.length > 1) {
-        // Tie-breaker: if multiple players have max score, it's a tie among them.
-        // (Original logic had attempts remaining as tie-breaker, but scores are usually final)
-        return { 
-            winners: topScorers, 
-            isTie: true,
-            reason: "Empate en puntuación." 
-        };
+    // Fallback if game ends for other reasons (e.g. disconnect, host ends early) - find highest score
+    const maxScore = Math.max(0, ...players.map(p => p.score || 0)); // Ensure maxScore is at least 0
+    if (maxScore > 0) {
+        const topScorers = players.filter(p => (p.score || 0) === maxScore);
+        if (topScorers.length === 1) {
+            return { winners: topScorers, isTie: false, reason: "Puntuación más alta." };
+        } 
+        if (topScorers.length > 1) {
+            return { winners: topScorers, isTie: true, reason: "Empate en puntuación." };
+        }
     }
 
-    return { winners: [], isTie: false, reason: "No se determinó ganador." }; // Fallback
+    return { winners: [], isTie: false, reason: "No se determinó ganador." }; 
 }
 
-
-/**
- * Handles a clue request.
- * Uses the imported 'state'.
- */
-export function requestClue() { // state module is directly imported
+export function requestClue() { 
+    // console.log("[GameLogic] requestClue called.");
     if (!state.getGameActive()) {
         return { success: false, message: "El juego no está activo para pedir pistas." };
     }
@@ -309,13 +305,11 @@ export function requestClue() { // state module is directly imported
     }
 
     state.setClueUsedThisGame(true);
-    // No direct cost for clue in this version (e.g. losing an attempt) in gameLogic.
-    // If a cost is applied (e.g. by host), pizarraPeerConnection would handle state changes.
-    // For local game, no attempt cost for clue.
-
+    // console.log("[GameLogic] Clue used. Definition:", currentWordObject.definition);
+    
+    // Requesting a clue does not advance the turn in this model.
     return {
         success: true,
         clue: currentWordObject.definition,
-        // No gameOver check here, clue request itself doesn't end game in this model
     };
 }
