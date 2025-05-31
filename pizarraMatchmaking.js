@@ -89,7 +89,10 @@ async function cleanupStaleRooms() {
 }
 
 export async function removeDeadRoomByPeerId(deadRawPeerId) {
-    if (!initSupabase() || !deadRawPeerId) return;
+    if (!initSupabase() || !deadRawPeerId) {
+        console.warn(`[PizarraMatchmaking] removeDeadRoomByPeerId: Invalid input. deadRawPeerId: '${deadRawPeerId}', Supabase initialized: ${!!supabase}`);
+        return;
+    }
     const deadRoomIdWithPrefix = `${state.PIZARRA_PEER_ID_PREFIX}${deadRawPeerId}`; 
     console.log(`[PizarraMatchmaking] Attempting to remove dead room: ${deadRoomIdWithPrefix}`);
     try {
@@ -107,23 +110,36 @@ export async function removeDeadRoomByPeerId(deadRawPeerId) {
 }
 
 export async function joinQueue(localRawPeerId, myPlayerData, preferences, callbacks) {
-    if (!initSupabase()) {
-        callbacks.onError?.('Servicio de matchmaking no disponible.');
+    // FIX: Add comprehensive error checking
+    if (!callbacks || typeof callbacks !== 'object') {
+        console.error('[PizarraMatchmaking] joinQueue: callbacks object is required');
         return;
     }
-    if (!localRawPeerId || typeof localRawPeerId !== 'string') { // Add type check for localRawPeerId
-        callbacks.onError?.(`ID de jugador local inválido ('${localRawPeerId}') para matchmaking.`);
+    
+    if (!initSupabase()) {
+        if (callbacks.onError) callbacks.onError('Servicio de matchmaking no disponible.');
+        return;
+    }
+    
+    if (!localRawPeerId || typeof localRawPeerId !== 'string') {
+        console.error(`[PizarraMatchmaking] joinQueue: Invalid localRawPeerId: '${localRawPeerId}'`);
+        if (callbacks.onError) callbacks.onError(`ID de jugador local inválido para matchmaking.`);
+        return;
+    }
+
+    if (!myPlayerData || !preferences) {
+        console.error('[PizarraMatchmaking] joinQueue: myPlayerData and preferences are required');
+        if (callbacks.onError) callbacks.onError('Datos de jugador o preferencias faltantes.');
         return;
     }
 
     cleanupMatchmakingState();
     await cleanupStaleRooms();
 
-    callbacks.onSearching?.();
+    if (callbacks.onSearching) callbacks.onSearching();
     const localPrefixedPeerId = `${state.PIZARRA_PEER_ID_PREFIX}${localRawPeerId}`; 
 
     // Ensure this peer isn't already listed as hosting a room.
-    // Pass the string localRawPeerId.
     await leaveQueue(localRawPeerId, false); 
 
     try {
@@ -142,7 +158,7 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
 
         if (fetchError) {
             console.error('[PizarraMatchmaking] Error fetching open rooms:', fetchError);
-            callbacks.onError?.(`Error buscando salas: ${fetchError.message}`);
+            if (callbacks.onError) callbacks.onError(`Error buscando salas: ${fetchError.message}`);
             return;
         }
 
@@ -153,19 +169,21 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
                 ? suitableRoom.room_id.substring(state.PIZARRA_PEER_ID_PREFIX.length)
                 : suitableRoom.room_id;
 
-            callbacks.onMatchFoundAndJoiningRoom?.(
-                leaderRawPeerId, 
-                { 
-                    maxPlayers: suitableRoom.max_players,
-                    gameSettings: suitableRoom.game_settings, 
-                    currentPlayers: suitableRoom.current_players
-                }
-            );
+            if (callbacks.onMatchFoundAndJoiningRoom) {
+                callbacks.onMatchFoundAndJoiningRoom(
+                    leaderRawPeerId, 
+                    { 
+                        maxPlayers: suitableRoom.max_players,
+                        gameSettings: suitableRoom.game_settings, 
+                        currentPlayers: suitableRoom.current_players
+                    }
+                );
+            }
             return;
         }
 
         console.log('[PizarraMatchmaking] No suitable rooms. Becoming a host.');
-        localPlayerHostedRoomId_Supabase = localPrefixedPeerId; // This is a string
+        localPlayerHostedRoomId_Supabase = localPrefixedPeerId;
 
         const newRoomEntry = {
             peer_id: localPrefixedPeerId, 
@@ -182,7 +200,7 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
 
         if (insertError) {
             console.error('[PizarraMatchmaking] Error inserting new room:', insertError);
-            callbacks.onError?.(`No se pudo crear una nueva sala: ${insertError.message}`);
+            if (callbacks.onError) callbacks.onError(`No se pudo crear una nueva sala: ${insertError.message}`);
             localPlayerHostedRoomId_Supabase = null;
             return;
         }
@@ -191,22 +209,23 @@ export async function joinQueue(localRawPeerId, myPlayerData, preferences, callb
             refreshRoomExpiration(localPlayerHostedRoomId_Supabase);
         }, ROOM_REFRESH_INTERVAL_MS);
 
-        callbacks.onMatchFoundAndHostingRoom?.(
-            localRawPeerId, 
-            { 
-                maxPlayers: preferences.maxPlayers,
-                gameSettings: preferences.gameSettings,
-            }
-        );
+        if (callbacks.onMatchFoundAndHostingRoom) {
+            callbacks.onMatchFoundAndHostingRoom(
+                localRawPeerId, 
+                { 
+                    maxPlayers: preferences.maxPlayers,
+                    gameSettings: preferences.gameSettings,
+                }
+            );
+        }
 
     } catch (error) {
         console.error('[PizarraMatchmaking] General exception in joinQueue:', error);
-        callbacks.onError?.('Error inesperado durante el matchmaking.');
+        if (callbacks.onError) callbacks.onError('Error inesperado durante el matchmaking.');
     }
 }
 
 export async function leaveQueue(localRawPeerIdToLeave = null, performFullCleanup = true) {
-    // Add console log to see the exact type and value of localRawPeerIdToLeave
     console.log(`[PizarraMatchmaking] leaveQueue called. PeerID (raw) to leave: '${localRawPeerIdToLeave}', Type: ${typeof localRawPeerIdToLeave}. Full cleanup: ${performFullCleanup}`);
     
     let peerIdToRemoveString;
@@ -215,16 +234,12 @@ export async function leaveQueue(localRawPeerIdToLeave = null, performFullCleanu
     } else if (localPlayerHostedRoomId_Supabase && typeof localPlayerHostedRoomId_Supabase === 'string') {
         peerIdToRemoveString = localPlayerHostedRoomId_Supabase;
     } else {
-        // If localRawPeerIdToLeave is not a string (e.g. null, undefined, or an object)
-        // and localPlayerHostedRoomId_Supabase is also not set or not a string,
-        // then we don't have a valid string ID to remove.
         console.warn(`[PizarraMatchmaking] leaveQueue: Cannot determine a valid string PeerID to remove. localRawPeerIdToLeave: '${localRawPeerIdToLeave}', localPlayerHostedRoomId_Supabase: '${localPlayerHostedRoomId_Supabase}'`);
-        if (performFullCleanup) cleanupMatchmakingState(); // Still perform interval cleanup if full.
-        return; // Exit if no valid string ID can be formed.
+        if (performFullCleanup) cleanupMatchmakingState();
+        return;
     }
 
     console.log(`[PizarraMatchmaking] Effective peerIdToRemoveString for Supabase: ${peerIdToRemoveString}`);
-
 
     if (performFullCleanup) {
         cleanupMatchmakingState();
@@ -249,13 +264,18 @@ export async function leaveQueue(localRawPeerIdToLeave = null, performFullCleanu
     }
 
     if (peerIdToRemoveString === localPlayerHostedRoomId_Supabase) {
-        localPlayerHostedRoomId_Supabase = null; // Clear our hosted room ID if we just unlisted it.
+        localPlayerHostedRoomId_Supabase = null;
     }
 }
 
 export async function updateHostedRoomStatus(hostRawPeerId, gameSettings, maxPlayers, currentPlayers, newStatus = null) {
-    if (!initSupabase() || !hostRawPeerId || typeof hostRawPeerId !== 'string') { // Add type check
+    if (!initSupabase() || !hostRawPeerId || typeof hostRawPeerId !== 'string') {
         console.warn(`[PizarraMatchmaking] updateHostedRoomStatus: Invalid hostRawPeerId ('${hostRawPeerId}') or Supabase not init.`);
+        return;
+    }
+
+    if (!gameSettings || typeof maxPlayers !== 'number' || typeof currentPlayers !== 'number') {
+        console.warn(`[PizarraMatchmaking] updateHostedRoomStatus: Invalid parameters. gameSettings: ${!!gameSettings}, maxPlayers: ${maxPlayers}, currentPlayers: ${currentPlayers}`);
         return;
     }
 
@@ -263,12 +283,18 @@ export async function updateHostedRoomStatus(hostRawPeerId, gameSettings, maxPla
 
     let statusToSet = newStatus;
     if (!statusToSet) {
-        if (state.getRawNetworkRoomData().roomState === 'playing') { // Check Palabras state
-             statusToSet = 'in_game';
-        } else if (currentPlayers >= maxPlayers) {
-            statusToSet = 'full';
-        } else {
-            statusToSet = 'hosting_waiting_for_players';
+        // FIX: Add null check for state access
+        try {
+            if (state.getRawNetworkRoomData && state.getRawNetworkRoomData().roomState === 'playing') {
+                statusToSet = 'in_game';
+            } else if (currentPlayers >= maxPlayers) {
+                statusToSet = 'full';
+            } else {
+                statusToSet = 'hosting_waiting_for_players';
+            }
+        } catch (e) {
+            console.warn('[PizarraMatchmaking] Error accessing state for status determination:', e);
+            statusToSet = currentPlayers >= maxPlayers ? 'full' : 'hosting_waiting_for_players';
         }
     }
 
@@ -293,13 +319,26 @@ export async function updateHostedRoomStatus(hostRawPeerId, gameSettings, maxPla
         updatePayload.expires_at = null; 
     }
 
-    const { error } = await supabase
-        .from(MATCHMAKING_TABLE)
-        .update(updatePayload)
-        .eq('room_id', hostPrefixedPeerId);
+    try {
+        const { error } = await supabase
+            .from(MATCHMAKING_TABLE)
+            .update(updatePayload)
+            .eq('room_id', hostPrefixedPeerId);
 
-    if (error) console.error(`[PizarraMatchmaking] Error updating room ${hostPrefixedPeerId} to status ${statusToSet}:`, error);
-    else console.log(`[PizarraMatchmaking] Room ${hostPrefixedPeerId} status updated to ${statusToSet}. Players: ${currentPlayers}/${maxPlayers}`);
+        if (error) console.error(`[PizarraMatchmaking] Error updating room ${hostPrefixedPeerId} to status ${statusToSet}:`, error);
+        else console.log(`[PizarraMatchmaking] Room ${hostPrefixedPeerId} status updated to ${statusToSet}. Players: ${currentPlayers}/${maxPlayers}`);
+    } catch (e) {
+        console.error(`[PizarraMatchmaking] Exception updating room status for ${hostPrefixedPeerId}:`, e);
+    }
 }
 
-initSupabase();
+// FIX: Add initialization check and better error handling
+try {
+    if (initSupabase()) {
+        console.log('[PizarraMatchmaking] Module initialized successfully.');
+    } else {
+        console.warn('[PizarraMatchmaking] Module initialization failed - Supabase not available.');
+    }
+} catch (e) {
+    console.error('[PizarraMatchmaking] Error during module initialization:', e);
+}

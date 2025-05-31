@@ -4,7 +4,8 @@
 import * as state from './pizarraState.js'; // Palabras state
 import * as ui from './pizarraUi.js'; // Palabras UI
 import * as logic from './gameLogic.js'; // Palabras game logic
-import *as matchmaking from './pizarraMatchmaking.js'; // Palabras matchmaking
+import * as matchmaking from './pizarraMatchmaking.js'; // Palabras matchmaking
+import * as netHandlers from './pizarraNetHandlers.js'; // FIX: Add missing import
 
 const PIZARRA_BASE_URL = "https://palabras.martinez.fyi"; // Palabras specific
 const PIZARRA_PEER_ID_PREFIX = state.PIZARRA_PEER_ID_PREFIX; // From Palabras state
@@ -29,6 +30,7 @@ export const MSG_TYPE = {
     GAME_OVER_ANNOUNCEMENT: 'game_over_pizarra',// Host announces game end
     FULL_GAME_STATE: 'full_game_state_pizarra', // For resync or late join during game
     ERROR_MESSAGE: 'error_message_pizarra',   // For sending error messages
+    STATE_SYNC: 'state_sync', // FIX: Add STATE_SYNC message type
 };
 
 
@@ -56,7 +58,11 @@ function onConnectionClose(peerId) {
                 broadcastToRoom({ type: MSG_TYPE.PLAYER_LEFT, playerId: leavingPlayer.id, peerId: peerId, playerName: leavingPlayerName });
                 reassignPlayerIdsAndBroadcastUpdate(); 
                 ui.updateLobbyUI();
-                matchmaking.updateHostedRoomStatus(state.getNetworkRoomData().roomId, state.getNetworkRoomData().gameSettings, state.getNetworkRoomData().maxPlayers, state.getNetworkRoomData().players.length);
+                
+                // FIX: Add null check for matchmaking function
+                if (matchmaking && matchmaking.updateHostedRoomStatus) {
+                    matchmaking.updateHostedRoomStatus(state.getNetworkRoomData().roomId, state.getNetworkRoomData().gameSettings, state.getNetworkRoomData().maxPlayers, state.getNetworkRoomData().players.length);
+                }
 
                 if (state.getNetworkRoomData().roomState === 'playing' && state.getNetworkRoomData().players.length < state.MIN_PLAYERS_NETWORK) {
                     if(window.pizarraUiUpdateCallbacks?.showModal) window.pizarraUiUpdateCallbacks.showModal(`Jugador ${leavingPlayerName} se desconectó. No hay suficientes jugadores.`);
@@ -96,7 +102,11 @@ async function onError(err, peerIdContext = null) {
                 (state.getNetworkRoomData().roomState === 'connecting_to_lobby' || state.getNetworkRoomData().roomState === 'awaiting_join_approval') &&
                 targetPeerForMsg === state.getNetworkRoomData().leaderPeerId) {
                 console.warn(`[PizarraPeerConn onError] Peer ${targetPeerForMsg} is unavailable. This might be a dead room. Attempting cleanup.`);
-                await matchmaking.removeDeadRoomByPeerId(targetPeerForMsg);
+                
+                // FIX: Add null check for matchmaking function
+                if (matchmaking && matchmaking.removeDeadRoomByPeerId) {
+                    await matchmaking.removeDeadRoomByPeerId(targetPeerForMsg);
+                }
                 displayMessage += " La sala podría haber sido cerrada. Intentá buscar de nuevo.";
             }
         } else if (err.type === 'network') { displayMessage = "Error de red. Verificá tu conexión."; }
@@ -167,6 +177,11 @@ const peerJsCallbacks = {
         console.log(`[PizarraPeerConn] Leader received incoming connection from ${conn.peer}.`);
         connections.set(conn.peer, { connObject: conn, status: 'pending_join_request', player: null, playerGameId: -1 });
         setupConnectionEventHandlers(conn);
+        
+        // FIX: Add netHandlers attachment for state sync
+        if (netHandlers && netHandlers.attach) {
+            netHandlers.attach(conn);
+        }
     },
     onConnectionOpen: (peerId) => {
         console.log(`[PizarraPeerConn] Data connection open with: ${peerId}.`);
@@ -263,6 +278,11 @@ function _finalizeClientJoinAttempt(myPeerId, leaderPeerIdToJoin) {
         const connToLeader = window.peerJsMultiplayer.connect(leaderPeerIdToJoin);
         if (connToLeader) {
             leaderConnection = connToLeader;
+            
+            // FIX: Add netHandlers attachment for state sync on client side too
+            if (netHandlers && netHandlers.attach) {
+                netHandlers.attach(connToLeader);
+            }
             // Event handlers including onConnectionOpen (which sends JOIN_REQUEST) are set by peerjs-multiplayer
         } else {
             peerJsCallbacks.onError({ type: 'connect_failed', message: `peer.connect() returned null for ${leaderPeerIdToJoin}.` }, leaderPeerIdToJoin);
@@ -276,20 +296,18 @@ function _finalizeClientJoinAttempt(myPeerId, leaderPeerIdToJoin) {
 // to use the public PeerJS server via peerjs-multiplayer.js defaults
 function initPeerObject(peerIdToUse = null) {
     return new Promise((resolve, reject) => {
-        if (window.peerJsMultiplayer?.init) {
-            state.setNetworkRoomData({ _peerInitResolve: resolve, _peerInitReject: reject });
-            console.log(`[PizarraPeerConn] initPeerObject: Calling peerJsMultiplayer.init. Preferred ID: ${peerIdToUse}. Relying on peerjs-multiplayer for server defaults.`);
-            // Pass empty object as server options part if no peerIdToUse,
-            // so peerjs-multiplayer uses its internal defaults (public PeerServer).
-            window.peerJsMultiplayer.init(peerIdToUse || {}, peerJsCallbacks);
-        } else {
-            const err = new Error('PeerJS wrapper (peerJsMultiplayer) not found.');
-            const rawState = state.getRawNetworkRoomData();
-            if(rawState._setupErrorCallback) rawState._setupErrorCallback(err);
-            else if(rawState._peerInitReject) rawState._peerInitReject(err);
-            else console.error(err.message); // Fallback log
+        // FIX: Add check for peerJsMultiplayer availability
+        if (!window.peerJsMultiplayer?.init) {
+            const err = new Error('PeerJS wrapper (peerJsMultiplayer) not found on window object.');
             reject(err);
+            return;
         }
+        
+        state.setNetworkRoomData({ _peerInitResolve: resolve, _peerInitReject: reject });
+        console.log(`[PizarraPeerConn] initPeerObject: Calling peerJsMultiplayer.init. Preferred ID: ${peerIdToUse}. Relying on peerjs-multiplayer for server defaults.`);
+        // Pass empty object as server options part if no peerIdToUse,
+        // so peerjs-multiplayer uses its internal defaults (public PeerServer).
+        window.peerJsMultiplayer.init(peerIdToUse || {}, peerJsCallbacks);
     });
 }
 
@@ -417,7 +435,11 @@ function handleLeaderDataReception(data, fromPeerId) {
             sendDataToClient(fromPeerId, { type: MSG_TYPE.JOIN_ACCEPTED, yourPlayerIdInRoom: newPlayer.id, roomData: state.getSanitizedNetworkRoomDataForClient()});
             broadcastFullGameStateToAll(); // Send full state to everyone, including new player
             if (window.pizarraUiUpdateCallbacks?.updateLobby) window.pizarraUiUpdateCallbacks.updateLobby();
-            matchmaking.updateHostedRoomStatus(state.getNetworkRoomData().roomId, currentHostState.gameSettings, currentHostState.maxPlayers, state.getNetworkRoomData().players.filter(p=>p.isConnected).length);
+            
+            // FIX: Add null check for matchmaking function
+            if (matchmaking && matchmaking.updateHostedRoomStatus) {
+                matchmaking.updateHostedRoomStatus(state.getNetworkRoomData().roomId, currentHostState.gameSettings, currentHostState.maxPlayers, state.getNetworkRoomData().players.filter(p=>p.isConnected).length);
+            }
             break;
 
         case MSG_TYPE.PLAYER_READY_CHANGED:
@@ -580,7 +602,7 @@ function handleClientDataReception(data, fromLeaderPeerId) {
                 myPlayerIdInRoom: data.gameState.players.find(p=>p.peerId === state.getMyPeerId())?.id ?? state.getNetworkRoomData().myPlayerIdInRoom, // Update my game ID from synced players
                 players: data.gameState.players.map(p => ({...p, isConnected: true, isReady:true })), // Make sure player structure is full
             });
-            if (window.pizarraUiUpdateCallbacks?.syncGameUIFromNetworkState) window.pizarraUiUpdateCallbacks.syncGameUIFromNetworkState();
+            if (window.pizarraUiUpdateCallbacks?.syncUIFromNetworkState) window.pizarraUiUpdateCallbacks.syncUIFromNetworkState();
             break;
 
         case MSG_TYPE.GAME_OVER_ANNOUNCEMENT:
@@ -608,6 +630,12 @@ function handleClientDataReception(data, fromLeaderPeerId) {
 
         case MSG_TYPE.ERROR_MESSAGE:
             if(window.pizarraUiUpdateCallbacks?.showNetworkError) window.pizarraUiUpdateCallbacks.showNetworkError(data.message, false);
+            break;
+
+        // FIX: Add missing STATE_SYNC case (handled by netHandlers but keeping for completeness)
+        case MSG_TYPE.STATE_SYNC:
+            // This is handled by pizarraNetHandlers.js attach() method
+            // but we include it here to avoid "unhandled message" warnings
             break;
 
         default:
@@ -682,8 +710,14 @@ function broadcastFullGameStateToAll() {
         leaderPeerId: state.getNetworkRoomData().leaderPeerId,
     };
     broadcastToRoom({ type: MSG_TYPE.FULL_GAME_STATE, gameState: gameStatePayload });
-    if (window.pizarraUiUpdateCallbacks?.syncGameUIFromNetworkState) {
-         window.pizarraUiUpdateCallbacks.syncGameUIFromNetworkState(); // Sync leader's UI too
+    
+    // FIX: Also use netHandlers.broadcastState for better state synchronization
+    if (netHandlers && netHandlers.broadcastState) {
+        netHandlers.broadcastState(connections);
+    }
+    
+    if (window.pizarraUiUpdateCallbacks?.syncUIFromNetworkState) {
+         window.pizarraUiUpdateCallbacks.syncUIFromNetworkState(); // Sync leader's UI too
     }
 }
 
@@ -697,7 +731,10 @@ export function leaveRoom() {
     if (isCurrentlyLeader) {
         broadcastToRoom({ type: MSG_TYPE.GAME_OVER_ANNOUNCEMENT, reason: 'leader_left_room', finalWord: state.getCurrentWordObject()?.word });
         if (currentRoomId && state.getMyPeerId() === currentRoomId) { 
-            matchmaking.leaveQueue(currentRoomId);
+            // FIX: Add null check for matchmaking function
+            if (matchmaking && matchmaking.leaveQueue) {
+                matchmaking.leaveQueue(currentRoomId);
+            }
         }
         setTimeout(() => { 
             connections.forEach((connEntry) => connEntry.connObject?.close());
@@ -803,8 +840,13 @@ export function leaderStartGameRequest() {
     if(window.pizarraUiUpdateCallbacks?.startGameOnNetwork) window.pizarraUiUpdateCallbacks.startGameOnNetwork(initialGameState);
 
     if (currentRoomData.roomId) { 
-        matchmaking.leaveQueue(currentRoomData.roomId);
-        matchmaking.updateHostedRoomStatus(currentRoomData.roomId, currentRoomData.gameSettings, currentRoomData.maxPlayers, currentRoomData.players.length, 'in_game');
+        // FIX: Add null checks for matchmaking functions
+        if (matchmaking && matchmaking.leaveQueue) {
+            matchmaking.leaveQueue(currentRoomData.roomId);
+        }
+        if (matchmaking && matchmaking.updateHostedRoomStatus) {
+            matchmaking.updateHostedRoomStatus(currentRoomData.roomId, currentRoomData.gameSettings, currentRoomData.maxPlayers, currentRoomData.players.length, 'in_game');
+        }
     }
     broadcastFullGameStateToAll(); // Final sync after game start
 }
@@ -840,6 +882,8 @@ function setupConnectionEventHandlers(conn) { // Removed isLeaderConn, not used 
 
 export function closePeerSession() { 
     console.log("[PizarraPeerConn] Closing peer session (destroying local peer object)...");
+    
+    // FIX: Add null check for peerJsMultiplayer
     if (window.peerJsMultiplayer?.close) {
         window.peerJsMultiplayer.close(); 
     } else {
@@ -850,15 +894,34 @@ export function closePeerSession() {
     state.setMyPeerId(null); 
 }
 
+// FIX: Improve window beforeunload event handler
 window.addEventListener('beforeunload', () => {
     if (state.getPvpRemoteActive()) {
         if (state.getNetworkRoomData().isRoomLeader && state.getNetworkRoomData().roomId) {
-            matchmaking.leaveQueue(state.getNetworkRoomData().roomId); 
+            // FIX: Add null check for matchmaking function
+            if (matchmaking && matchmaking.leaveQueue) {
+                matchmaking.leaveQueue(state.getNetworkRoomData().roomId); 
+            }
         }
         closePeerSession(); 
     }
 });
 
-if (typeof window !== 'undefined' && !window.peerJsMultiplayer) {
-    console.error("pizarraPeerConnection.js: peerjs-multiplayer.js wrapper not found on window object! Load it first.");
+// FIX: Add better error checking for peerJsMultiplayer availability
+if (typeof window !== 'undefined') {
+    // Check periodically for peerJsMultiplayer availability instead of failing immediately
+    let checkCount = 0;
+    const maxChecks = 10;
+    const checkInterval = setInterval(() => {
+        if (window.peerJsMultiplayer) {
+            clearInterval(checkInterval);
+            console.log("[PizarraPeerConn] peerjs-multiplayer.js wrapper found and ready.");
+        } else {
+            checkCount++;
+            if (checkCount >= maxChecks) {
+                clearInterval(checkInterval);
+                console.error("pizarraPeerConnection.js: peerjs-multiplayer.js wrapper not found on window object after multiple checks! Load it first.");
+            }
+        }
+    }, 100);
 }

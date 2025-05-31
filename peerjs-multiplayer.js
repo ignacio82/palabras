@@ -5,6 +5,7 @@ let peer = null;
 let currentConnection = null; // Represents a single primary connection (client-to-host or host-to-first-client if simplified)
                                // For a host handling multiple clients, `peer.connections` is the source of truth.
 let localPeerId = null;
+let isClosingIntentionally = false; // FIX: Add flag to track intentional disconnections
 
 // Default callbacks
 let onPeerOpenCallback_default = (id) => console.log('PeerJS: Default (Global) - My peer ID is:', id);
@@ -42,6 +43,9 @@ function initPeerSession(options = {}, callbacks = {}) {
         console.log("PeerJS: Peer object was already destroyed. Ready for new initialization.");
         peer = null; // Ensure peer is null for re-initialization
     }
+
+    // FIX: Reset the intentional closing flag when starting a new session
+    isClosingIntentionally = false;
 
     // Register callbacks provided by the application
     currentOnPeerOpenCallback = callbacks.onPeerOpen || onPeerOpenCallback_default;
@@ -124,27 +128,29 @@ function initPeerSession(options = {}, callbacks = {}) {
         }
     });
 
-    // --- PATCH: Modify 'disconnected' handler ---
+    // FIX: Improve 'disconnected' handler to prevent unnecessary reconnection attempts
     peer.on('disconnected', () => {
-        console.warn('PeerJS: Disconnected from PeerServer – trying to reconnect...');
-        if (peer && !peer.destroyed) { // Check if peer exists and is not already destroyed
+        console.warn('PeerJS: Disconnected from PeerServer.');
+        
+        // Only attempt to reconnect if we're not intentionally closing
+        if (!isClosingIntentionally && peer && !peer.destroyed) {
+            console.log('PeerJS: Attempting to reconnect...');
             try {
                 peer.reconnect();
             } catch (e) {
                 console.error("PeerJS: Error during peer.reconnect():", e);
                 currentOnErrorCallback({type: 'reconnect_failed', message: 'Failed to reconnect to PeerServer.', originalError: e});
-                // Optionally, trigger a full closePeerSession here if reconnect fails catastrophically
             }
         } else {
-            console.warn("PeerJS: Peer was destroyed or null, cannot reconnect.");
+            console.log('PeerJS: Not attempting reconnect (intentional disconnect or peer destroyed)');
         }
     });
-    // --- END PATCH ---
 
     peer.on('close', () => { // This means the Peer object itself is destroyed
         console.log('PeerJS: Peer.on("close") event. Peer object fully closed and destroyed.');
         localPeerId = null;
         peer = null; // Ensure peer is marked as null after destruction
+        isClosingIntentionally = false; // Reset flag
         // Note: The application's close callback (currentOnConnectionCloseCallback) is for DataConnection close, not Peer close.
         // If the app needs to know the Peer itself closed, it should handle it via error or a specific callback for Peer close if added.
     });
@@ -260,22 +266,35 @@ function sendData(data, connToSendTo = null) {
     }
 }
 
-// Closes all connections and destroys the local Peer object
+// FIX: Improved closePeerSession with proper cleanup
 function closePeerSession() {
     console.log("PeerJS: Closing peer session (destroying local peer object)...");
+    
+    // FIX: Set flag to prevent reconnection attempts
+    isClosingIntentionally = true;
     
     // Close all active connections associated with this peer
     if (peer && peer.connections) {
         Object.keys(peer.connections).forEach(peerId => {
             peer.connections[peerId].forEach(conn => {
-                if (conn.close) conn.close();
+                if (conn && conn.close && !conn.disconnected) {
+                    try {
+                        conn.close();
+                    } catch (e) {
+                        console.warn("PeerJS: Error closing connection to", peerId, e);
+                    }
+                }
             });
         });
     }
+    
     // Also close the tracked 'currentConnection' if it exists
-    if (currentConnection && currentConnection.close) {
-        try { currentConnection.close(); } 
-        catch (e) { console.warn("PeerJS: Error closing main data connection", e); }
+    if (currentConnection && currentConnection.close && !currentConnection.disconnected) {
+        try { 
+            currentConnection.close(); 
+        } catch (e) { 
+            console.warn("PeerJS: Error closing main data connection", e); 
+        }
         currentConnection = null;
     }
 
@@ -286,9 +305,17 @@ function closePeerSession() {
                 peer.destroy(); // This will trigger the 'close' event on the peer
             } else {
                 console.log("PeerJS: Peer object was already destroyed.");
+                // Still reset our local variables
+                localPeerId = null;
+                peer = null;
+                isClosingIntentionally = false;
             }
         } catch (e) {
             console.warn("PeerJS: Error destroying peer object", e);
+            // Force cleanup even if destroy() failed
+            localPeerId = null;
+            peer = null;
+            isClosingIntentionally = false;
         }
         // peer = null; // Peer becomes null in the 'close' event handler for the peer
     }
@@ -311,7 +338,7 @@ function getConnection(targetPeerId) { // Get a specific open connection from th
         // A peer can have multiple DataConnection objects to another peer, find an open one.
         const connectionsToPeer = peer.connections[targetPeerId];
         for (let i = 0; i < connectionsToPeer.length; i++) {
-            if (connectionsToPeer[i].open) {
+            if (connectionsToPeer[i] && connectionsToPeer[i].open) {
                 return connectionsToPeer[i]; // Return the first open connection found
             }
         }

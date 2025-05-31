@@ -370,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // FIX: The callback function names - main.js was using wrong name
     window.pizarraUiUpdateCallbacks = {
         showLobby: (isHost) => {
             ui.hideModal();
@@ -379,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.showScreen('lobby'); // Makes lobby-area visible
             ui.updateLobbyUI();
             if (isHost) {
-                ui.displayRoomQRCodeAndLink(state.getRawNetworkRoomData().roomId, state.getRawNetworkRoomData().maxPlayers, PIZARRA_BASE_URL, PIZARRA_PEER_ID_PREFIX);
+                ui.displayRoomQRCodeAndLink(state.getRawNetworkRoomData().roomId, state.getRawNetworkRoomData().maxPlayers, PIZARRA_BASE_URL, state.PIZARRA_PEER_ID_PREFIX);
             } else {
                 if(networkInfoAreaEl) networkInfoAreaEl.style.display = 'none';
             }
@@ -434,8 +435,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.updateCurrentPlayerTurnUI();
             ui.updateStarsDisplay();
         },
-        syncGameUIFromNetworkState: () => {
-            console.log('[Main] syncGameUIFromNetworkState: Forcing UI sync from full network state.');
+        // FIX: Change from syncGameUIFromNetworkState to syncUIFromNetworkState
+        syncUIFromNetworkState: () => {
+            console.log('[Main] syncUIFromNetworkState: Forcing UI sync from full network state.');
             const currentPhase = state.getGamePhase(); // This reflects networkRoomData.roomState
             if (currentPhase === 'lobby') {
                 if(document.getElementById('setup-container')) document.getElementById('setup-container').style.display = 'block';
