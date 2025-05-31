@@ -35,7 +35,7 @@ function onDataReceived(data, fromPeerId) {
         console.warn(`[PeerConn RX] Received data with no type from ${fromPeerId}:`, data);
         return;
     }
-    if (state.getRawNetworkRoomData().isRoomLeader) {
+    if (state.getRawNetworkRoomData().isRoomLeader) { 
         handleLeaderDataReception(data, fromPeerId);
     } else {
         handleClientDataReception(data, fromPeerId);
@@ -333,12 +333,13 @@ const peerJsCallbacks = {
     onError
 };
 
+// REVISED _finalizeHostSetup (from AI patch)
 function _finalizeHostSetup(myHostRawPeerId) {
   console.log(`[PeerConn] _finalizeHostSetup called for Host PeerJS ID: ${myHostRawPeerId}.`);
   const setupDone = state.getInternalSetupCompleteCallback();
   const setupError = state.getInternalSetupErrorCallback(); 
 
-  if (!setupDone && !setupError) {
+  if (!setupDone && !setupError) { // Check if callbacks are already cleared/used
       console.warn(`[PeerConn] _finalizeHostSetup: Both setupDone and setupError callbacks are null. Setup might have already been finalized, aborted, or this is an unexpected call. Current state:`, state.getRawNetworkRoomData());
       return; 
   }
@@ -352,9 +353,9 @@ function _finalizeHostSetup(myHostRawPeerId) {
       console.warn("[PeerConn] _finalizeHostSetup: Host player (ID 0) not found as first in players array or array empty. Creating/prepending host entry.", currentPlayers);
       const hostDataForPlayerArray = state.getLocalPlayerCustomizationForNetwork(); 
       const hostPlayerEntry = { ...hostDataForPlayerArray, peerId: myHostRawPeerId, id: 0, isConnected: true, isReady: true, score: 0 };
-      const existingHostIndex = updatedPlayersArray.findIndex(p => p.id === 0);
+      const existingHostIndex = updatedPlayersArray.findIndex(p => p.id === 0); // Should actually check by a unique property if host is not always ID 0 at this stage
       if (existingHostIndex !== -1) updatedPlayersArray[existingHostIndex] = hostPlayerEntry;
-      else updatedPlayersArray.unshift(hostPlayerEntry);
+      else updatedPlayersArray.unshift(hostPlayerEntry); // Add to beginning if not found
   }
   
   state.setNetworkRoomData({
@@ -362,14 +363,14 @@ function _finalizeHostSetup(myHostRawPeerId) {
     leaderPeerId: myHostRawPeerId,
     roomState:    'lobby',
     players:      updatedPlayersArray, 
-    myPlayerIdInRoom: 0 
+    myPlayerIdInRoom: 0 // Host is player 0
   });
   console.log(`[PeerConn] _finalizeHostSetup: Host state updated. Room ID: ${myHostRawPeerId}, State set to lobby. Players updated with host peerId.`);
 
-  // Pass the fresh state to showLobby for context if needed
   const currentLobbyState = state.getRawNetworkRoomData(); 
   if (window.pizarraUiUpdateCallbacks?.showLobby) {
       console.log("[PeerConn] _finalizeHostSetup: Calling window.pizarraUiUpdateCallbacks.showLobby(true).");
+      // Pass currentLobbyState if showLobby expects it, otherwise it will pull from state
       window.pizarraUiUpdateCallbacks.showLobby(true, currentLobbyState); 
   } else {
       console.warn("[PeerConn] _finalizeHostSetup: window.pizarraUiUpdateCallbacks.showLobby not found!");
@@ -384,6 +385,7 @@ function _finalizeHostSetup(myHostRawPeerId) {
   state.setNetworkRoomData({ _setupCompleteCallback: null, _setupErrorCallback: null });
 }
 
+// REVISED _finalizeClientJoinAttempt (from AI patch)
 function _finalizeClientJoinAttempt(myRawPeerId, leaderRawPeerIdToJoin) {
   console.log(`[PeerConn] _finalizeClientJoinAttempt. My PeerJS ID: ${myRawPeerId}, Leader's PeerJS ID: ${leaderRawPeerIdToJoin}`);
   const setupDone = state.getInternalSetupCompleteCallback();
@@ -408,8 +410,8 @@ function _finalizeClientJoinAttempt(myRawPeerId, leaderRawPeerIdToJoin) {
   state.setPvpRemoteActive(true); 
   state.setNetworkRoomData({ leaderPeerId: leaderRawPeerIdToJoin, roomId: leaderRawPeerIdToJoin}); 
 
-  // ui.showLobby is called upon JOIN_ACCEPTED, not here.
-  // Here, we just establish the connection.
+  // UI: showLobby for client is called upon receiving JOIN_ACCEPTED from host.
+  // Here, we just initiate the connection.
 
   console.log(`[PeerConn] _finalizeClientJoinAttempt: Attempting to connect to leader PeerJS ID: ${leaderRawPeerIdToJoin}`);
   const connToLeader = window.peerJsMultiplayer.connect(leaderRawPeerIdToJoin);
@@ -421,7 +423,7 @@ function _finalizeClientJoinAttempt(myRawPeerId, leaderRawPeerIdToJoin) {
           console.log(`[PeerConn] _finalizeClientJoinAttempt: Calling setupDone callback with my PeerID: ${myRawPeerId}.`);
           setupDone(myRawPeerId); 
       }
-      // Clear setup callbacks after this stage for client.
+      // Clear these callbacks for the client's setup phase.
       state.setNetworkRoomData({ _setupCompleteCallback: null, _setupErrorCallback: null });
   } else {
       const errorMsg = `No se pudo iniciar la conexión a la sala ${PIZARRA_PEER_ID_PREFIX}${leaderRawPeerIdToJoin}. La función de conexión (peer.connect) falló.`;
@@ -466,7 +468,7 @@ export async function ensurePeerInitialized() {
             state.setMyPeerId(currentLocalRawId);
         }
         const setupCompleteCb = state.getInternalSetupCompleteCallback(); 
-        if (setupCompleteCb) { // If a high-level operation (host/join) is pending
+        if (setupCompleteCb) { 
             console.log("[PeerConn] ensurePeerInitialized: Existing peer, AND an internal _setupCompleteCallback exists. Attempting to finalize pending operation.");
             const dataState = state.getRawNetworkRoomData(); 
             if (dataState.isRoomLeader && (dataState.roomState === 'creating_room' || dataState.roomState === 'seeking_match')) {
@@ -476,7 +478,7 @@ export async function ensurePeerInitialized() {
                 console.log("[PeerConn] ensurePeerInitialized: Conditions suggest pending CLIENT join. Calling _finalizeClientJoinAttempt.");
                 _finalizeClientJoinAttempt(currentLocalRawId, dataState.leaderPeerId);
             } else {
-                console.log("[PeerConn] ensurePeerInitialized: Existing peer and _setupCompleteCallback, but conditions for finalize not met. State:", dataState);
+                 console.log("[PeerConn] ensurePeerInitialized: Existing peer and _setupCompleteCallback, but conditions for finalization not met (or already finalized). State:", dataState);
             }
         }
         return currentLocalRawId; 
@@ -747,8 +749,9 @@ function handlePlayerReadyChanged(data, fromPeerId) {
     }
 }
 
+// This function is called when the HOST receives a LETTER_GUESS message from a CLIENT
 function handleLetterGuess(data, fromPeerId, playerGameId) { 
-    console.log(`[PeerConn L] handleLetterGuess from PeerID ${fromPeerId} (GameID ${playerGameId}). Letter: ${data.letter}`);
+    console.log(`[PeerConn L] handleLetterGuess (from client ${fromPeerId}, GameID ${playerGameId}). Letter: ${data.letter}`);
     if (playerGameId === state.getCurrentPlayerId() && state.getGameActive()) {
         console.log(`[PeerConn L] Processing guess for player ${playerGameId}.`);
         const result = logic.processGuess(data.letter); 
@@ -781,14 +784,20 @@ function handleLetterGuess(data, fromPeerId, playerGameId) {
             };
             console.log("[PeerConn L] Broadcasting GAME_OVER_ANNOUNCEMENT:", gameOverPayload);
             broadcastToRoom(gameOverPayload);
+            // Also trigger for host UI if game over
+             if (window.pizarraUiUpdateCallbacks?.showNetworkGameOver) {
+                console.log("[PeerConn L] Triggering host's own showNetworkGameOver.");
+                window.pizarraUiUpdateCallbacks.showNetworkGameOver(gameOverPayload);
+            }
         }
     } else {
         console.warn(`[PeerConn L] Letter guess from ${fromPeerId} (Player ${playerGameId}) ignored. Not their turn (current: ${state.getCurrentPlayerId()}) or game not active (${state.getGameActive()}).`);
     }
 }
 
+// This function is called when the HOST receives a CLUE_REQUEST message from a CLIENT
 function handleClueRequest(data, fromPeerId, playerGameId) {
-    console.log(`[PeerConn L] handleClueRequest from PeerID ${fromPeerId} (GameID ${playerGameId}).`);
+    console.log(`[PeerConn L] handleClueRequest (from client ${fromPeerId}, GameID ${playerGameId}).`);
     if (playerGameId === state.getCurrentPlayerId() && 
         state.getGameActive() && 
         !state.getClueUsedThisGame()) {
@@ -803,7 +812,11 @@ function handleClueRequest(data, fromPeerId, playerGameId) {
             };
             console.log("[PeerConn L] Broadcasting CLUE_PROVIDED:", clueProvidedPayload);
             broadcastToRoom(clueProvidedPayload);
-            
+            // Host UI also needs to see the clue
+            if (window.pizarraUiUpdateCallbacks?.displayClueFromNetwork) {
+                 console.log("[PeerConn L] Triggering host's own displayClueFromNetwork.");
+                window.pizarraUiUpdateCallbacks.displayClueFromNetwork(clueProvidedPayload);
+            }
             console.log("[PeerConn L] Broadcasting full game state after clue provided.");
             broadcastFullGameStateToAll();
         } else {
@@ -821,6 +834,7 @@ function handleClueRequest(data, fromPeerId, playerGameId) {
         });
     }
 }
+
 
 function handleClientDataReception(data, fromLeaderPeerId) { 
     const currentClientState = state.getRawNetworkRoomData();
@@ -874,7 +888,6 @@ function handleClientDataReception(data, fromLeaderPeerId) {
                     window.pizarraUiUpdateCallbacks.showLobbyMessage(`${data.playerName || `Jugador ${data.playerId}`} ha salido de la sala.`);
                 }
             }
-            // Rely on subsequent FULL_GAME_STATE to update player list accurately
             break;
 
         case MSG_TYPE.GAME_STARTED:
@@ -896,6 +909,8 @@ function handleClientDataReception(data, fromLeaderPeerId) {
                 currentPlayerId: data.initialGameState.startingPlayerId,
                 clueUsedThisGame: data.initialGameState.clueUsedThisGame || false,
                 gameActive: true, 
+                // players array should be correctly set by setPlayersData via setNetworkRoomData if structure is consistent
+                players: data.initialGameState.playersInGameOrder 
             });
             
             if (window.pizarraUiUpdateCallbacks?.startGameOnNetwork) {
@@ -914,6 +929,7 @@ function handleClientDataReception(data, fromLeaderPeerId) {
             if (window.pizarraUiUpdateCallbacks?.displayClueFromNetwork) {
                 window.pizarraUiUpdateCallbacks.displayClueFromNetwork(data); 
             }
+            state.setClueUsedThisGame(data.clueUsed); // Client needs to update this state too
             break;
 
         case MSG_TYPE.FULL_GAME_STATE:
@@ -1160,9 +1176,9 @@ export function leaveRoom() {
 }
 
 function sendDataToLeader(data) {
-    // console.log(`[PeerConn C TX] Client sending data to leader. Type: ${data.type}, Payload:`, data);
     if (leaderConnection && leaderConnection.open) {
         try {
+            // console.log(`[PeerConn C TX] Client sending data to leader ${leaderConnection.peer}. Type: ${data.type}`, data);
             leaderConnection.send(data);
         } catch (e) {
             console.error(`[PeerConn C TX] Error sending data to leader ${leaderConnection.peer}:`, e, data);
@@ -1184,10 +1200,10 @@ function sendDataToLeader(data) {
 }
 
 function sendDataToClient(clientRawPeerId, data) { 
-    // console.log(`[PeerConn L TX] Host sending data to client ${clientRawPeerId}. Type: ${data.type}, Payload:`, data);
     const connEntry = connections.get(clientRawPeerId);
     if (connEntry?.connObject?.open) {
         try {
+            // console.log(`[PeerConn L TX] Host sending data to client ${clientRawPeerId}. Type: ${data.type}`, data);
             connEntry.connObject.send(data);
         } catch (e) {
             console.error(`[PeerConn L TX] Error sending data to client ${clientRawPeerId}:`, e, data);
@@ -1198,11 +1214,11 @@ function sendDataToClient(clientRawPeerId, data) {
 }
 
 function broadcastToRoom(data, excludePeerId = null) { 
-    // console.log(`[PeerConn L TX] Host broadcasting to room. Type: ${data.type}, Excluding: ${excludePeerId}, Payload:`, data);
     if (!state.getRawNetworkRoomData().isRoomLeader) {
         console.warn("[PeerConn L TX] Non-leader attempting to broadcast. Aborted.");
         return;
     }
+    // console.log(`[PeerConn L TX] Host broadcasting to room. Type: ${data.type}, Excluding: ${excludePeerId}`, data);
     connections.forEach((connEntry, peerId) => { 
         if (peerId !== excludePeerId && connEntry?.connObject?.open) {
             try {
@@ -1216,8 +1232,8 @@ function broadcastToRoom(data, excludePeerId = null) {
 
 export function sendPlayerReadyState(isReady) {
     console.log(`[PeerConn] sendPlayerReadyState called. Is Ready: ${isReady}`);
-    const currentNetworkData = state.getRawNetworkRoomData();
-    if (currentNetworkData.isRoomLeader) {
+    const currentRoomData = state.getRawNetworkRoomData();
+    if (currentRoomData.isRoomLeader) {
         console.log("[PeerConn] Host is changing their own ready state.");
         state.updatePlayerInNetworkRoom(state.getMyPeerId(), { isReady });
         console.log("[PeerConn] Host ready state updated. Broadcasting full game state.");
@@ -1226,10 +1242,10 @@ export function sendPlayerReadyState(isReady) {
             window.pizarraUiUpdateCallbacks.updateLobby();
         }
     } else {
-        console.log(`[PeerConn] Client (PlayerGameID: ${currentNetworkData.myPlayerIdInRoom}) sending ready state ${isReady} to host.`);
+        console.log(`[PeerConn] Client (PlayerGameID: ${currentRoomData.myPlayerIdInRoom}) sending ready state ${isReady} to host.`);
         sendDataToLeader({
             type: MSG_TYPE.PLAYER_READY_CHANGED,
-            playerId: currentNetworkData.myPlayerIdInRoom, 
+            playerId: currentRoomData.myPlayerIdInRoom, 
             isReady: isReady
         });
     }
@@ -1322,32 +1338,143 @@ export function leaderStartGameRequest() {
     }
 }
 
+// REVISED sendGuessToHost (from AI patch)
 export function sendGuessToHost(letter) {
-    console.log(`[PeerConn C TX] Client sending guess to host. Letter: ${letter}`);
-    const currentRoomData = state.getRawNetworkRoomData();
-    if (state.getPvpRemoteActive() && !currentRoomData.isRoomLeader && state.getGameActive()) {
-        sendDataToLeader({
-            type: MSG_TYPE.LETTER_GUESS,
-            letter: letter,
-            playerId: currentRoomData.myPlayerIdInRoom 
-        });
+  console.log(`[PeerConn TX] sendGuessToHost called. Letter: ${letter}`);
+  const currentRoomData = state.getRawNetworkRoomData();
+
+  // ─── CLIENT path ────────────────────────────────────────────────────────────
+  if (state.getPvpRemoteActive() && !currentRoomData.isRoomLeader && state.getGameActive()) {
+    console.log(`[PeerConn C TX] Client (PlayerGameID: ${currentRoomData.myPlayerIdInRoom}) sending guess '${letter}' to host.`);
+    sendDataToLeader({
+      type: MSG_TYPE.LETTER_GUESS,
+      letter: letter,
+      playerId: currentRoomData.myPlayerIdInRoom 
+    });
+    return;
+  }
+  
+  // ─── HOST path (local processing for host's own guess) ───────────────────
+  if (currentRoomData.isRoomLeader && state.getGameActive()) {
+    // Check if it's actually the host's turn (host is also a player, usually ID 0)
+    if (currentRoomData.myPlayerIdInRoom === state.getCurrentPlayerId()) {
+        console.log(`[PeerConn L] Host (PlayerGameID: ${currentRoomData.myPlayerIdInRoom}) processing own guess '${letter}' locally.`);
+        // Host processes its own guess directly using gameLogic
+        // This updates the authoritative state in pizarraState.js
+        const result = logic.processGuess(letter); 
+        console.log(`[PeerConn L] Host's own guess result for '${letter}':`, result);
+
+        const guessResultPayload = {
+          type   : MSG_TYPE.GUESS_RESULT,
+          ...result, // Includes attemptsLeft, wordSolved, gameOver, affectedPlayerId (which is host's ID) etc.
+          letter : letter.toUpperCase() // Ensure consistent casing
+        };
+
+        // Update host's UI immediately using the same callback clients use
+        if (window.pizarraUiUpdateCallbacks?.updateGameFromNetwork) {
+          console.log("[PeerConn L] Updating host's UI directly after own guess.");
+          window.pizarraUiUpdateCallbacks.updateGameFromNetwork(guessResultPayload);
+        }
+
+        console.log("[PeerConn L] Broadcasting GUESS_RESULT for host's own guess:", guessResultPayload);
+        broadcastToRoom(guessResultPayload); // Send specific result to clients
+        
+        console.log("[PeerConn L] Broadcasting full game state after host's own guess.");
+        broadcastFullGameStateToAll(); // Then send full state for consistency
+
+        if (result.gameOver) { 
+            console.log(`[PeerConn L] Game over condition met after host's own guess. Word: ${state.getCurrentWordObject()?.word}`);
+            state.setNetworkRoomData({ roomState: 'game_over' }); 
+            const winnerData = logic.getWinnerData(state); 
+            const finalWord = state.getCurrentWordObject()?.word;
+            const gameOverPayload = {
+                type        : MSG_TYPE.GAME_OVER_ANNOUNCEMENT,
+                winnerData  : winnerData,
+                finalScores : state.getPlayersData().map(p => ({ id:p.id, name:p.name, icon: p.icon, score:p.score })),
+                finalWord   : finalWord,
+                reason      : result.wordSolved ? "word_solved" : "player_lost",
+            };
+            console.log("[PeerConn L] Broadcasting GAME_OVER_ANNOUNCEMENT for host's game over:", gameOverPayload);
+            broadcastToRoom(gameOverPayload);
+            // Host UI also needs to see game over
+            if (window.pizarraUiUpdateCallbacks?.showNetworkGameOver) {
+                console.log("[PeerConn L] Triggering host's own showNetworkGameOver.");
+                window.pizarraUiUpdateCallbacks.showNetworkGameOver(gameOverPayload);
+            }
+        }
     } else {
-        console.warn(`[PeerConn C TX] sendGuessToHost: Conditions not met. PVP: ${state.getPvpRemoteActive()}, IsLeader: ${currentRoomData.isRoomLeader}, GameActive: ${state.getGameActive()}`);
+        console.warn(`[PeerConn L] Host attempting to guess but not their turn. Host ID: ${currentRoomData.myPlayerIdInRoom}, Current Turn: ${state.getCurrentPlayerId()}`);
     }
+    return;
+  }
+
+  // Fallback warning if neither client nor host conditions for action were met
+  console.warn(`[PeerConn TX] sendGuessToHost: Conditions not met for client or host action. PVP: ${state.getPvpRemoteActive()}, IsLeader: ${currentRoomData.isRoomLeader}, GameActive: ${state.getGameActive()}`);
 }
 
+// REVISED sendClueRequestToHost (from AI patch)
 export function sendClueRequestToHost() {
-    console.log("[PeerConn C TX] Client sending clue request to host.");
-    const currentRoomData = state.getRawNetworkRoomData();
-    if (state.getPvpRemoteActive() && !currentRoomData.isRoomLeader && state.getGameActive()) {
+  console.log("[PeerConn TX] sendClueRequestToHost called.");
+  const currentRoomData = state.getRawNetworkRoomData();
+
+  // ─── CLIENT path ────────────────────────────────────────────────────────────
+  if (state.getPvpRemoteActive() && !currentRoomData.isRoomLeader && state.getGameActive()) {
+    // Client needs to check if it's their turn before sending to host
+    if (currentRoomData.myPlayerIdInRoom === state.getCurrentPlayerId()) {
+        console.log(`[PeerConn C TX] Client (PlayerGameID: ${currentRoomData.myPlayerIdInRoom}) sending clue request to host.`);
         sendDataToLeader({
-            type: MSG_TYPE.CLUE_REQUEST,
-            playerId: currentRoomData.myPlayerIdInRoom 
+          type: MSG_TYPE.CLUE_REQUEST,
+          playerId: currentRoomData.myPlayerIdInRoom 
         });
     } else {
-         console.warn(`[PeerConn C TX] sendClueRequestToHost: Conditions not met. PVP: ${state.getPvpRemoteActive()}, IsLeader: ${currentRoomData.isRoomLeader}, GameActive: ${state.getGameActive()}`);
+        console.warn(`[PeerConn C TX] Client (PlayerGameID: ${currentRoomData.myPlayerIdInRoom}) tried to request clue, but not their turn (Current: ${state.getCurrentPlayerId()}).`);
+        // Optionally inform client UI: ui.displayMessage("No es tu turno para pedir pista.", "error");
     }
+    return;
+  }
+
+  // ─── HOST path (local processing for host's own clue request) ────────────────
+  if (currentRoomData.isRoomLeader && state.getGameActive()) {
+    // Host needs to check if it's their turn and if clue hasn't been used
+    if (currentRoomData.myPlayerIdInRoom === state.getCurrentPlayerId() && !state.getClueUsedThisGame()) {
+        console.log(`[PeerConn L] Host (PlayerGameID: ${currentRoomData.myPlayerIdInRoom}) processing own clue request locally.`);
+        const clueResult = logic.requestClue(); // This updates state.clueUsedThisGame
+
+        if (clueResult.success) {
+            console.log("[PeerConn L] Host's own clue request successful. Clue:", clueResult.clue);
+            const cluePayload = {
+                type     : MSG_TYPE.CLUE_PROVIDED,
+                clue     : clueResult.clue,
+                clueUsed : state.getClueUsedThisGame() // Get the updated state
+            };
+
+            // Update host's UI immediately
+            if (window.pizarraUiUpdateCallbacks?.displayClueFromNetwork) {
+                console.log("[PeerConn L] Updating host's UI directly after own clue request.");
+                window.pizarraUiUpdateCallbacks.displayClueFromNetwork(cluePayload);
+            }
+
+            console.log("[PeerConn L] Broadcasting CLUE_PROVIDED for host's own clue:", cluePayload);
+            broadcastToRoom(cluePayload);
+            console.log("[PeerConn L] Broadcasting full game state after host's own clue.");
+            broadcastFullGameStateToAll();
+        } else {
+            console.warn(`[PeerConn L] Host's own clue request failed: ${clueResult.message}`);
+            if (window.pizarraUiUpdateCallbacks?.showNetworkError) { // Inform host UI of failure
+                window.pizarraUiUpdateCallbacks.showNetworkError(clueResult.message || "No se pudo obtener la pista.", false);
+            }
+        }
+    } else {
+        console.warn(`[PeerConn L] Host clue request conditions not met. Turn: ${state.getCurrentPlayerId()}/${currentRoomData.myPlayerIdInRoom}, ClueUsed: ${state.getClueUsedThisGame()}`);
+        // Optionally inform host UI: ui.displayMessage("No puedes pedir pista ahora o ya fue usada.", "error");
+    }
+    return;
+  }
+  
+  // Fallback warning
+  console.warn(`[PeerConn TX] sendClueRequestToHost: Conditions not met for client or host action. PVP: ${state.getPvpRemoteActive()}, IsLeader: ${currentRoomData.isRoomLeader}, GameActive: ${state.getGameActive()}`);
 }
+
 
 function setupConnectionEventHandlers(conn) { 
     console.log(`[PeerConn] Setting up event handlers for connection with PeerJS ID: ${conn.peer}. Reliable: ${conn.reliable}`);
