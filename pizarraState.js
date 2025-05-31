@@ -18,55 +18,47 @@ export const PIZARRA_PEER_ID_PREFIX = "pizarra-";
 
 /* ----------  PRIVATE, MUTABLE MODULE-LEVEL STATE  ---------- */
 // Core Gameplay State
-let currentWord = ''; // Normalized, uppercase version of currentWordObject.word
-let currentWordObject = null; // { word: "RAW", definition: "...", difficulty: "..." }
-let guessedLetters = new Set(); // Set of normalized, lowercase letters
-let remainingAttemptsPerPlayer = []; // Array, index corresponds to player ID
-let currentPlayerId = 0; // ID of the current player
-let gameActive = false; // Is a game currently in progress?
-let gamePhase = 'idle'; // Overall application/game phase: 'idle' | 'lobby' | 'playing' | 'ended' | 'creating_room' | 'connecting_to_lobby' | 'awaiting_join_approval' | 'seeking_match' | 'game_over'
+let currentWord = ''; 
+let currentWordObject = null; 
+let guessedLetters = new Set(); 
+let remainingAttemptsPerPlayer = []; 
+let currentPlayerId = 0; 
+let gameActive = false; 
+let gamePhase = 'idle'; 
 let currentDifficulty = "easy";
 let clueUsedThisGame = false;
 
 // Network Play State
-let pvpRemoteActive = false; // Is the current game a network game?
-let myPeerId = null; // This client's PeerJS ID
+let pvpRemoteActive = false; 
+let myPeerId = null; 
 
-// This holds the state of the network room.
-// For the host, it's the authoritative state.
-// For clients, it's a synchronized copy from the host.
-// Includes both room management and potentially a snapshot of game state for sync.
+// THIS IS THE SINGLE SOURCE OF TRUTH FOR NETWORK ROOM DATA
 let networkRoomData = {
-    roomId: null,               // Unique ID of the room (usually host's PeerJS ID)
-    leaderPeerId: null,         // PeerJS ID of the room leader/host
-    myPlayerIdInRoom: null,     // This client's game-specific ID within the room (e.g., 0, 1, 2)
-    isRoomLeader: false,        // Is this client the leader of the room?
+    roomId: null,              
+    leaderPeerId: null,        
+    myPlayerIdInRoom: null,    
+    isRoomLeader: false,       
     maxPlayers: MAX_PLAYERS_NETWORK,
-    players: [],                // Array of player objects { id, peerId, name, icon, color, isReady, isConnected, score }
-    gameSettings: { difficulty: "easy" }, // Settings for the current/next game in the room
-    roomState: 'idle',          // State of the room: 'idle', 'lobby', 'playing', 'game_over' (mirrors gamePhase for network games)
-    turnCounter: 0,             // Primarily for network games to resolve potential race conditions (optional)
+    players: [],               
+    gameSettings: { difficulty: "easy" }, 
+    roomState: 'idle',         
+    turnCounter: 0,            
 
     // Palabras game state snapshot for synchronization via FULL_GAME_STATE
-    // These fields are mirrored from/to the global gameplay state variables above.
     currentWordObject: null,
-    guessedLetters: [], // Serialized as array
+    guessedLetters: [], 
     remainingAttemptsPerPlayer: [],
     currentPlayerId: 0,
     clueUsedThisGame: false,
-    gameActive: false, // Mirrored from global gameActive
+    gameActive: false, 
 
-    // Internal flags for async setup, not meant to be part of general state sync for clients
     _peerInitPromise: null,
     _peerInitResolve: null,
     _peerInitReject: null,
-    _setupCompleteCallback: null, // For hostNewRoom/joinRoomById promises
+    _setupCompleteCallback: null, 
     _setupErrorCallback: null,
 };
 
-// Local Game Players Data (used by gameLogic when game is active, or for single player)
-// In network games, this is typically a synchronized copy of networkRoomData.players
-// or a subset relevant to the game logic.
 let localPlayersData = [];
 
 
@@ -89,18 +81,23 @@ export function setCurrentWordObject(obj) {
     } else {
         currentWord = "";
     }
+    // Sync to networkRoomData snapshot if pvp is active
+    if (pvpRemoteActive) networkRoomData.currentWordObject = currentWordObject;
 }
 export function setGuessedLetters(newSet) {
     guessedLetters = newSet instanceof Set ? new Set(Array.from(newSet).map(l => typeof l === 'string' ? l.toLowerCase() : l)) : new Set();
+    if (pvpRemoteActive) networkRoomData.guessedLetters = Array.from(guessedLetters); // Sync as array
 }
 
 export function initRemainingAttempts(numPlayers, attempts = DEFAULT_ATTEMPTS_PER_PLAYER) {
   remainingAttemptsPerPlayer = Array(Math.max(1, numPlayers)).fill(attempts);
+  if (pvpRemoteActive) networkRoomData.remainingAttemptsPerPlayer = [...remainingAttemptsPerPlayer];
 }
 
 export function setRemainingAttemptsPerPlayer(newArray) {
   if (Array.isArray(newArray)) {
     remainingAttemptsPerPlayer = Array.from(newArray);
+    if (pvpRemoteActive) networkRoomData.remainingAttemptsPerPlayer = [...remainingAttemptsPerPlayer];
   } else {
     console.error("[State] setRemainingAttemptsPerPlayer: Provided value is not an array.", newArray);
   }
@@ -110,12 +107,14 @@ export function decAttemptsFor(playerId) {
   if (playerId >= 0 && playerId < remainingAttemptsPerPlayer.length) {
     if (remainingAttemptsPerPlayer[playerId] > 0) {
         remainingAttemptsPerPlayer[playerId]--;
+        if (pvpRemoteActive) networkRoomData.remainingAttemptsPerPlayer = [...remainingAttemptsPerPlayer];
     }
   }
 }
 
 export function setGameActive(isActive) {
     gameActive = isActive;
+    if (pvpRemoteActive) networkRoomData.gameActive = gameActive;
     const currentActualPhase = pvpRemoteActive ? networkRoomData.roomState : gamePhase;
     if (!isActive && currentActualPhase === 'playing') {
         setGamePhase(pvpRemoteActive ? 'game_over' : 'ended');
@@ -123,27 +122,39 @@ export function setGameActive(isActive) {
         setGamePhase('playing');
     }
 }
-export function setCurrentDifficulty(difficultyStr) { currentDifficulty = difficultyStr; }
-export function setClueUsedThisGame(wasUsed) { clueUsedThisGame = wasUsed; }
+export function setCurrentDifficulty(difficultyStr) { 
+    currentDifficulty = difficultyStr; 
+    if (pvpRemoteActive) networkRoomData.gameSettings.difficulty = currentDifficulty;
+}
+export function setClueUsedThisGame(wasUsed) { 
+    clueUsedThisGame = wasUsed; 
+    if (pvpRemoteActive) networkRoomData.clueUsedThisGame = clueUsedThisGame;
+}
 
 export function setPlayersData(newPlayers) {
   localPlayersData = newPlayers ? clone(newPlayers) : [];
-  if (!pvpRemoteActive && localPlayersData.length > 0) { // Only init attempts here if it's a local game setup with players
+  if (pvpRemoteActive) {
+    // If these are the game instance players being set, reflect in networkRoomData.players if structure matches
+    // This assumes newPlayers are {id, name, icon, color, score, peerId, isConnected, isReady}
+    networkRoomData.players = clone(localPlayersData);
+  } else if (localPlayersData.length > 0) { 
       initRemainingAttempts(localPlayersData.length || 1);
   }
 }
-export function setCurrentPlayerId(id) { currentPlayerId = id; }
+export function setCurrentPlayerId(id) { 
+    currentPlayerId = id; 
+    if (pvpRemoteActive) networkRoomData.currentPlayerId = currentPlayerId;
+}
 
 export function setGamePhase(phase) {
     const validPhases = ['idle', 'lobby', 'playing', 'ended', 'creating_room', 'connecting_to_lobby', 'awaiting_join_approval', 'seeking_match', 'game_over'];
     if (validPhases.includes(phase)) {
         if (pvpRemoteActive) {
             if (networkRoomData.roomState !== phase) {
-                networkRoomData.roomState = phase; // Update networkRoomData's view of the phase
+                networkRoomData.roomState = phase; 
                 console.log(`[State] Network roomState (phase) set to: ${networkRoomData.roomState}`);
             }
-            // Also sync general gamePhase if it's meant to mirror roomState for network games
-            gamePhase = phase;
+            gamePhase = phase; // Keep global gamePhase in sync with network roomState
         } else {
             if (gamePhase !== phase) {
                 gamePhase = phase;
@@ -159,7 +170,7 @@ export function setGamePhase(phase) {
 export function setPvpRemoteActive(isActive) { pvpRemoteActive = isActive; }
 export function setMyPeerId(id) { myPeerId = id; }
 
-// This function is crucial for clients receiving FULL_GAME_STATE
+// This function updates the *single* networkRoomData object and syncs relevant parts to global state.
 export function setNetworkRoomData(data) {
     const preservedCallbacks = {
         _peerInitPromise: data.hasOwnProperty('_peerInitPromise') ? data._peerInitPromise : networkRoomData._peerInitPromise,
@@ -170,36 +181,30 @@ export function setNetworkRoomData(data) {
     };
     const oldRoomState = networkRoomData.roomState;
 
-    // Merge incoming data into networkRoomData
     networkRoomData = { ...networkRoomData, ...clone(data), ...preservedCallbacks };
 
-    // If the incoming data (e.g., from FULL_GAME_STATE) contains game-specific fields,
-    // update the global state variables accordingly.
+    // Update global state variables from the authoritative data received (e.g., from host via FULL_GAME_STATE)
     if (data.currentWordObject !== undefined) setCurrentWordObject(data.currentWordObject);
-    if (data.guessedLetters !== undefined) setGuessedLetters(new Set(data.guessedLetters)); // Ensure it's a Set
+    if (data.guessedLetters !== undefined) setGuessedLetters(new Set(data.guessedLetters));
     if (data.remainingAttemptsPerPlayer !== undefined) setRemainingAttemptsPerPlayer(clone(data.remainingAttemptsPerPlayer));
     if (data.clueUsedThisGame !== undefined) setClueUsedThisGame(data.clueUsedThisGame);
     if (data.currentPlayerId !== undefined) setCurrentPlayerId(data.currentPlayerId);
-    if (data.gameActive !== undefined) setGameActive(data.gameActive); // This will also call setGamePhase if needed
+    if (data.gameActive !== undefined) setGameActive(data.gameActive); // Will also call setGamePhase
 
-    // If players list is part of the update (it will be in FULL_GAME_STATE),
-    // also update localPlayersData which gameLogic uses.
-    if (data.players) { // data.players should be the full player list {id, name, score, etc.}
-        setPlayersData(data.players); // This updates localPlayersData
+    if (data.players) { 
+        setPlayersData(data.players); // This updates localPlayersData and networkRoomData.players
     }
-
-    // Update game settings if provided
-    if (data.gameSettings?.difficulty && currentDifficulty !== data.gameSettings.difficulty) {
+    if (data.gameSettings?.difficulty) {
         setCurrentDifficulty(data.gameSettings.difficulty);
     }
-     if (data.roomState && pvpRemoteActive) { // If roomState is explicitly in data, sync gamePhase
-        setGamePhase(data.roomState); // This updates global gamePhase and networkRoomData.roomState
+    if (data.roomState && pvpRemoteActive) { 
+        setGamePhase(data.roomState); 
     } else if (networkRoomData.roomState && networkRoomData.roomState !== oldRoomState) {
-        console.log(`[State] networkRoomData.roomState changed: ${oldRoomState} -> ${networkRoomData.roomState}`);
-        if (pvpRemoteActive) { // Sync gameActive and gamePhase based on the new roomState
+        console.log(`[State] networkRoomData.roomState changed via merge: ${oldRoomState} -> ${networkRoomData.roomState}`);
+        if (pvpRemoteActive) { 
             const isActive = (networkRoomData.roomState === 'playing');
-            if (gameActive !== isActive) setGameActive(isActive); // This calls setGamePhase
-            else if (gamePhase !== networkRoomData.roomState) setGamePhase(networkRoomData.roomState); // Sync phase if gameActive didn't change it
+            if (gameActive !== isActive) setGameActive(isActive); 
+            else if (gamePhase !== networkRoomData.roomState) setGamePhase(networkRoomData.roomState); 
         }
     }
 }
@@ -210,73 +215,70 @@ export function resetNetworkRoomData() {
         _peerInitReject: networkRoomData._peerInitReject, _setupCompleteCallback: networkRoomData._setupCompleteCallback,
         _setupErrorCallback: networkRoomData._setupErrorCallback,
     };
+    // Initialize with all fields for clarity
     networkRoomData = {
         roomId: null, leaderPeerId: null, myPlayerIdInRoom: null, isRoomLeader: false,
         maxPlayers: MAX_PLAYERS_NETWORK, players: [],
-        gameSettings: { difficulty: currentDifficulty }, // Default to current app difficulty
+        gameSettings: { difficulty: currentDifficulty }, 
         roomState: 'idle', turnCounter: 0,
-        // Reset Palabras game state fields within networkRoomData snapshot
         currentWordObject: null, guessedLetters: [], remainingAttemptsPerPlayer: [],
         currentPlayerId: 0, clueUsedThisGame: false, gameActive: false,
         ...preservedCallbacks
     };
-    if (!pvpRemoteActive) { // If switching away from network mode by this reset
+    if (!pvpRemoteActive) { 
         setGamePhase('idle');
     }
 }
 
-export function addPlayerToNetworkRoom(player) { // Used by host
+export function addPlayerToNetworkRoom(player) { 
     const existingPlayerIndex = networkRoomData.players.findIndex(p => p.peerId === player.peerId || (p.id !== null && p.id === player.id));
     if (existingPlayerIndex === -1) {
         networkRoomData.players.push(clone(player));
-    } else { // Update existing player (e.g., on reconnect or if data changes)
+    } else { 
         networkRoomData.players[existingPlayerIndex] = { ...networkRoomData.players[existingPlayerIndex], ...clone(player), isConnected: true };
     }
-    // Ensure players are sorted by ID for consistent order if IDs are managed sequentially
     networkRoomData.players.sort((a, b) => (a.id === undefined || a.id === null ? Infinity : a.id) - (b.id === undefined || b.id === null ? Infinity : b.id));
+    // Sync to localPlayersData if pvpRemoteActive, as this list is authoritative for the game instance
+    if (pvpRemoteActive) setPlayersData(networkRoomData.players);
 }
 
-export function removePlayerFromNetworkRoom(peerIdToRemove) { // Used by host
-    const initialCount = networkRoomData.players.length;
+export function removePlayerFromNetworkRoom(peerIdToRemove) { 
     networkRoomData.players = networkRoomData.players.filter(p => p.peerId !== peerIdToRemove);
-    if (networkRoomData.players.length < initialCount) {
-        // Player was removed
-    }
+    if (pvpRemoteActive) setPlayersData(networkRoomData.players);
 }
 
-export function updatePlayerInNetworkRoom(peerIdToUpdate, updates) { // Used by host
+export function updatePlayerInNetworkRoom(peerIdToUpdate, updates) { 
     const playerIndex = networkRoomData.players.findIndex(p => p.peerId === peerIdToUpdate);
     if (playerIndex !== -1) {
         networkRoomData.players[playerIndex] = { ...networkRoomData.players[playerIndex], ...clone(updates) };
+        if (pvpRemoteActive) setPlayersData(networkRoomData.players);
     }
 }
 
 /* ----------  PUBLIC GETTERS for Core Gameplay State ---------- */
 export function getCurrentWord() { return currentWord; }
 export function getCurrentWordObject() { return currentWordObject ? clone(currentWordObject) : null; }
-export function getGuessedLetters() { return new Set(guessedLetters); } // Return a clone Set
+export function getGuessedLetters() { return new Set(guessedLetters); } 
 
 export function getAttemptsFor(playerId) {
   if (playerId !== null && playerId !== undefined && playerId >= 0 && playerId < remainingAttemptsPerPlayer.length) {
     return remainingAttemptsPerPlayer[playerId];
   }
-  // Fallback if player ID is out of bounds or attempts not initialized for them
   return DEFAULT_ATTEMPTS_PER_PLAYER;
 }
-export function getRemainingAttemptsPerPlayer() { // Returns a clone array
+export function getRemainingAttemptsPerPlayer() { 
   return [...remainingAttemptsPerPlayer];
 }
 export function getGameActive() { return gameActive; }
 export function getCurrentDifficulty() { return currentDifficulty; }
 export function getClueUsedThisGame() { return clueUsedThisGame; }
 
-// Returns players for the current game instance (local or network game logic context)
 export function getPlayersData() {
     return clone(localPlayersData);
 }
-export function getCurrentPlayerId() { return currentPlayerId; } // ID of current player for game turn
+export function getCurrentPlayerId() { return currentPlayerId; } 
 
-export function getGamePhase() { // Authoritative game phase
+export function getGamePhase() { 
     return pvpRemoteActive ? networkRoomData.roomState : gamePhase;
 }
 
@@ -284,64 +286,67 @@ export function getGamePhase() { // Authoritative game phase
 export function getPvpRemoteActive() { return pvpRemoteActive; }
 export function getMyPeerId() { return myPeerId; }
 
-// Returns a clone of the raw networkRoomData, including internal fields.
-// Primarily for host to construct FULL_GAME_STATE or for debugging.
+// Returns a clone of the *entire internal* networkRoomData object.
+// This is what other modules like main.js and peerConnection.js will use when they need the full room state.
 export function getRawNetworkRoomData() {
     return clone(networkRoomData);
 }
+// ---- FIX: Add the missing getNetworkRoomData function as an alias ----
+export { getRawNetworkRoomData as getNetworkRoomData };
 
-// Returns a version of networkRoomData suitable for sending to clients
-// (e.g., for lobby updates, excluding internal callbacks).
+// Returns a version of networkRoomData suitable for sending to clients for lobby updates.
 export function getSanitizedNetworkRoomDataForClient() {
     if (!networkRoomData) return {};
+    // Destructure to exclude internal callbacks and sensitive game state not needed for lobby view
     const {
         _peerInitPromise, _peerInitResolve, _peerInitReject,
         _setupCompleteCallback, _setupErrorCallback,
-        // Explicitly take what's needed for client ROOM_STATE_UPDATE (lobby)
-        // For Palabras, this is primarily: players, gameSettings, maxPlayers, roomState, roomId, leaderPeerId
-        // The game-specific fields like currentWordObject are sent via FULL_GAME_STATE when game is active.
-        currentWordObject, guessedLetters, remainingAttemptsPerPlayer, currentPlayerId, clueUsedThisGame, gameActive, // Exclude these from simple room state unless intended
-        ...sanitizedData
+        currentWordObject, guessedLetters, remainingAttemptsPerPlayer, // Exclude detailed game state for simple lobby updates
+        currentPlayerId, clueUsedThisGame, gameActive, // These are part of FULL_GAME_STATE
+        ...sanitizedDataForLobby // Includes players, roomState, gameSettings, roomId, leaderPeerId etc.
     } = networkRoomData;
-     // Ensure players list in sanitizedData is also a clone if it wasn't already handled by the spread
-    if (sanitizedData.players) sanitizedData.players = clone(sanitizedData.players);
-    return clone(sanitizedData); // Clone the result too
+    if (sanitizedDataForLobby.players) sanitizedDataForLobby.players = clone(sanitizedDataForLobby.players);
+    return clone(sanitizedDataForLobby);
 }
 
 /* ---------- Combined State Management Functions ---------- */
 export function resetScores() {
     if (localPlayersData) localPlayersData.forEach(p => p.score = 0);
-    if (networkRoomData?.players) networkRoomData.players.forEach(p => p.score = 0);
+    if (networkRoomData?.players) {
+        networkRoomData.players.forEach(p => p.score = 0);
+        // If scores are reset, localPlayersData (used by gameLogic) should also reflect this
+        if (pvpRemoteActive) setPlayersData(networkRoomData.players);
+    }
 }
 
-// For starting a new word/round (resets game flow, not players/scores necessarily for a multi-round game)
 export function resetGameFlowState() {
     setCurrentWordObject(null);
-    setGuessedLetters(new Set()); // Clears guessed letters
-    // remainingAttemptsPerPlayer is typically re-initialized by initializeGame or setPlayersData
+    setGuessedLetters(new Set());
     setClueUsedThisGame(false);
-    if (pvpRemoteActive && networkRoomData) networkRoomData.turnCounter = 0; // Reset turn counter for network
-    // currentPlayerId might be reset by initializeGame to the starting player
+    // remainingAttemptsPerPlayer and currentPlayerId are typically reset by initializeGame
+    if (pvpRemoteActive && networkRoomData) {
+        networkRoomData.turnCounter = 0;
+        // Reset game-specific snapshot fields in networkRoomData too
+        networkRoomData.currentWordObject = null;
+        networkRoomData.guessedLetters = [];
+        networkRoomData.remainingAttemptsPerPlayer = [];
+        networkRoomData.currentPlayerId = 0;
+        networkRoomData.clueUsedThisGame = false;
+        networkRoomData.gameActive = false;
+    }
 }
 
-// For returning to main menu, quitting a game entirely
 export function resetFullLocalStateForNewUIScreen() {
-    resetGameFlowState(); // Resets word, guessed letters, clue
-    resetScores();        // Resets scores in localPlayersData and networkRoomData.players
+    resetGameFlowState(); 
+    resetScores();       
 
-    localPlayersData = []; // Clear game instance players
+    localPlayersData = []; 
     currentPlayerId = 0;
-    // currentDifficulty = "easy"; // User's difficulty selection often persists
-    setGameActive(false); // Ensures game is not active
-    remainingAttemptsPerPlayer = []; // Clear attempts array
-
-    // myPeerId should persist if PeerJS session is not fully closed yet,
-    // peerConnection.closeAllConnectionsAndSession() handles setting myPeerId to null.
-
-    // pvpRemoteActive should be set by UI flow, not reset here,
-    // but networkRoomData itself is reset.
-    resetNetworkRoomData(); // Resets network specific state (room, players in room, etc.)
-    setGamePhase('idle'); // Set overall game phase to idle
+    setGameActive(false); 
+    remainingAttemptsPerPlayer = []; 
+    
+    resetNetworkRoomData(); 
+    setGamePhase('idle'); 
 }
 
 export function normalizeString(str) { return normalizeStringInternal(str); }
@@ -349,26 +354,24 @@ export function normalizeString(str) { return normalizeStringInternal(str); }
 export function getLocalPlayerCustomizationForNetwork() {
     const nameEl = document.getElementById(`network-player-name`);
     const iconEl = document.getElementById(`network-player-icon`);
-    const name = nameEl?.value.trim() || `Pizarrín${Math.floor(Math.random()*100)}`;
+    const name = nameEl?.value.trim() || `Pizarrín${Math.floor(Math.random()*1000)}`;
     const icon = iconEl?.value || AVAILABLE_ICONS[0];
 
-    // Basic color assignment - host might re-assign for uniqueness if needed
     let colorIndex = 0;
-    if (networkRoomData?.players?.length > 0 && networkRoomData.players.length < DEFAULT_PLAYER_COLORS.length) {
-        // Try to pick a color not already in use by connected players in the room
-        const usedColors = new Set(networkRoomData.players.filter(p => p.isConnected).map(p => p.color));
+    const currentPlayersInRoom = networkRoomData?.players || [];
+    if (currentPlayersInRoom.length > 0 && currentPlayersInRoom.length < DEFAULT_PLAYER_COLORS.length) {
+        const usedColors = new Set(currentPlayersInRoom.filter(p => p.isConnected || p.peerId === myPeerId).map(p => p.color)); // Consider only connected or self
         for (let i = 0; i < DEFAULT_PLAYER_COLORS.length; i++) {
             if (!usedColors.has(DEFAULT_PLAYER_COLORS[i])) {
                 colorIndex = i;
                 break;
             }
-             // If all default colors are used, cycle through them
             if (i === DEFAULT_PLAYER_COLORS.length -1) {
-                colorIndex = networkRoomData.players.length % DEFAULT_PLAYER_COLORS.length;
+                colorIndex = currentPlayersInRoom.length % DEFAULT_PLAYER_COLORS.length;
             }
         }
-    } else if (networkRoomData?.players?.length >= DEFAULT_PLAYER_COLORS.length) {
-         colorIndex = networkRoomData.players.length % DEFAULT_PLAYER_COLORS.length;
+    } else if (currentPlayersInRoom.length >= DEFAULT_PLAYER_COLORS.length) {
+         colorIndex = currentPlayersInRoom.length % DEFAULT_PLAYER_COLORS.length;
     }
     return { name, icon, color: DEFAULT_PLAYER_COLORS[colorIndex] };
 }
@@ -385,8 +388,6 @@ export function logCurrentState(context = "Generic") {
     console.log("--- NETWORK STATE ---");
     console.log("PVP Remote Active:", pvpRemoteActive);
     console.log("My Peer ID:", myPeerId);
-    // Log sanitized for brevity, raw for host debugging if needed
-    console.log("Network Room Data (Sanitized for Client view):", getSanitizedNetworkRoomDataForClient());
-    // if (getNetworkRoomData().isRoomLeader) console.log("Network Room Data (RAW for Host):", getRawNetworkRoomData());
+    console.log("Network Room Data (RAW - internal snapshot):", getRawNetworkRoomData()); // Log the full internal object for debug
     console.log("------------------------");
 }
