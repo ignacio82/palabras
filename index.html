@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+          content="width=device-width,initial-scale=1,maximum-scale=1,interactive-widget=resizes-content">
     <title>Palabras de Danielle - ¡Juego de Palabras Mágico!</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Bubblegum+Sans&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
@@ -10,11 +11,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🌈 Palabras de Danielle 🦄</h1>
-        </header>
+    <header id="site-header">
+        <h1>🌈 Palabras de Danielle 🦄</h1>
+    </header>
 
+    <div id="setup-container">
         <section id="game-mode-selection-section" class="game-setup-section">
             <p>¿Cómo quieres jugar hoy? 🎮</p>
             <div class="tabs">
@@ -40,8 +41,7 @@
                 <label for="network-player-name">🏷️ Tu Nombre:</label>
                 <input type="text" id="network-player-name" placeholder="Escribe tu nombre aquí" maxlength="15" value="Danielle">
                 <label for="network-player-icon">🎭 Tu Ícono Favorito:</label>
-                <select id="network-player-icon">
-                    </select>
+                <select id="network-player-icon"></select>
             </div>
             <div>
                 <label for="network-max-players">👥 ¿Cuántos amigos pueden jugar? (2-4):</label>
@@ -69,8 +69,7 @@
             <h2 id="lobby-title">Sala de Espera 🏠</h2>
             <p id="lobby-room-id-display">🆔 ID de Sala: <span>Cargando...</span></p>
             <p id="lobby-game-settings-display">⚙️ Dificultad: <span id="lobby-difficulty-display"></span> | 👥 Jugadores: <span id="lobby-player-count-display"></span></p>
-            <div id="lobby-player-list">
-                </div>
+            <div id="lobby-player-list"></div>
             <p id="lobby-message-area" class="message">&nbsp;</p>
             <div class="lobby-actions">
                 <button id="lobby-toggle-ready-button" class="action-button">👍 ¡Estoy Lista!</button>
@@ -78,64 +77,57 @@
             </div>
             <button id="lobby-leave-room-button" class="action-button-danger">🚪 Salir de la Sala</button>
         </section>
+    </div> <main id="app" style="display: none;">
+        <section id="stats-bar"> <p id="stars-display-container">✨ Estrellitas: <span id="stars-display"></span></p>
+            <p id="current-player-turn-display">🎯 Turno de: <span></span></p>
+            <button id="clue-button" style="display: none;">💡 Pedir Pista Mágica</button>
+        </section>
 
-        <main id="game-area" style="display: none;">
-            <section id="game-status">
-                <p id="stars-display-container">✨ Estrellitas: <span id="stars-display"></span></p>
-                <p id="current-player-turn-display">🎯 Turno de: <span></span></p>
-                <button id="clue-button" style="display: none;">💡 Pedir Pista Mágica</button>
-            </section>
+        <div id="clue-display-area" style="display: none;">
+            <p><strong>🔮 Pista Mágica:</strong> <span id="clue-text"></span></p>
+        </div>
+        <p id="message-area" class="message">&nbsp;</p>
 
-            <div id="clue-display-area" style="display: none;">
-                <p><strong>🔮 Pista Mágica:</strong> <span id="clue-text"></span></p>
-            </div>
+        <section id="word-display-section"> <div id="word-display-container"></div>
+        </section>
 
-            <p id="message-area" class="message">&nbsp;</p>
+        <section id="alphabet-section"> <div id="alphabet-keyboard-container"></div>
+        </section>
 
-            <section id="word-display-section">
-                <div id="word-display-container"></div>
-            </section>
+        <section id="guessed-letters-section">
+            <div id="score-display-area"></div>
+            <p>❌ Letras incorrectas: <span id="incorrect-letters-display" class="letters incorrect">Ninguna</span></p>
+            <p>✅ Letras correctas: <span id="correct-letters-display" class="letters correct">Ninguna</span></p>
+        </section>
 
-            <section id="alphabet-section">
-                <div id="alphabet-keyboard-container"></div>
-            </section>
+        <section id="controls-section">
+            <button id="play-again-button" style="display:none;">🔄 Jugar Otra Vez</button>
+            <button id="main-menu-button" style="display:none;">🏠 Volver al Inicio</button>
+        </section>
+    </main>
 
-            <section id="guessed-letters-section">
-                <div id="score-display-area">
-                    </div>
-                <p>❌ Letras incorrectas: <span id="incorrect-letters-display" class="letters incorrect">Ninguna</span></p>
-                <p>✅ Letras correctas: <span id="correct-letters-display" class="letters correct">Ninguna</span></p>
-            </section>
-
-            <section id="controls-section">
-                <button id="play-again-button" style="display:none;">🔄 Jugar Otra Vez</button>
-                <button id="main-menu-button" style="display:none;">🏠 Volver al Inicio</button>
-            </section>
-        </main>
-
-        <div id="confetti-container"></div>
-        
-        <footer>
-            <p>💖 ¡Palabras de Danielle - Diversión Mágica! 💖</p>
-        </footer>
-    </div>
+    <div id="confetti-container"></div>
+    
+    <footer id="banner">
+        <p>💖 ¡Palabras de Danielle! 💖</p>
+    </footer>
 
     <div id="custom-modal" class="modal" style="display:none;">
         <div class="modal-content">
             <p id="modal-message-text"></p>
-            <div id="modal-dynamic-buttons" class="modal-buttons-container">
-                </div>
+            <div id="modal-dynamic-buttons" class="modal-buttons-container"></div>
             <button id="modal-close-button" class="action-button-secondary">❌ Cerrar</button>
         </div>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="peerjs-multiplayer.js"></script> <script src="dictionary.js"></script>
+    <script src="peerjs-multiplayer.js"></script>
+    <script src="dictionary.js"></script>
     <script type="module" src="pizarraState.js"></script>
     <script type="module" src="gameLogic.js"></script>
-    <script type="module" src="pizarraPeerConnection.js"></script>
+    <script type="module" src="pizarraUi.js"></script> <script type="module" src="pizarraSound.js"></script> <script type="module" src="pizarraPeerConnection.js"></script>
     <script type="module" src="pizarraMatchmaking.js"></script>
-    <script type="module" src="pizarraNetHandlers.js"></script> <script type="module" src="main.js"></script>
+    <script type="module" src="main.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    </body>
+</body>
 </html>
